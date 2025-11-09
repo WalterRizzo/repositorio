@@ -1,7 +1,57 @@
-dist/
-node_modules/
+# Nodedist/
+
+node_modules/node_modules/
+
 .wrangler/
-.dev.vars
-worker-configuration.d.ts
+
+# Build.dev.vars
+
+/distworker-configuration.d.ts
+
+/.vite.env
+
+/.wrangler*.log
+
+
+# VS Code
+.vscode/
+
+# Env
 .env
+.env.*
+
+# Logs
 *.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups
+*.zip
+*.bak
+
+# TypeScript
+*.tsbuildinfo
+
+# Cloudflare
+wrangler.toml
+wrangler.json
+
+# Others
+.idea/
+*.swp
+
+# Ignore emergency/working configs
+*.WORKING
+*.emergency.json
+
+# Ignore temp files
+*.tmp
+*.temp
+
+# Ignore test output
+/coverage
+
+# Ignore migrations backups
+migrations/*/down.sql
