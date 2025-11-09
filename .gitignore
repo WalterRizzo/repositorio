@@ -55,3 +55,4 @@ wrangler.json
 
 # Ignore migrations backups
 migrations/*/down.sql
+node_modules
