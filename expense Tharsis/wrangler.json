@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "expense-tharsis-app",
+  "main": "./src/worker/index.ts",
+  "compatibility_date": "2025-06-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "upload_source_maps": true,
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "expense-app-db",
+      "database_id": "54aa56b9-161b-46eb-a707-52191fa9e76d"
+    }
+  ],
+  "vars": {
+    "JWT_SECRET": "tharsis-expense-app-secret-key-2024-secure"
+  }
+}
