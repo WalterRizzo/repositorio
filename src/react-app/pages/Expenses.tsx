@@ -1,6 +1,19 @@
+  // ...existing code...
+
+  // ...existing code...
+
+  // ...existing code...
+
+  // ...existing code...
+
+  // ...existing code...
+
+  // ...existing code...
+
   // Resetear página de movimientos al cambiar filtros
   // Eliminado: paginación de movimientos
 import { useEffect, useState } from "react";
+import { useNotifications } from "@/react-app/hooks/useNotifications";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { Loader2, Receipt, Users, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Eye } from "lucide-react";
@@ -14,6 +27,56 @@ import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVaria
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
 
 export default function Expenses() {
+  const { showNotification, permission, requestPermission, isSupported } = useNotifications();
+  const [dbaLoading, setDbaLoading] = useState(false);
+  // Ejecutar consulta SQL en el panel DBA
+  const executeDbaQuery = async (query?: string) => {
+    const sql = (query !== undefined ? query : dbaQuery).trim();
+    console.log('Ejecutando consulta SQL:', sql);
+    setDbaLoading(true);
+    if (!sql) {
+      alert('Por favor, ingrese una consulta SQL');
+      setDbaLoading(false);
+      return;
+    }
+    setDbaResults(null);
+    try {
+      const response = await fetch('/api/dba/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: sql }),
+      });
+      const result = await response.json();
+      if (response.ok) {
+        setDbaResults(result);
+      } else {
+        setDbaResults({ error: result.error || 'Error desconocido' });
+      }
+      setDbaLoading(false);
+    } catch (error) {
+      setDbaResults({ error: 'Error de conexión al servidor' });
+      setDbaLoading(false);
+    }
+  };
+  // ...existing code...
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(10);
+
+  // ...existing code...
+
+  // ...existing code...
+
+  // ...existing code...
+
+  // ...existing code...
+
+  // ...existing code...
+
+  // ...existing code...
+
+  // (MOVER ESTA LÓGICA ABAJO, justo antes del return)
+  // Filtro de fecha para saldo_transacciones
+  const [dateFilter, setDateFilter] = useState<{from: string, to: string}>({from: '', to: ''});
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -46,14 +109,14 @@ export default function Expenses() {
   // DBA state variables
   const [dbaQuery, setDbaQuery] = useState('');
   const [dbaResults, setDbaResults] = useState<any>(null);
-  const [dbaLoading, setDbaLoading] = useState(false);
   const [selectedTable, setSelectedTable] = useState('users');
-  const [dbaRecordsPerPage] = useState(10);
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
   const [dbaTables, setDbaTables] = useState<string[]>([]);
 
   // Pagination state for users table
   const [usersPage, setUsersPage] = useState(1);
+  // Pagination state for movements grid
+  const [movementsPage, setMovementsPage] = useState(1);
   const recordsPerPage = 10;
   
   // Settings modal state
@@ -84,10 +147,28 @@ export default function Expenses() {
   const [showExportPreview, setShowExportPreview] = useState(false);
 
   // Balance notification state
+  // ...existing code...
+
+  // LÓGICA DE PAGINACIÓN MODERNA PARA AUDIT_LOGS (PROFESIONAL)
+  // Colocar esto justo antes del return principal del componente
+  let totalAuditRecords = 0;
+  let totalAuditPages = 1;
+  let auditStartIdx = 0;
+  // Ejecutar consulta paginada cada vez que cambian página/tamaño
+  useEffect(() => {
+    if (selectedTable === 'audit_logs') {
+      const offset = (auditPage - 1) * auditPageSize;
+      const query = `SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT ${auditPageSize} OFFSET ${offset};`;
+      executeDbaQuery(query);
+    }
+  }, [auditPage, auditPageSize, selectedTable]);
   const [showBalanceNotification, setShowBalanceNotification] = useState(false);
   const [currentMoneyEmoji, setCurrentMoneyEmoji] = useState('💰');
   const [moneyParticles, setMoneyParticles] = useState<string[]>([]);
   const [moneyColors, setMoneyColors] = useState<string[]>([]);
+  // Estado para notificación de eliminación
+  const [showDeleteNotification, setShowDeleteNotification] = useState(false);
+  const [deleteEmoji, setDeleteEmoji] = useState('🗑️');
 
   // Función para reproducir sonido de dinero (ahora con variación aleatoria)
   const playMoneySound = () => {
@@ -220,12 +301,15 @@ export default function Expenses() {
       
       if (response.ok) {
         if (result.refunded && result.refunded > 0) {
-          alert(`✅ Gasto eliminado exitosamente. Se reembolsaron $${result.refunded} a tu saldo.`);
-          // Refrescar el perfil para mostrar el nuevo saldo
+          setDeleteEmoji('💸');
+          setShowDeleteNotification(true);
+          setTimeout(() => setShowDeleteNotification(false), 2500);
           await fetchUserProfile();
           await fetchMultiBalances();
         } else {
-          alert("✅ Gasto eliminado exitosamente.");
+          setDeleteEmoji('🗑️');
+          setShowDeleteNotification(true);
+          setTimeout(() => setShowDeleteNotification(false), 2000);
         }
         await fetchExpenses();
       } else {
@@ -271,6 +355,17 @@ export default function Expenses() {
       });
       await fetchExpenses();
       alert("Gasto rechazado exitosamente");
+        // Notificación push al usuario
+        if (isSupported && permission === "granted") {
+          showNotification(
+            "🚫 Gasto Rechazado",
+            {
+              body: "Revisa la lista de gastos: uno o más han sido rechazados.",
+              tag: "expense-rejected",
+              data: { url: "/expenses" }
+            }
+          );
+        }
     } catch (error) {
       console.error("Error rechazando gasto:", error);
       alert("Error al rechazar el gasto");
@@ -596,7 +691,7 @@ export default function Expenses() {
       
       if (response.ok && result.results) {
         // Filtrar solo las tablas principales
-        const mainTables = ['users', 'user_profiles', 'expenses', 'tipo_comprobantes', 'categories', 'balance_transactions', 'saldos'];
+  const mainTables = ['users', 'user_profiles', 'expenses', 'tipo_comprobantes', 'categories', 'balance_transactions', 'saldos', 'saldo_transacciones'];
         const tableNames = result.results
           .map((row: any) => row.name)
           .filter((name: string) => mainTables.includes(name));
@@ -610,41 +705,6 @@ export default function Expenses() {
     }
   };
 
-  // Función DBA
-  const executeDbaQuery = async () => {
-    if (!dbaQuery.trim()) {
-      alert('Por favor, ingrese una consulta SQL');
-      return;
-    }
-
-    setDbaLoading(true);
-    setDbaResults(null);
-
-    try {
-      const response = await fetch('/api/dba/execute', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          query: dbaQuery.trim()
-        }),
-      });
-
-      const result = await response.json();
-      
-      if (response.ok) {
-        setDbaResults(result);
-      } else {
-        setDbaResults({ error: result.error || 'Error desconocido' });
-      }
-    } catch (error) {
-      console.error('Error ejecutando consulta DBA:', error);
-      setDbaResults({ error: 'Error de conexión al servidor' });
-    } finally {
-      setDbaLoading(false);
-    }
-  };
 
   // Función para exportar movimientos a Excel
   const exportToExcel = () => {
@@ -712,6 +772,27 @@ export default function Expenses() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
+      {/* Notificación de eliminación de gasto */}
+      {showDeleteNotification && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="relative pointer-events-auto animate-bounce-in">
+            <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-pink-600 rounded-2xl blur-xl opacity-75 animate-pulse"></div>
+            <div className="relative flex items-center space-x-4 p-6 rounded-2xl shadow-2xl backdrop-blur-lg border-2 bg-gradient-to-r from-red-500/90 to-pink-600/90 border-red-300">
+              <div className="text-8xl animate-bounce transform-gpu" style={{ textShadow: '0 10px 20px rgba(0,0,0,0.3)' }}>
+                {deleteEmoji}
+              </div>
+              <div className="text-white">
+                <p className="text-2xl font-bold drop-shadow-lg">
+                  ¡Gasto eliminado!
+                </p>
+                <p className="text-sm opacity-90">
+                  El gasto pendiente fue eliminado exitosamente
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <Header 
         userProfile={userProfile} 
       />
@@ -739,6 +820,16 @@ export default function Expenses() {
         {/* TABS PROFESIONALES */}
         <div className="mb-8">
           <div className="bg-white dark:bg-slate-800 rounded-lg p-1.5 shadow-md border border-slate-200 dark:border-slate-700">
+            <style>{`
+              .magic-tab-active {
+                box-shadow: 0 0 12px 2px #6366f1, 0 0 24px 4px #818cf8;
+                animation: magicGlow 2s infinite alternate;
+              }
+              @keyframes magicGlow {
+                0% { box-shadow: 0 0 12px 2px #6366f1, 0 0 24px 4px #818cf8; }
+                100% { box-shadow: 0 0 24px 6px #818cf8, 0 0 32px 8px #6366f1; }
+              }
+            `}</style>
             <nav className="flex space-x-1">
               <button
                 data-tab="expenses"
@@ -749,7 +840,7 @@ export default function Expenses() {
                 }}
                 className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
                   activeTab === 'expenses'
-                    ? 'bg-indigo-600 text-white shadow-md'
+                    ? 'bg-indigo-600 text-white shadow-md magic-tab-active'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
               >
@@ -830,62 +921,44 @@ export default function Expenses() {
 
         {/* Barras de estadísticas - Solo mostrar en tab de expenses */}
         {activeTab === 'expenses' && (
-          <div className="grid md:grid-cols-4 gap-6 mb-8">
-            {/* GASTOS PENDIENTES */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-md hover:shadow-lg border border-amber-200 dark:border-amber-900/50 transition-all duration-200 hover:-translate-y-1">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                  <svg className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">
-                  {pendingExpenses.length}
-                </div>
+          <div className="flex flex-row gap-6 mb-8 w-full">
+            {/* CARD PENDIENTES */}
+            <div className="flex-1 bg-blue-600 border-2 border-blue-400 rounded-2xl p-5 flex flex-col items-start justify-between min-w-[180px] shadow-lg group transition-all duration-200 hover:-translate-y-1 cursor-pointer"
+              onMouseEnter={() => playRandomSound('money', 0.5)}>
+              <div className="flex items-center space-x-3 mb-2">
+                <span className="bg-blue-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-300"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+                <span className="text-3xl font-bold text-yellow-300">{pendingExpenses.length}</span>
               </div>
-              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Gastos Pendientes</div>
+              <div className="uppercase text-xs font-bold text-white tracking-wider">Gastos pendientes</div>
             </div>
-            
-            {/* GASTOS APROBADOS */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-md hover:shadow-lg border border-emerald-200 dark:border-emerald-900/50 transition-all duration-200 hover:-translate-y-1">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
-                  <svg className="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {expenses.filter(e => e.status === 'aprobado').length}
-                </div>
+            {/* CARD APROBADOS */}
+            <div className="flex-1 bg-emerald-600 border-2 border-emerald-400 rounded-2xl p-5 flex flex-col items-start justify-between min-w-[180px] shadow-lg group transition-all duration-200 hover:-translate-y-1 cursor-pointer"
+              onMouseEnter={() => playRandomSound('money', 0.5)}>
+              <div className="flex items-center space-x-3 mb-2">
+                <span className="bg-emerald-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="10"/><path d="M16 10l-4 4-2-2"/></svg></span>
+                <span className="text-3xl font-bold text-white">{expenses.filter(e => e.status === 'aprobado').length}</span>
               </div>
-              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Gastos Aprobados</div>
+              <div className="uppercase text-xs font-bold text-white tracking-wider">Gastos aprobados</div>
             </div>
-            
-            {/* GASTOS RECHAZADOS */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-md hover:shadow-lg border border-red-200 dark:border-red-900/50 transition-all duration-200 hover:-translate-y-1">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                  <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="text-3xl font-bold text-red-600 dark:text-red-400">
-                  {expenses.filter(e => e.status === 'rechazado').length}
-                </div>
+            {/* CARD RECHAZADOS */}
+            <div className="flex-1 bg-orange-500 border-2 border-orange-400 rounded-2xl p-5 flex flex-col items-start justify-between min-w-[180px] shadow-lg group transition-all duration-200 hover:-translate-y-1 cursor-pointer"
+              onMouseEnter={() => playRandomSound('money', 0.5)}>
+              <div className="flex items-center space-x-3 mb-2">
+                <span className="bg-orange-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
+                <span className="text-3xl font-bold text-white">{expenses.filter(e => e.status === 'rechazado').length}</span>
               </div>
-              <div className="text-sm font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Gastos Rechazados</div>
+              <div className="uppercase text-xs font-bold text-white tracking-wider">Gastos rechazados</div>
             </div>
-            
             {/* SALDO MULTIMONEDA */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-md hover:shadow-lg border border-indigo-200 dark:border-indigo-900/50 transition-all duration-200 hover:-translate-y-1">
-              <div className="flex justify-between items-start mb-3">
-                <div className="text-sm font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Saldos Disponibles</div>
+            <div className="bg-[#23293a] border border-indigo-500 rounded-2xl p-4 flex flex-col items-start justify-between min-w-[220px] max-w-xs shadow-lg" style={{height:'fit-content'}}>
+              <div className="flex justify-between items-center w-full mb-2">
+                <span className="text-xs font-bold text-white uppercase tracking-wide">Saldos disponibles</span>
                 <button
                   onClick={() => {
                     fetchMultiBalances();
                     fetchUserProfile();
                   }}
-                  className="p-1.5 bg-indigo-100 dark:bg-indigo-900/30 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 rounded-lg text-indigo-600 dark:text-indigo-400 transition-all duration-200"
+                  className="p-1.5 bg-indigo-900 hover:bg-indigo-700 rounded-lg text-indigo-300 transition-all duration-200"
                   title="Actualizar saldos"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -893,17 +966,17 @@ export default function Expenses() {
                   </svg>
                 </button>
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col w-full gap-1 max-h-56 overflow-y-auto">
                 {multiBalances.length === 0 ? (
-                  <div className="text-slate-500 dark:text-slate-400 text-sm italic">Sin saldos registrados</div>
+                  <div className="text-slate-400 text-xs italic">Sin saldos registrados</div>
                 ) : (
                   multiBalances.map((item) => (
-                    <div key={item.currency} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
-                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{item.currency}</span>
+                    <div key={item.currency} className="flex justify-between items-center px-2 py-1 rounded-lg">
+                      <span className="text-xs font-bold text-slate-200" style={{minWidth:'48px'}}>{item.currency}</span>
                       <span className={`text-sm font-bold ${
                         item.balance < 0 
-                          ? 'text-red-600 dark:text-red-400' 
-                          : 'text-emerald-600 dark:text-emerald-400'
+                          ? 'text-red-400' 
+                          : 'text-emerald-400'
                       }`}>
                         {formatCurrency(item.balance, item.currency)}
                       </span>
@@ -968,7 +1041,7 @@ export default function Expenses() {
 
             {/* Tabla de usuarios */}
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full rounded-xl border-2 border-purple-500 shadow-lg">
                 <thead className="bg-gradient-to-r from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-700 dark:via-gray-700 dark:to-gray-700">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
@@ -1068,9 +1141,26 @@ export default function Expenses() {
                 >
                   <option value="all" className="bg-gray-800">Todos los movimientos</option>
                   <option value="carga" className="bg-gray-800">Cargas</option>
-                  <option value="descuento" className="bg-gray-800">Descontados</option>
-                  <option value="ajuste" className="bg-gray-800">Ajustes</option>
+                  <option value="descuento" className="bg-gray-800">Gastos</option>
                 </select>
+                <div className="flex items-center space-x-2 mt-2">
+                  <label className="text-xs text-gray-400">Fecha desde:</label>
+                  <input
+                    type="date"
+                    value={dateFilter.from}
+                    onChange={e => { setDateFilter(df => ({...df, from: e.target.value})); setMovementsPage(1); }}
+                    className="px-2 py-1 rounded bg-gray-900 text-white border border-gray-700 text-xs"
+                    style={{ minWidth: 120 }}
+                  />
+                  <label className="text-xs text-gray-400 ml-2">Fecha hasta:</label>
+                  <input
+                    type="date"
+                    value={dateFilter.to}
+                    onChange={e => { setDateFilter(df => ({...df, to: e.target.value})); setMovementsPage(1); }}
+                    className="px-2 py-1 rounded bg-gray-900 text-white border border-gray-700 text-xs"
+                    style={{ minWidth: 120 }}
+                  />
+                </div>
                 <button
                   onClick={() => setShowExportPreview(true)}
                   className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
@@ -1085,14 +1175,15 @@ export default function Expenses() {
                   <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
                 </div>
               ) : (
-                <div className="overflow-x-auto bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl p-4 border border-violet-500/20">
-                  <table className="w-full min-w-max">
-                    <thead className="bg-gradient-to-r from-violet-600 to-purple-600">
+                <div className="overflow-x-auto bg-black rounded-xl p-4 border border-gray-900" style={{background:'#000',borderColor:'#23272F'}}>
+                  <table className="w-full min-w-max magic-movements-table">
+                    <thead className="bg-black text-white">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
+                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">MONEDA</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📊 SALDO ANTERIOR</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📈 SALDO NUEVO</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📝 DESCRIPCIÓN</th>
@@ -1102,9 +1193,9 @@ export default function Expenses() {
                       {balanceMovements
                         .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
                         .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                        .slice(0, 5)
+                        .slice((movementsPage - 1) * recordsPerPage, movementsPage * recordsPerPage)
                         .map((movement) => (
-                          <tr key={movement.id} className="hover:bg-violet-900/30 transition-all">
+                          <tr key={movement.id} className="bg-black text-white">
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
                               {new Date(movement.created_at).toLocaleString('es-AR', {
                                 year: 'numeric',
@@ -1135,7 +1226,12 @@ export default function Expenses() {
                                   ? 'text-green-400' 
                                   : 'text-red-400'
                               }`}>
-                                {movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}
+                                {movement.type === 'carga' ? '+' : ''}{movement.amount}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className="text-sm font-black text-gray-300">
+                                {movement.currency}
                               </span>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400 font-semibold">
@@ -1151,6 +1247,22 @@ export default function Expenses() {
                         ))}
                     </tbody>
                   </table>
+                  <style>{`
+                    .magic-movements-table {
+                      border-radius: 0.75rem;
+                      border: 2px solid #a855f7;
+                      box-shadow: 0 4px 24px 0 #a855f7a0;
+                      transition: box-shadow 0.3s ease;
+                    }
+                    .magic-movements-row {
+                      transition: box-shadow 0.3s, background 0.3s, transform 0.3s;
+                    }
+                    .magic-movements-row:hover {
+                      box-shadow: 0 0 16px 2px #a855f7cc, 0 2px 8px 0 #9333ea99;
+                      background: linear-gradient(90deg, #a855f7 0%, #9333ea 100%);
+                      transform: scale(1.01);
+                    }
+                  `}</style>
                   
                   {balanceMovements
                     .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
@@ -1164,14 +1276,42 @@ export default function Expenses() {
                   {balanceMovements
                     .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
                     .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                    .length > 5 && (
-                    <div className="mt-4 text-center">
-                      <p className="text-sm text-violet-300 font-bold">
-                        📊 Mostrando últimos 5 de {balanceMovements
+                    .length > recordsPerPage && (
+                    <div className="flex justify-between items-center mt-4">
+                      <div className="text-sm text-gray-300">
+                        Mostrando {Math.min((movementsPage - 1) * recordsPerPage + 1, balanceMovements.length)} - {Math.min(movementsPage * recordsPerPage, balanceMovements.length)} de {balanceMovements
                           .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
                           .filter(m => userFilter === 'all' || m.user_id === userFilter)
                           .length} movimientos
-                      </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setMovementsPage(Math.max(1, movementsPage - 1))}
+                          disabled={movementsPage === 1}
+                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm"
+                        >
+                          ← Anterior
+                        </button>
+                        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm">
+                          Página {movementsPage} de {Math.ceil(balanceMovements
+                            .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
+                            .filter(m => userFilter === 'all' || m.user_id === userFilter)
+                            .length / recordsPerPage)}
+                        </span>
+                        <button
+                          onClick={() => setMovementsPage(Math.min(Math.ceil(balanceMovements
+                            .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
+                            .filter(m => userFilter === 'all' || m.user_id === userFilter)
+                            .length / recordsPerPage), movementsPage + 1))}
+                          disabled={movementsPage >= Math.ceil(balanceMovements
+                            .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
+                            .filter(m => userFilter === 'all' || m.user_id === userFilter)
+                            .length / recordsPerPage)}
+                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm"
+                        >
+                          Siguiente →
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1243,6 +1383,13 @@ export default function Expenses() {
                     {balanceMovements
                       .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
                       .filter(m => userFilter === 'all' || m.user_id === userFilter)
+                      .filter(m => {
+                        if ((!dateFilter.from && !dateFilter.to)) return true;
+                        const date = m.created_at.slice(0,10);
+                        if (dateFilter.from && date < dateFilter.from) return false;
+                        if (dateFilter.to && date > dateFilter.to) return false;
+                        return true;
+                      })
                       .slice(0, 5)
                       .map((movement) => (
                         <tr key={movement.id} className="hover:bg-violet-900/30 transition-all">
@@ -1322,13 +1469,16 @@ export default function Expenses() {
               </label>
               <select
                 value={selectedTable}
-                onChange={(e) => setSelectedTable(e.target.value)}
+                onChange={(e) => {
+                  setSelectedTable(e.target.value);
+                  setDbaQuery(`SELECT * FROM ${e.target.value};`);
+                }}
                 className="w-full md:w-auto px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-white hover:bg-gray-700 font-semibold transition-all"
               >
                 {dbaTables.length > 0 ? (
-                  dbaTables.map(table => (
+                  [...dbaTables, 'audit_logs'].map(table => (
                     <option key={table} value={table} className="bg-gray-800 text-white">
-                      {table === 'users' ? '👥' : table === 'expenses' ? '💰' : table === 'categories' ? '🏷️' : '📊'} {table}
+                      {table === 'users' ? '👥' : table === 'expenses' ? '💰' : table === 'categories' ? '🏷️' : table === 'audit_logs' ? '📝' : '📊'} {table}
                     </option>
                   ))
                 ) : (
@@ -1336,6 +1486,7 @@ export default function Expenses() {
                     <option value="users" className="bg-gray-800 text-white">👥 users</option>
                     <option value="expenses" className="bg-gray-800 text-white">💰 expenses</option>
                     <option value="categories" className="bg-gray-800 text-white">🏷️ categories</option>
+                    <option value="audit_logs" className="bg-gray-800 text-white">📝 audit_logs</option>
                   </>
                 )}
               </select>
@@ -1350,59 +1501,99 @@ export default function Expenses() {
                 value={dbaQuery}
                 onChange={(e) => setDbaQuery(e.target.value)}
                 className="w-full px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-green-400 font-mono text-sm hover:bg-gray-700 transition-all"
-                placeholder="SELECT * FROM users;"
+                placeholder={`SELECT * FROM ${selectedTable};`}
                 rows={4}
               />
+              <button
+                onClick={() => executeDbaQuery()}
+                disabled={!dbaQuery.trim()}
+                className="mt-3 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg"
+              >
+                EJECUTAR
+              </button>
+              {/* Resultados de la consulta DBA solo si no es audit_logs */}
+              {dbaLoading && (
+                <div className="mt-4 flex items-center justify-center">
+                  <span className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></span>
+                  <span className="ml-2 text-blue-400 font-bold">Ejecutando consulta...</span>
+                </div>
+              )}
+              {dbaResults && selectedTable !== 'audit_logs' && !dbaLoading && (
+                <div className="mt-4 p-4 bg-gray-900 rounded-xl border border-violet-500/20 overflow-x-auto">
+                  {dbaResults.error ? (
+                    <div className="text-red-400 font-bold">❌ Error: {dbaResults.error}</div>
+                  ) : Array.isArray(dbaResults.results) && dbaResults.results.length > 0 ? (
+                    <table className="w-full text-xs text-left text-gray-300">
+                      <thead>
+                        <tr>
+                          {Object.keys(dbaResults.results[0]).map((col) => (
+                            <th key={col} className="px-2 py-1 border-b border-violet-700 font-bold">{col}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dbaResults.results.map((row: any, idx: any) => (
+                          <tr key={idx} className="border-b border-gray-800">
+                            {Object.values(row).map((val, i) => (
+                              <td key={i} className="px-2 py-1">{String(val)}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="text-yellow-400 font-bold">No se encontraron resultados.</div>
+                  )}
+                </div>
+              )}
               <p className="text-xs text-red-400 font-bold mt-2">
                 ⚠️ ¡Cuidado! Estas consultas se ejecutan directamente en la base de datos.
               </p>
             </div>
 
-            {/* Botones de acción */}
-            <div className="flex flex-wrap gap-3 mb-6">
-              <button
-                onClick={executeDbaQuery}
-                disabled={dbaLoading || !dbaQuery.trim()}
-                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-600 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-50"
-              >
-                {dbaLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Ejecutando...</span>
-                  </div>
-                ) : (
-                  '▶️ Ejecutar'
-                )}
-              </button>
-              
-              <button
-                onClick={() => setDbaQuery(`SELECT * FROM ${selectedTable} LIMIT 10;`)}
-                className="px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl"
-              >
-                📋 SELECT *
-              </button>
-              
-              <button
-                onClick={() => setDbaQuery(`SELECT COUNT(*) as count FROM ${selectedTable};`)}
-                className="px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl"
-              >
-                🔢 COUNT
-              </button>
-              
-              <button
-                onClick={() => setDbaQuery(`SELECT * FROM ${selectedTable} LIMIT 10 OFFSET 0;`)}
-                className="px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl"
-              >
-                📄 PÁGINA 1
-              </button>
-              
-              <button
-                onClick={() => setDbaQuery(`SELECT * FROM ${selectedTable} LIMIT 10 OFFSET 10;`)}
-                className="px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl"
-              >
-                📄 PÁGINA 2
-              </button>
-            </div>
+            {/* ...eliminado script de paginación, lógica ya está en useEffect... */}
+
+            {/* Controles de paginación modernos para audit_logs */}
+            {selectedTable === 'audit_logs' && (
+              <div className="flex flex-wrap gap-3 mb-6 items-center">
+                <button
+                  onClick={() => setAuditPage(1)}
+                  disabled={auditPage === 1}
+                  className="px-3 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded font-bold"
+                >« Primero</button>
+                <button
+                  onClick={() => setAuditPage(Math.max(1, auditPage - 1))}
+                  disabled={auditPage === 1}
+                  className="px-3 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded font-bold"
+                >‹ Anterior</button>
+                <span className="px-3 py-2 bg-purple-100 text-purple-700 rounded font-bold">
+                  Página {auditPage} de {totalAuditPages}
+                </span>
+                <button
+                  onClick={() => setAuditPage(Math.min(totalAuditPages, auditPage + 1))}
+                  disabled={auditPage === totalAuditPages}
+                  className="px-3 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded font-bold"
+                >Siguiente ›</button>
+                <button
+                  onClick={() => setAuditPage(totalAuditPages)}
+                  disabled={auditPage === totalAuditPages}
+                  className="px-3 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded font-bold"
+                >Última »</button>
+                <select
+                  value={auditPageSize}
+                  onChange={e => setAuditPageSize(Number(e.target.value))}
+                  className="ml-4 px-3 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white font-semibold"
+                >
+                  {[10, 20, 50, 100].map(size => (
+                    <option key={size} value={size}>{size} por página</option>
+                  ))}
+                </select>
+                <span className="ml-4 text-sm text-gray-300 font-bold">
+                  Mostrando {auditStartIdx + 1} - {Math.min(auditStartIdx + auditPageSize, totalAuditRecords)} de {totalAuditRecords} registros
+                </span>
+              </div>
+            )}
+            {/* ...otros botones para otras tablas... */}
             
             {/* Botones de operaciones DBA avanzadas */}
             <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded border">
@@ -1444,25 +1635,21 @@ export default function Expenses() {
               </button>
             </div>
 
-            {/* Resultados */}
-            {dbaResults && (
+            {/* Resultados con paginación moderna para audit_logs */}
+            {dbaResults && selectedTable === 'audit_logs' && (
               <div className="bg-gray-800 rounded-xl p-6 border border-violet-500/20 mt-6">
                 <h3 className="text-lg font-black text-white mb-4">📊 Resultados:</h3>
-                
                 {dbaResults.error ? (
                   <div className="text-red-300 bg-red-900/50 p-4 rounded-lg border border-red-500">
                     <strong>❌ Error:</strong> {dbaResults.error}
                   </div>
                 ) : dbaResults.results && dbaResults.results.length > 0 ? (
                   <div>
-                    {/* Info de resultados */}
                     <div className="mb-4 p-3 bg-blue-900/30 rounded-lg border border-blue-500/30">
                       <span className="text-blue-300 font-bold text-sm">
-                        📊 Mostrando {Math.min(dbaResults.results.length, dbaRecordsPerPage)} de {dbaResults.results.length} registros
-                        {dbaResults.results.length > dbaRecordsPerPage && " - Use LIMIT para ver más"}
+                        📊 Mostrando {auditStartIdx + 1} - {Math.min(auditStartIdx + auditPageSize, totalAuditRecords)} de {totalAuditRecords} registros
                       </span>
                     </div>
-                    
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-gradient-to-r from-violet-600 to-purple-600">
@@ -1475,7 +1662,7 @@ export default function Expenses() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-700">
-                          {dbaResults.results.slice(0, dbaRecordsPerPage).map((row: any, index: number) => (
+                          {dbaResults.results.slice(auditStartIdx, auditStartIdx + auditPageSize).map((row: any, index: number) => (
                             <tr key={index} className="hover:bg-violet-900/30 transition-all">
                               {Object.values(row).map((value: any, cellIndex: number) => (
                                 <td key={cellIndex} className="px-4 py-3 text-white font-semibold">
@@ -1487,19 +1674,6 @@ export default function Expenses() {
                         </tbody>
                       </table>
                     </div>
-                    
-                    {/* Aviso si hay más registros */}
-                    {dbaResults.results.length > dbaRecordsPerPage && (
-                      <div className="mt-4 p-3 bg-orange-900/30 rounded-lg border border-orange-500/30">
-                        <span className="text-orange-300 font-bold text-sm">
-                          ⚠️ Hay {dbaResults.results.length - dbaRecordsPerPage} registros más. 
-                          Use consultas con LIMIT y OFFSET para navegar: 
-                          <code className="ml-2 px-2 py-1 bg-gray-700 rounded text-green-400 font-mono text-xs">
-                            LIMIT 10 OFFSET {dbaRecordsPerPage}
-                          </code>
-                        </span>
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <div className="text-yellow-300 bg-yellow-900/30 p-4 rounded-lg border border-yellow-500">
@@ -1508,6 +1682,7 @@ export default function Expenses() {
                 )}
               </div>
             )}
+            {/* ...resultados para otras tablas... */}
           </div>
         )}
 

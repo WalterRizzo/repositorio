@@ -247,6 +247,17 @@ app.post("/api/auth/login", loginRateLimit, async (c) => {
     'UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_failed_login = NULL WHERE id = ?'
   ).bind(user.id).run();
 
+  // Registrar logueo en audit_logs
+  await c.env.DB.prepare(
+    `INSERT INTO audit_logs (user_id, user_email, action, module, description) VALUES (?, ?, ?, ?, ?)`
+  ).bind(
+    user.id,
+    user.email,
+    'login',
+    'auth',
+    `Inicio de sesión exitoso para ${user.email}`
+  ).run();
+
   // Generar token
   const userData: User = {
     id: user.id,
@@ -292,12 +303,22 @@ app.post("/api/auth/register", async (c) => {
 
   // Hash de la contraseña
   const passwordHash = await hashPassword(body.password);
-  const userId = crypto.randomUUID();
+  // Asume que body.name y body.lastname existen
+  const name = body.name.trim().toLowerCase();
+  const lastname = (body.lastname || '').trim().toLowerCase();
+  let userId = '';
+  if (name && lastname) {
+    userId = name[0] + lastname;
+  } else if (name) {
+    userId = name;
+  } else {
+    userId = crypto.randomUUID();
+  }
 
   // Crear usuario
   await c.env.DB.prepare(
-    'INSERT INTO users (id, email, name, password_hash, role) VALUES (?, ?, ?, ?, ?)'
-  ).bind(userId, body.email, body.name, passwordHash, 'usuario').run();
+    'INSERT INTO users (id, email, name, lastname, password_hash, role) VALUES (?, ?, ?, ?, ?, ?)'
+  ).bind(userId, body.email, body.name, lastname, passwordHash, 'usuario').run();
 
   // Crear perfil de usuario
   await c.env.DB.prepare(
@@ -549,28 +570,66 @@ app.put('/api/expenses/:id', authMiddleware(), async (c) => {
     const expenseId = c.req.param('id');
     const expenseData = await c.req.json();
     
-    // Primero verificar el estado actual del gasto y que sea del usuario
+    // Verificar estado y usuario
     const { results: currentExpense } = await c.env.DB.prepare(
       'SELECT status, user_id FROM expenses WHERE id = ?'
     ).bind(expenseId).all();
-    
+
     if (currentExpense.length === 0) {
       return c.json({ error: 'Gasto no encontrado' }, 404);
     }
-    
-    // Verificar que el gasto pertenezca al usuario
+
+    // Solo el usuario creador puede modificar gastos rechazados
     if (currentExpense[0].user_id !== user.id) {
       return c.json({ error: 'No tienes permiso para editar este gasto' }, 403);
     }
-    
-    if (currentExpense[0].status !== 'pendiente') {
-      return c.json({ 
-        error: 'No se puede editar un gasto que ya ha sido aprobado o rechazado' 
-      }, 400);
+
+    // Si el gasto está aprobado, no se puede modificar
+    if (currentExpense[0].status === 'aprobado') {
+      return c.json({ error: 'No se puede editar un gasto que ya ha sido aprobado' }, 400);
     }
-    
+
+    // Si el gasto está rechazado, solo el usuario puede modificarlo y el estado pasa a 'pendiente'
+    let newStatus = currentExpense[0].status === 'rechazado' ? 'pendiente' : 'pendiente';
+
+    // Si el gasto estaba rechazado y usa saldo, descontar el saldo nuevamente
+    if (currentExpense[0].status === 'rechazado' && expenseData.use_balance) {
+      const descuentoAmount = Number(expenseData.amount) || 0;
+      const currency = expenseData.currency || 'ARS';
+      // Obtener saldo anterior para registro transaccional
+      const { results: saldoAnteriorResults } = await c.env.DB.prepare(
+        'SELECT balance FROM saldos WHERE user_id = ? AND currency = ?'
+      ).bind(user.id, currency).all();
+      const saldoAnterior = saldoAnteriorResults.length > 0 ? Number(saldoAnteriorResults[0].balance) || 0 : 0;
+      // Descontar en tablas legacy (compatibilidad)
+      await c.env.DB.prepare(
+        'UPDATE users SET balance = balance - ? WHERE id = ?'
+      ).bind(descuentoAmount, user.id).run();
+      await c.env.DB.prepare(
+        'UPDATE user_profiles SET balance = balance - ? WHERE user_id = ?'
+      ).bind(descuentoAmount, user.id).run();
+      // Descontar en tabla saldos (multimoneda)
+      await c.env.DB.prepare(`
+        INSERT OR REPLACE INTO saldos (user_id, currency, balance, created_at, updated_at)
+        VALUES (?, ?, COALESCE((SELECT balance FROM saldos WHERE user_id = ? AND currency = ?), 0) - ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `).bind(user.id, currency, user.id, currency, descuentoAmount).run();
+      // Registrar transacción de descuento
+      const saldoNuevo = saldoAnterior - descuentoAmount;
+      await registrarTransaccionSaldo(
+        c.env.DB,
+        user.id,
+        currency,
+        'descuento',
+        descuentoAmount,
+        saldoAnterior,
+        saldoNuevo,
+        `Descuento por gasto modificado tras rechazo: ${expenseData.description}`,
+        user.email || 'USUARIO'
+      );
+    }
+
     const { results } = await c.env.DB.prepare(
-      'UPDATE expenses SET category = ?, description = ?, amount = ?, expense_date = ?, currency = ?, tipo_comprobante_id = ? WHERE id = ? RETURNING *'
+      'UPDATE expenses SET category = ?, description = ?, amount = ?, expense_date = ?, currency = ?, tipo_comprobante_id = ?, status = ? WHERE id = ? RETURNING *'
     ).bind(
       expenseData.category,
       expenseData.description,
@@ -578,6 +637,7 @@ app.put('/api/expenses/:id', authMiddleware(), async (c) => {
       expenseData.expense_date,
       expenseData.currency || 'ARS',
       expenseData.tipo_comprobante_id || null,
+      newStatus,
       expenseId
     ).all();
 
@@ -667,6 +727,41 @@ app.put('/api/expenses/:id/reject', authMiddleware(), async (c) => {
         user.email || 'USUARIO'
       );
       console.log(`✅ Saldo reembolsado por rechazo: $${reembolsoAmount} ${currency} al usuario ${expense.user_id} (${saldoAnterior} → ${saldoNuevo})`);
+    }
+
+
+    // Enviar email de notificación al usuario dueño del gasto
+    const { results: userResults } = await c.env.DB.prepare(
+      'SELECT email, name FROM users WHERE id = ?'
+    ).bind(expense.user_id).all();
+    const expenseUser = userResults.length > 0 ? userResults[0] : null;
+    if (expenseUser && expenseUser.email) {
+      try {
+        const emailResponse = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${c.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            from: 'Tharsis Expense <onboarding@resend.dev>',
+            to: expenseUser.email,
+            subject: 'Tu gasto ha sido rechazado',
+            html: `
+              <h2>Gasto rechazado</h2>
+              <p>Hola <strong>${expenseUser.name || expenseUser.email}</strong>,</p>
+              <p>Tu gasto (<strong>${expense.description}</strong>, monto: <strong>${expense.amount} ${expense.currency || 'ARS'}</strong>) ha sido <span style='color:red;font-weight:bold;'>rechazado</span> por el supervisor <strong>${user.name}</strong>.</p>
+              <p><strong>Razón del rechazo:</strong> ${rejectionReason}</p>
+              <hr>
+              <p style='color: #666; font-size: 12px;'>Este es un mensaje automático del sistema ExpenseFlow.</p>
+            `
+          })
+        });
+        const emailResult = await emailResponse.json();
+        console.log('📧 Email de rechazo enviado:', emailResponse.status, emailResult);
+      } catch (emailError) {
+        console.error('❌ Error enviando email de rechazo de gasto:', emailError);
+      }
     }
 
     const { results } = await c.env.DB.prepare(

@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Auto Git Push on Save",
+			"type": "shell",
+			"command": "git add . && git commit -m \"Auto: cambios guardados\" && git push",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Auto Git Push on Save (PowerShell)",
+			"type": "shell",
+			"command": "git add .; git commit -m \"Auto: cambios guardados\"; git push",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

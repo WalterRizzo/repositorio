@@ -248,7 +248,7 @@ export default function ExpensesTable({
           </div>
           
           <div className="flex space-x-4">
-            <label className="flex items-center space-x-2 cursor-pointer">
+            <label className="flex items-center space-x-2 cursor-pointer bg-blue-600 rounded-lg px-4 py-2 shadow text-white">
               <input
                 type="checkbox"
                 checked={filters.pendientes}
@@ -256,14 +256,14 @@ export default function ExpensesTable({
                   setFilters({...filters, pendientes: e.target.checked});
                   setCurrentPage(1);
                 }}
-                className="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-300">
+              <span className="text-sm font-bold">
                 🟡 Pendientes ({expenses.filter(e => e.status === 'pendiente').length})
               </span>
             </label>
             
-            <label className="flex items-center space-x-2 cursor-pointer">
+            <label className="flex items-center space-x-2 cursor-pointer bg-green-600 rounded-lg px-4 py-2 shadow text-white">
               <input
                 type="checkbox"
                 checked={filters.aprobados}
@@ -273,12 +273,12 @@ export default function ExpensesTable({
                 }}
                 className="rounded border-gray-300 text-green-600 focus:ring-green-500"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-300">
+              <span className="text-sm font-bold">
                 🟢 Aprobados ({expenses.filter(e => e.status === 'aprobado').length})
               </span>
             </label>
             
-            <label className="flex items-center space-x-2 cursor-pointer">
+            <label className="flex items-center space-x-2 cursor-pointer bg-orange-500 rounded-lg px-4 py-2 shadow text-white">
               <input
                 type="checkbox"
                 checked={filters.rechazados}
@@ -286,9 +286,9 @@ export default function ExpensesTable({
                   setFilters({...filters, rechazados: e.target.checked});
                   setCurrentPage(1);
                 }}
-                className="rounded border-gray-300 text-red-600 focus:ring-red-500"
+                className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
               />
-              <span className="text-sm text-gray-700 dark:text-gray-300">
+              <span className="text-sm font-bold">
                 🔴 Rechazados ({expenses.filter(e => e.status === 'rechazado').length})
               </span>
             </label>
@@ -403,7 +403,7 @@ export default function ExpensesTable({
           {onAdd && (
             <button
               onClick={onAdd}
-              className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
+              className="inline-flex items-center space-x-3 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl text-lg font-bold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
             >
               <Plus className="w-5 h-5" />
               <span className="font-medium">Agregar Gasto</span>
@@ -413,49 +413,32 @@ export default function ExpensesTable({
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full rounded-xl border-2 border-purple-500">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                    Fecha
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                    Categoría
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                    Descripción
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                    Cargado por
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                    Monto
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                    Saldo
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                    Archivos
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                    Acciones
-                  </th>
+                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Fecha</th>
+                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Categoría</th>
+                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Descripción</th>
+                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Cargado por</th>
+                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Monto</th>
+                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Moneda</th>
+                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Estado</th>
+                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Saldo</th>
+                  <th className="px-2 py-2 text-center text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Archivos</th>
+                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
                 {displayExpenses.map((expense) => (
-                  <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                  <tr key={expense.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {new Date(expense.expense_date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {expense.category}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                      {expense.description}
+                    <td className="px-2 py-4 text-sm text-gray-900 dark:text-white max-w-[120px] truncate" title={expense.description}>
+                      {expense.description.length > 40 ? expense.description.slice(0, 37) + '...' : expense.description}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       <div>
@@ -464,7 +447,10 @@ export default function ExpensesTable({
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {formatCurrency(expense.amount, expense.currency)}
+                      {expense.amount}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {expense.currency}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="relative group">
@@ -620,37 +606,45 @@ export default function ExpensesTable({
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                       <div className="flex items-center justify-end gap-2 animate-fadeIn">
                         <button
-                          onClick={() => onEdit(expense)}
-                          className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 border-2 border-blue-300"
-                          title="Editar gasto"
+                            onClick={() => onEdit(expense)}
+                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 border-2 border-blue-300"
+                            title="Editar gasto"
+                            disabled={expense.status === 'aprobado'}
                         >
                           <Edit3 className="w-4 h-4" />
                           <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
                         </button>
                         <button
-                          onClick={() => onDelete(expense.id)}
-                          className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-red-600 hover:to-pink-700 border-2 border-red-300"
-                          title="Eliminar gasto"
+                            onClick={() => onDelete(expense.id)}
+                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-red-600 hover:to-pink-700 border-2 border-red-300"
+                            title="Eliminar gasto"
+                            disabled={expense.status === 'aprobado'}
                         >
                           <Trash2 className="w-4 h-4" />
                           <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
                         </button>
-                        <button
-                          onClick={() => handleApproveClick(expense.id)}
-                          className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-emerald-600 hover:to-green-700 border-2 border-green-300"
-                          title="Aprobar gasto"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          <Sparkles className="absolute -top-1 -right-1 w-3 h-3 text-yellow-300 opacity-0 group-hover:opacity-100 transition-all duration-300 animate-pulse" />
-                        </button>
-                        <button
-                          onClick={() => handleRejectClick(expense.id)}
-                          className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-yellow-400 to-red-500 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-yellow-500 hover:to-red-600 border-2 border-yellow-300"
-                          title="Rechazar gasto"
-                        >
-                          <XCircle className="w-4 h-4" />
-                          <div className="absolute inset-0 rounded-full border-2 border-red-300 opacity-0 group-hover:opacity-50 group-hover:animate-ping"></div>
-                        </button>
+                        {userRole !== 'usuario' && (
+                          <>
+                            <button
+                                onClick={() => handleApproveClick(expense.id)}
+                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-emerald-600 hover:to-green-700 border-2 border-green-300"
+                                title="Aprobar gasto"
+                                disabled={expense.status === 'aprobado'}
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              <Sparkles className="absolute -top-1 -right-1 w-3 h-3 text-yellow-300 opacity-0 group-hover:opacity-100 transition-all duration-300 animate-pulse" />
+                            </button>
+                            <button
+                                onClick={() => handleRejectClick(expense.id)}
+                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-yellow-400 to-red-500 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-yellow-500 hover:to-red-600 border-2 border-yellow-300"
+                                title="Rechazar gasto"
+                                disabled={expense.status === 'aprobado'}
+                            >
+                              <XCircle className="w-4 h-4" />
+                              <div className="absolute inset-0 rounded-full border-2 border-red-300 opacity-0 group-hover:opacity-50 group-hover:animate-ping"></div>
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -661,39 +655,39 @@ export default function ExpensesTable({
           
           {/* Controles de paginación */}
           {totalPages > 1 && (
-            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-t flex justify-between items-center">
-              <div className="text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex justify-between items-center mt-4 px-6 py-4 bg-gradient-to-r from-violet-600 to-purple-600 border-t">
+              <div className="text-sm text-white font-semibold">
                 Mostrando {startIndex + 1} - {Math.min(startIndex + recordsPerPage, filteredExpenses.length)} de {filteredExpenses.length} gastos
               </div>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 rounded transition-colors"
+                  className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                 >
                   « Primera
                 </button>
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 rounded transition-colors"
+                  className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                 >
                   ‹ Anterior
                 </button>
-                <span className="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">
+                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm font-bold">
                   Página {currentPage} de {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 rounded transition-colors"
+                  className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                 >
                   Siguiente ›
                 </button>
                 <button
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 rounded transition-colors"
+                  className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                 >
                   Última »
                 </button>

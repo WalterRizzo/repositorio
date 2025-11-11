@@ -1,3 +1,15 @@
+export const UserAuditLogSchema = z.object({
+  id: z.number(),
+  user_id: z.string(),
+  user_email: z.string().optional(),
+  action: z.string(),
+  details: z.string().optional(),
+  ip_address: z.string().optional(),
+  user_agent: z.string().optional(),
+  created_at: z.string(),
+});
+
+export type UserAuditLog = z.infer<typeof UserAuditLogSchema>;
 import z from "zod";
 
 export const UserProfileSchema = z.object({
