@@ -21,7 +21,6 @@ import type { Expense, UserProfile } from "@/shared/types";
 import ExpensesTable from "@/react-app/components/ExpensesTable";
 import ExpenseForm from "@/react-app/components/ExpenseForm";
 import Header from "@/react-app/components/Header";
-import Sidebar from "@/react-app/components/Sidebar";
 import * as XLSX from 'xlsx';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
@@ -36,7 +35,7 @@ export default function Expenses() {
     console.log('Ejecutando consulta SQL:', sql);
     setDbaLoading(true);
     if (!sql) {
-      console.warn('Por favor, ingrese una consulta SQL');
+      alert('Por favor, ingrese una consulta SQL');
       setDbaLoading(false);
       return;
     }
@@ -294,6 +293,7 @@ export default function Expenses() {
   };
 
   const handleDeleteExpense = async (id: number) => {
+    if (!confirm("¿Estás seguro de eliminar este gasto?")) return;
 
     try {
       const response = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
@@ -313,11 +313,11 @@ export default function Expenses() {
         }
         await fetchExpenses();
       } else {
-        console.warn(`❌ Error: ${result.error}`);
+        alert(`❌ Error: ${result.error}`);
       }
     } catch (error) {
       console.error("Error eliminando gasto:", error);
-      console.warn("❌ Error al eliminar el gasto");
+      alert("❌ Error al eliminar el gasto");
     }
   };
 
@@ -330,6 +330,7 @@ export default function Expenses() {
   };
 
   const handleApprove = async (id: number) => {
+    if (!confirm("¿Aprobar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/approve`, {
@@ -337,14 +338,15 @@ export default function Expenses() {
         headers: { "Content-Type": "application/json" },
       });
       await fetchExpenses();
-      console.log("Gasto aprobado exitosamente");
+      alert("Gasto aprobado exitosamente");
     } catch (error) {
       console.error("Error aprobando gasto:", error);
-      console.warn("Error al aprobar el gasto");
+      alert("Error al aprobar el gasto");
     }
   };
 
   const handleReject = async (id: number) => {
+    if (!confirm("¿Rechazar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/reject`, {
@@ -352,7 +354,7 @@ export default function Expenses() {
         headers: { "Content-Type": "application/json" },
       });
       await fetchExpenses();
-      console.log("Gasto rechazado exitosamente");
+      alert("Gasto rechazado exitosamente");
         // Notificación push al usuario
         if (isSupported && permission === "granted") {
           showNotification(
@@ -366,7 +368,7 @@ export default function Expenses() {
         }
     } catch (error) {
       console.error("Error rechazando gasto:", error);
-      console.warn("Error al rechazar el gasto");
+      alert("Error al rechazar el gasto");
     }
   };
 
@@ -408,7 +410,7 @@ export default function Expenses() {
     
     const newBalance = parseFloat(userForm.balance);
     if (isNaN(newBalance) || newBalance < 0) {
-      console.warn("Por favor ingrese un saldo válido");
+      alert("Por favor ingrese un saldo válido");
       return;
     }
     
@@ -453,17 +455,18 @@ export default function Expenses() {
         }
       } else {
         const errorData = await response.json();
-        console.warn(`Error: ${errorData.error}`);
+        alert(`Error: ${errorData.error}`);
       }
     } catch (error) {
       console.error("Error actualizando usuario:", error);
-      console.warn("Error al actualizar usuario");
+      alert("Error al actualizar usuario");
     } finally {
       setIsUpdatingUser(false);
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
+    if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
     
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -472,13 +475,13 @@ export default function Expenses() {
       
       if (response.ok) {
         await fetchUsers();
-        console.log("Usuario eliminado exitosamente");
+        alert("Usuario eliminado exitosamente");
       } else {
-        console.warn("Error al eliminar usuario");
+        alert("Error al eliminar usuario");
       }
     } catch (error) {
       console.error("Error eliminando usuario:", error);
-      console.warn("Error al eliminar usuario");
+      alert("Error al eliminar usuario");
     }
   };
 
@@ -539,12 +542,12 @@ export default function Expenses() {
     e.preventDefault();
     
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
     
     if (passwordForm.newPassword.length < 6) {
-      console.warn('La contraseña debe tener al menos 6 caracteres');
+      alert('La contraseña debe tener al menos 6 caracteres');
       return;
     }
     
@@ -562,16 +565,16 @@ export default function Expenses() {
       });
       
       if (response.ok) {
-        console.log('✅ Contraseña actualizada correctamente');
+        alert('✅ Contraseña actualizada correctamente');
         setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
         setShowSettingsModal(false);
       } else {
         const data = await response.json();
-        console.warn(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
+        alert(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
       }
     } catch (error) {
       console.error('Error cambiando contraseña:', error);
-      console.warn('❌ Error al cambiar contraseña');
+      alert('❌ Error al cambiar contraseña');
     } finally {
       setIsChangingPassword(false);
     }
@@ -581,17 +584,17 @@ export default function Expenses() {
     e.preventDefault();
     
     if (userPasswordForm.newPassword !== userPasswordForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
     
     if (userPasswordForm.newPassword.length < 6) {
-      console.warn('La contraseña debe tener al menos 6 caracteres');
+      alert('La contraseña debe tener al menos 6 caracteres');
       return;
     }
     
     if (!userPasswordForm.userId) {
-      console.warn('Por favor, selecciona un usuario');
+      alert('Por favor, selecciona un usuario');
       return;
     }
     
@@ -608,15 +611,15 @@ export default function Expenses() {
       });
       
       if (response.ok) {
-        console.log('✅ Contraseña del usuario actualizada correctamente');
+        alert('✅ Contraseña del usuario actualizada correctamente');
         setUserPasswordForm({ userId: '', newPassword: '', confirmPassword: '' });
       } else {
         const data = await response.json();
-        console.warn(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
+        alert(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
       }
     } catch (error) {
       console.error('Error cambiando contraseña de usuario:', error);
-      console.warn('❌ Error al cambiar contraseña');
+      alert('❌ Error al cambiar contraseña');
     } finally {
       setIsChangingPassword(false);
     }
@@ -627,17 +630,17 @@ export default function Expenses() {
     e.preventDefault();
     
     if (createUserForm.password !== createUserForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
     
     if (createUserForm.password.length < 6) {
-      console.warn('La contraseña debe tener al menos 6 caracteres');
+      alert('La contraseña debe tener al menos 6 caracteres');
       return;
     }
     
     if (!createUserForm.email || !createUserForm.name) {
-      console.warn('Por favor, completa todos los campos');
+      alert('Por favor, completa todos los campos');
       return;
     }
     
@@ -657,17 +660,17 @@ export default function Expenses() {
       });
       
       if (response.ok) {
-        console.log('✅ Usuario creado exitosamente');
+        alert('✅ Usuario creado exitosamente');
         setCreateUserForm({ email: '', password: '', confirmPassword: '', name: '', role: 'usuario' });
         setShowSettingsModal(false);
         await fetchUsers(); // Recargar lista de usuarios
       } else {
         const data = await response.json();
-        console.warn(`❌ Error: ${data.error || 'No se pudo crear el usuario'}`);
+        alert(`❌ Error: ${data.error || 'No se pudo crear el usuario'}`);
       }
     } catch (error) {
       console.error('Error creando usuario:', error);
-      console.warn('❌ Error al crear usuario');
+      alert('❌ Error al crear usuario');
     } finally {
       setIsChangingPassword(false);
     }
@@ -768,8 +771,7 @@ export default function Expenses() {
   const pendingExpenses = expenses.filter(e => e.status === 'pendiente');
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
-      <Sidebar />
+    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
       {/* Notificación de eliminación de gasto */}
       {showDeleteNotification && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
@@ -791,10 +793,11 @@ export default function Expenses() {
           </div>
         </div>
       )}
-      <div className="flex-1 w-full">
-        <Header userProfile={userProfile} />
+      <Header 
+        userProfile={userProfile} 
+      />
       
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         {/* HEADER PROFESIONAL */}
         <div className="mb-8 relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 p-6 shadow-lg border border-slate-600">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
@@ -846,7 +849,7 @@ export default function Expenses() {
                   <span>Gastos</span>
                 </div>
               </button>
-              
+
               {/* Pestaña Usuarios - Solo para admin/supervisor */}
               {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
                 <button
@@ -858,7 +861,7 @@ export default function Expenses() {
                   }}
                   className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
                     activeTab === 'users'
-                      ? 'bg-blue-600 text-white shadow-md'
+                      ? 'bg-blue-600 text-white shadow-md magic-tab-active'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
                 >
@@ -880,7 +883,7 @@ export default function Expenses() {
                   }}
                   className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
                     activeTab === 'movements'
-                      ? 'bg-amber-600 text-white shadow-md'
+                      ? 'bg-amber-600 text-white shadow-md magic-tab-active'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
                 >
@@ -902,7 +905,7 @@ export default function Expenses() {
                   }}
                   className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
                     activeTab === 'dba'
-                      ? 'bg-red-600 text-white shadow-md'
+                      ? 'bg-red-600 text-white shadow-md magic-tab-active'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                   }`}
                 >
@@ -918,18 +921,18 @@ export default function Expenses() {
 
         {/* Barras de estadísticas - Solo mostrar en tab de expenses */}
         {activeTab === 'expenses' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 w-full">
+          <div className="flex flex-row gap-6 mb-8 w-full">
             {/* CARD PENDIENTES */}
-            <div className="bg-gradient-to-br from-blue-600 to-blue-800 border border-blue-700 rounded-2xl p-5 flex flex-col items-start justify-between shadow-md group transition-all duration-200 hover:shadow-lg cursor-pointer"
+            <div className="flex-1 bg-blue-600 border-2 border-blue-400 rounded-2xl p-5 flex flex-col items-start justify-between min-w-[180px] shadow-lg group transition-all duration-200 hover:-translate-y-1 cursor-pointer"
               onMouseEnter={() => playRandomSound('money', 0.5)}>
               <div className="flex items-center space-x-3 mb-2">
-                <span className="bg-blue-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
-                <span className="text-3xl font-bold text-white">{pendingExpenses.length}</span>
+                <span className="bg-blue-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-300"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+                <span className="text-3xl font-bold text-yellow-300">{pendingExpenses.length}</span>
               </div>
               <div className="uppercase text-xs font-bold text-white tracking-wider">Gastos pendientes</div>
             </div>
             {/* CARD APROBADOS */}
-            <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 border border-emerald-700 rounded-2xl p-5 flex flex-col items-start justify-between shadow-md group transition-all duration-200 hover:shadow-lg cursor-pointer"
+            <div className="flex-1 bg-emerald-600 border-2 border-emerald-400 rounded-2xl p-5 flex flex-col items-start justify-between min-w-[180px] shadow-lg group transition-all duration-200 hover:-translate-y-1 cursor-pointer"
               onMouseEnter={() => playRandomSound('money', 0.5)}>
               <div className="flex items-center space-x-3 mb-2">
                 <span className="bg-emerald-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="10"/><path d="M16 10l-4 4-2-2"/></svg></span>
@@ -938,7 +941,7 @@ export default function Expenses() {
               <div className="uppercase text-xs font-bold text-white tracking-wider">Gastos aprobados</div>
             </div>
             {/* CARD RECHAZADOS */}
-            <div className="bg-gradient-to-br from-orange-500 to-orange-700 border border-orange-700 rounded-2xl p-5 flex flex-col items-start justify-between shadow-md group transition-all duration-200 hover:shadow-lg cursor-pointer"
+            <div className="flex-1 bg-orange-500 border-2 border-orange-400 rounded-2xl p-5 flex flex-col items-start justify-between min-w-[180px] shadow-lg group transition-all duration-200 hover:-translate-y-1 cursor-pointer"
               onMouseEnter={() => playRandomSound('money', 0.5)}>
               <div className="flex items-center space-x-3 mb-2">
                 <span className="bg-orange-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
@@ -1231,10 +1234,10 @@ export default function Expenses() {
                                 {movement.currency}
                               </span>
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400 font-semibold">
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-black ${Number(movement.balance_before) < 0 ? 'text-red-400' : 'text-green-400'}`}> 
                               ${Number(movement.balance_before).toFixed(2)}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm font-black text-green-400">
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-black ${Number(movement.balance_after) < 0 ? 'text-red-400' : 'text-green-400'}`}> 
                               ${Number(movement.balance_after).toFixed(2)}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-300">
@@ -1549,6 +1552,19 @@ export default function Expenses() {
             </div>
 
             {/* ...eliminado script de paginación, lógica ya está en useEffect... */}
+            {/* Botón para refrescar todas las vistas DBA */}
+            <div className="mb-6 flex items-center justify-end">
+              <button
+                onClick={() => {
+                  // Solo refresca los datos de la tabla actual, sin modificar la consulta ni el estado
+                  executeDbaQuery();
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
+              >
+                <Sparkles className="w-5 h-5 mr-2" />
+                <span>Refresh</span>
+              </button>
+            </div>
 
             {/* Controles de paginación modernos para audit_logs */}
             {selectedTable === 'audit_logs' && (
@@ -2348,7 +2364,6 @@ export default function Expenses() {
             </div>
           </div>
         )}
-      </div>
       </div>
     </div>
   );

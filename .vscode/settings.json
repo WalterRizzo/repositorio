@@ -1,0 +1,9 @@
+{
+  "emeraldwalk.runonsave": [
+    {
+      "match": ".*",
+      "command": "workbench.action.tasks.runTask",
+      "args": "Auto Git Push on Save (PowerShell)"
+    }
+  ]
+}

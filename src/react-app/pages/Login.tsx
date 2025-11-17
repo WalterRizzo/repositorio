@@ -7,7 +7,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    email: "",
+    identifier: "",
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -20,7 +20,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await login(formData.email, formData.password);
+      await login(formData.identifier, formData.password);
       navigate("/expenses");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido");
@@ -68,16 +68,16 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email
+                Email o Usuario
               </label>
               <input
-                type="email"
-                name="email"
-                value={formData.email}
+                type="text"
+                name="identifier"
+                value={formData.identifier}
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="tu@empresa.com"
+                placeholder="usuario o tu@empresa.com"
               />
             </div>
 

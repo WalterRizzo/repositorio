@@ -1,6 +1,7 @@
 import { useAuth } from "@/react-app/hooks/useAuth";
-import { Link, useLocation } from "react-router";
-import { Receipt, LogOut, Moon, Sun, Settings, CloudMoon, FileText } from "lucide-react";
+import { Link } from "react-router";
+import argentinaFlag from '@/react-app/assets/argentina.svg';
+import { Receipt, LogOut, Moon, Sun, CloudMoon } from "lucide-react";
 import { useTheme } from "@/react-app/hooks/useTheme";
 
 interface HeaderProps {
@@ -10,80 +11,41 @@ interface HeaderProps {
 export default function Header({ userProfile }: HeaderProps) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const location = useLocation();
 
   const handleLogout = async () => {
     await logout();
   };
 
-  const isActive = (path: string) => location.pathname === path;
+  // kept for possible future usage, but not currently used
 
   return (
-    <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b-2 border-indigo-500/30 shadow-xl backdrop-blur-sm">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center space-x-8">
+    <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b-2 border-indigo-500/30 shadow-xl backdrop-blur-sm w-full">
+  <div className="w-full lg:max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+        <div className="flex flex-col sm:flex-row items-center justify-between h-auto sm:h-16 gap-y-2 sm:gap-0 w-full">
+            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-8 w-full">
             <Link to="/expenses" className="group flex items-center space-x-3">
               <div className="relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl blur-md group-hover:blur-lg transition-all duration-300 opacity-75 group-hover:opacity-100"></div>
-                <div className="relative w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-all duration-300">
+                <div className="relative w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-all duration-300">
                   <Receipt className="w-6 h-6 text-white" />
                 </div>
               </div>
               <div>
-                <span className="text-2xl font-black bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent group-hover:from-indigo-300 group-hover:via-purple-300 group-hover:to-pink-300 transition-all duration-300">
-                  ExpenseFlow
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-3xl font-black bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent group-hover:from-indigo-300 group-hover:via-purple-300 group-hover:to-pink-300 transition-all duration-300">
+                    ExpenseFlow
+                  </span>
+                  <img src={argentinaFlag} className="w-5 h-3 object-cover rounded-sm" alt="Argentina" />
+                </div>
                 <div className="text-xs text-slate-400 font-medium -mt-1">Control Total</div>
               </div>
             </Link>
 
-            <nav className="flex space-x-2 bg-slate-800/50 rounded-lg p-1 backdrop-blur-sm border border-slate-700/50">
-              <Link
-                to="/expenses"
-                className={`px-4 py-2 rounded-md font-semibold transition-all duration-200 ${
-                  isActive("/expenses")
-                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/50"
-                    : "text-slate-300 hover:text-white hover:bg-slate-700"
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <Receipt className="w-4 h-4" />
-                  <span>Gastos</span>
-                </div>
-              </Link>
-              
-              {/* Mostrar Configuración solo para admin/supervisor */}
-              {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
-                <Link
-                  to="/settings"
-                  className={`px-4 py-2 rounded-md font-semibold transition-all duration-200 ${
-                    isActive("/settings") || isActive("/categories")
-                      ? "bg-purple-600 text-white shadow-lg shadow-purple-500/50"
-                      : "text-slate-300 hover:text-white hover:bg-slate-700"
-                  }`}
-                >
-                  <div className="flex items-center space-x-2">
-                    <Settings className="w-4 h-4" />
-                    <span>Configuración</span>
-                  </div>
-                </Link>
-              )}
+              <nav className="flex space-x-2 bg-slate-800/50 rounded-lg p-1 backdrop-blur-sm border border-slate-700/50 overflow-x-auto w-full">
+              {/* Removed top nav 'Gastos' and 'Configuración' to keep them in the Sidebar per UX change request */}
 
               {/* Documentación - visible para todos */}
-              <Link
-                to="/documentation"
-                className={`px-4 py-2 rounded-md font-semibold transition-all duration-200 ${
-                  isActive("/documentation")
-                    ? "bg-pink-600 text-white shadow-lg shadow-pink-500/50"
-                    : "text-slate-300 hover:text-white hover:bg-slate-700"
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <FileText className="w-4 h-4" />
-                  <span>Docs</span>
-                </div>
-              </Link>
+              {/* Docs moved to sidebar per UX request */}
 
             </nav>
           </div>
@@ -121,8 +83,8 @@ export default function Header({ userProfile }: HeaderProps) {
                   {user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase()}
                 </div>
               </div>
-              <div className="text-sm">
-                <div className="font-bold text-white">
+              <div className="text-sm max-w-[160px]">
+                <div className="font-bold text-white truncate whitespace-nowrap">
                   {user?.name || user?.email}
                 </div>
               </div>

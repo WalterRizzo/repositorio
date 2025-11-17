@@ -38,6 +38,8 @@ export default function ExpenseForm({
   const [showSaveNotification, setShowSaveNotification] = useState(false);
   const [currentEmoji, setCurrentEmoji] = useState('🎉');
   const [particleEmojis, setParticleEmojis] = useState<string[]>([]);
+  // Estado para mostrar el modal de previsualización
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [particleColors, setParticleColors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -518,18 +520,18 @@ export default function ExpenseForm({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-      <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto glass rounded-3xl shadow-2xl shadow-violet-500/20 border border-violet-500/20 backdrop-blur-2xl animate-scaleIn">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-2 animate-fadeIn">
+  <div className="w-full sm:max-w-lg lg:max-w-3xl xl:max-w-4xl max-h-[85vh] overflow-y-auto glass rounded-2xl shadow-2xl shadow-violet-500/20 border border-violet-500/20 backdrop-blur-2xl animate-scaleIn flex flex-col px-4 sm:px-8 py-4 sm:py-6">
         {/* Header Premium con Gradient */}
-        <div className="sticky top-0 z-10 px-8 py-6 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-indigo-500/10 border-b border-violet-500/20 backdrop-blur-xl">
+  <div className="sticky top-0 z-10 px-4 py-4 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-indigo-500/10 border-b border-violet-500/20 backdrop-blur-xl">
           <div className="absolute inset-0 bg-gradient-to-r from-violet-600/5 to-purple-600/5"></div>
-          <div className="relative flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/50">
-                <Save className="w-6 h-6 text-white" />
+          <div className="relative flex items-center justify-between min-h-[40px]">
+            <div className="flex items-center space-x-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/50">
+                <Save className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-200 to-purple-200 bg-clip-text text-transparent">
+                <h2 className="text-xl font-bold bg-gradient-to-r from-violet-200 to-purple-200 bg-clip-text text-transparent">
                   {expense ? "Editar Gasto" : "Nuevo Gasto"}
                 </h2>
                 <p className="text-xs text-white/40 mt-0.5">
@@ -540,14 +542,15 @@ export default function ExpenseForm({
             <button
               onClick={onCancel}
               type="button"
-              className="group p-2.5 hover:bg-white/10 rounded-xl transition-all duration-200 hover:scale-110"
+              className="group p-3 hover:bg-white/20 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              aria-label="Cerrar"
             >
-              <X className="w-5 h-5 text-white/60 group-hover:text-white transition-colors" />
+              <X className="w-6 h-6 text-white/80 group-hover:text-white transition-colors" />
             </button>
           </div>
         </div>
 
-      <form onSubmit={handleSubmit} className="p-8">
+  <form onSubmit={handleSubmit} className="p-0 sm:p-4 flex flex-col gap-y-6 mb-2">
         {error && (
           <div className={`mb-6 p-4 rounded-2xl text-sm backdrop-blur-sm border animate-slideIn ${
             error.includes('💡 OCR detectó') 
@@ -561,10 +564,10 @@ export default function ExpenseForm({
           </div>
         )}
 
-        {/* Balance Premium Display */}
-        <div className="mb-6 p-5 bg-gradient-to-br from-emerald-500/10 to-green-500/10 border border-emerald-500/30 rounded-2xl backdrop-blur-sm relative overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
+  {/* Balance Premium Display */}
+  <div className="mb-4 p-3 sm:p-4 bg-gradient-to-br from-emerald-500/10 to-green-500/10 border border-emerald-500/30 rounded-2xl shadow backdrop-blur-sm relative overflow-hidden group hover:scale-[1.01] transition-transform duration-200">
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/5 to-green-400/5 group-hover:from-emerald-400/10 group-hover:to-green-400/10 transition-colors"></div>
-          <div className="relative flex items-center justify-between">
+          <div className="relative flex items-center justify-between" style={{minHeight:'48px'}}>
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/50">
                 <Wallet className="w-5 h-5 text-white" />
@@ -586,9 +589,9 @@ export default function ExpenseForm({
           </div>
         </div>
 
-        <div className="space-y-6">
+  <div className="space-y-4">
           {/* Descripción Premium */}
-          <div>
+          <div className="mb-2">
             <label htmlFor="description" className="block text-sm font-bold text-violet-300 mb-2 uppercase tracking-wider">
               📝 Descripción
             </label>
@@ -598,15 +601,15 @@ export default function ExpenseForm({
               value={formData.description}
               onChange={handleChange}
               required
-              rows={3}
+              rows={1}
               className="w-full px-4 py-3 bg-white/5 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white placeholder-white/30 hover:bg-white/10"
               placeholder="Ej: Comida con cliente, Material de oficina..."
             />
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
             {/* Monto */}
-            <div>
+            <div className="mb-0.5">
               <label htmlFor="amount" className="block text-sm font-bold text-violet-300 mb-2 uppercase tracking-wider">
                 💰 Monto
               </label>
@@ -625,7 +628,7 @@ export default function ExpenseForm({
             </div>
 
             {/* Moneda */}
-            <div>
+            <div className="mb-0.5">
               <label htmlFor="currency" className="block text-sm font-bold text-violet-300 mb-2 uppercase tracking-wider">
                 💵 Moneda
               </label>
@@ -647,7 +650,7 @@ export default function ExpenseForm({
             </div>
 
             {/* Fecha */}
-            <div>
+            <div className="mb-0.5">
               <label htmlFor="expense_date" className="block text-sm font-bold text-violet-300 mb-2 uppercase tracking-wider">
                 📅 Fecha
               </label>
@@ -664,7 +667,7 @@ export default function ExpenseForm({
           </div>
 
           {/* Categoría */}
-          <div>
+          <div className="mb-2">
             <label htmlFor="category" className="block text-sm font-bold text-violet-300 mb-2 uppercase tracking-wider">
               🏷️ Categoría
             </label>
@@ -686,7 +689,7 @@ export default function ExpenseForm({
           </div>
 
           {/* Tipo de Comprobante */}
-          <div>
+          <div className="mb-2">
             <label htmlFor="tipo_comprobante_id" className="block text-sm font-bold text-violet-300 mb-2 uppercase tracking-wider">
               📄 Tipo de Comprobante
             </label>
@@ -736,17 +739,17 @@ export default function ExpenseForm({
                     <img
                       src={receiptPreview}
                       alt="Vista previa del recibo"
-                      className="w-full h-48 object-cover rounded-lg border border-violet-500/30"
+                      className="w-full h-32 object-contain rounded-lg border border-violet-500/30 bg-white dark:bg-gray-900"
+                      style={{ maxHeight: '180px', minHeight: '80px' }}
                     />
                     <button
                       type="button"
-                      onClick={() => window.open(receiptPreview, '_blank')}
+                      onClick={() => setShowPreviewModal(true)}
                       className="absolute top-2 right-2 p-2 bg-gray-900/90 backdrop-blur-sm border border-violet-500/30 rounded-lg shadow-md hover:shadow-xl hover:shadow-violet-500/50 transition-all hover:scale-110"
                     >
                       <Eye className="w-4 h-4 text-violet-400" />
                     </button>
                   </div>
-                  
                   <button
                     type="button"
                     onClick={extractAmountFromReceipt}
@@ -762,6 +765,17 @@ export default function ExpenseForm({
             </div>
           </div>
 
+          {/* Modal para previsualización */}
+          {showPreviewModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4" onClick={() => setShowPreviewModal(false)}>
+              <div className="bg-white dark:bg-gray-900 rounded-lg p-4 shadow-xl relative max-w-[90vw] max-h-[85vh] overflow-auto" onClick={e => e.stopPropagation()}>
+                <img src={receiptPreview || ''} alt="Vista previa recibo" className="max-w-full max-h-[80vh] rounded-lg object-contain mx-auto" />
+                <button className="absolute top-2 right-2 text-gray-700 dark:text-gray-200" onClick={() => setShowPreviewModal(false)}>
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
           {/* Múltiples Archivos Adjuntos */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -791,13 +805,13 @@ export default function ExpenseForm({
               {existingAttachments.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Archivos guardados:</h4>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="flex gap-3 overflow-x-auto py-2">
                     {existingAttachments.map((attachment, index) => (
-                      <div key={attachment.filename} className="relative group">
+                      <div key={attachment.filename} className="relative group flex-shrink-0 w-28">
                         <img
                           src={attachment.url}
                           alt={attachment.originalName}
-                          className="w-full h-24 object-cover rounded-lg border border-gray-200 dark:border-gray-600"
+                          className="w-full h-20 object-contain rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-800"
                         />
                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity rounded-lg">
                           <button
@@ -821,13 +835,13 @@ export default function ExpenseForm({
               {attachments.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Nuevos archivos:</h4>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="flex gap-3 overflow-x-auto py-2">
                     {attachments.map((attachment, index) => (
-                      <div key={index} className="relative group">
+                      <div key={index} className="relative group flex-shrink-0 w-28">
                         <img
                           src={attachment.preview}
                           alt={attachment.file.name}
-                          className="w-full h-24 object-cover rounded-lg border border-gray-200 dark:border-gray-600"
+                          className="w-full h-20 object-contain rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-800"
                         />
                         <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity rounded-lg">
                           <button
@@ -870,21 +884,21 @@ export default function ExpenseForm({
         </div>
 
         {/* Botones Premium */}
-        <div className="mt-8 flex items-center justify-end space-x-3 pt-6 border-t border-violet-500/20">
+  <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 pt-6 border-t border-violet-500/20 w-full">
           <button
             type="button"
             onClick={onCancel}
-            className="px-6 py-3 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white rounded-xl font-semibold transition-all duration-200 border border-white/10 hover:border-white/20"
+            className="w-full sm:w-auto px-6 py-3 bg-white/10 hover:bg-white/20 text-white/80 hover:text-white rounded-xl font-semibold transition-all duration-200 border border-white/10 hover:border-white/20 focus:outline-none focus:ring-2 focus:ring-violet-500"
           >
             Cancelar
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="group relative flex items-center space-x-2 px-8 py-3 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white rounded-xl hover:from-violet-700 hover:via-purple-700 hover:to-indigo-700 transition-all duration-300 shadow-xl shadow-violet-500/30 hover:shadow-2xl hover:shadow-violet-500/50 transform hover:-translate-y-0.5 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            className="group relative flex items-center justify-center w-full sm:w-auto space-x-2 px-8 py-3 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white rounded-xl hover:from-violet-700 hover:via-purple-700 hover:to-indigo-700 transition-all duration-300 shadow-xl shadow-violet-500/30 hover:shadow-2xl hover:shadow-violet-500/50 transform hover:-translate-y-0.5 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none focus:outline-none focus:ring-2 focus:ring-violet-500"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-violet-500 rounded-xl blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-300 -z-10"></div>
-            <Save className="w-5 h-5 relative" />
+            <Save className="w-6 h-6 relative" />
             <span className="font-bold relative">
               {isSubmitting ? "Guardando..." : expense ? "Actualizar Gasto" : "Crear Gasto"}
             </span>

@@ -146,15 +146,15 @@ export default function SettingsPage() {
         console.log('✅ Categoría guardada:', result);
         fetchCategories();
         resetCategoryForm();
-        alert('✅ Categoría guardada exitosamente');
+        console.log('✅ Categoría guardada exitosamente');
       } else {
         const error = await response.json();
         console.error('❌ Error del servidor:', error);
-        alert('❌ Error: ' + (error.error || 'Error desconocido'));
+        console.warn('❌ Error: ' + (error.error || 'Error desconocido'));
       }
     } catch (error) {
       console.error('❌ Error saving category:', error);
-      alert('❌ Error al guardar la categoría: ' + error);
+      console.warn('❌ Error al guardar la categoría: ' + error);
     }
   };
 
@@ -173,11 +173,11 @@ export default function SettingsPage() {
       if (response.ok) {
         fetchTiposComprobantes();
         resetComprobanteForm();
-        alert('Tipo de comprobante guardado exitosamente');
+        console.log('Tipo de comprobante guardado exitosamente');
       }
     } catch (error) {
       console.error('Error saving tipo comprobante:', error);
-      alert('Error al guardar el tipo de comprobante');
+      console.warn('Error al guardar el tipo de comprobante');
     }
   };
 
@@ -185,12 +185,12 @@ export default function SettingsPage() {
     e.preventDefault();
     
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      console.warn('Las contraseñas no coinciden');
       return;
     }
 
     if (passwordForm.newPassword.length < 6) {
-      alert('La contraseña debe tener al menos 6 caracteres');
+      console.warn('La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
@@ -206,15 +206,15 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        alert('✅ Contraseña cambiada exitosamente');
+        console.log('✅ Contraseña cambiada exitosamente');
         setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       } else {
         const error = await response.json();
-        alert('❌ ' + (error.error || 'Error al cambiar la contraseña'));
+        console.warn('❌ ' + (error.error || 'Error al cambiar la contraseña'));
       }
     } catch (error) {
       console.error('Error changing password:', error);
-      alert('❌ Error al cambiar la contraseña');
+      console.warn('❌ Error al cambiar la contraseña');
     } finally {
       setIsChangingPassword(false);
     }
@@ -224,7 +224,7 @@ export default function SettingsPage() {
     e.preventDefault();
     
     if (userPasswordForm.newPassword !== userPasswordForm.confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      console.warn('Las contraseñas no coinciden');
       return;
     }
 
@@ -241,15 +241,15 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        alert('✅ Contraseña del usuario cambiada exitosamente');
+        console.log('✅ Contraseña del usuario cambiada exitosamente');
         setUserPasswordForm({ userId: '', newPassword: '', confirmPassword: '' });
       } else {
         const error = await response.json();
-        alert('❌ ' + (error.error || 'Error al cambiar la contraseña'));
+        console.warn('❌ ' + (error.error || 'Error al cambiar la contraseña'));
       }
     } catch (error) {
       console.error('Error changing user password:', error);
-      alert('❌ Error al cambiar la contraseña del usuario');
+      console.warn('❌ Error al cambiar la contraseña del usuario');
     } finally {
       setIsChangingPassword(false);
     }
@@ -259,7 +259,7 @@ export default function SettingsPage() {
     e.preventDefault();
     
     if (createUserForm.password !== createUserForm.confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      console.warn('Las contraseñas no coinciden');
       return;
     }
 
@@ -277,16 +277,16 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        alert('✅ Usuario creado exitosamente');
+        console.log('✅ Usuario creado exitosamente');
         setCreateUserForm({ name: '', email: '', role: 'usuario', password: '', confirmPassword: '' });
         fetchUsers(); // Refresh users list
       } else {
         const error = await response.json();
-        alert('❌ ' + (error.error || 'Error al crear el usuario'));
+        console.warn('❌ ' + (error.error || 'Error al crear el usuario'));
       }
     } catch (error) {
       console.error('Error creating user:', error);
-      alert('❌ Error al crear el usuario');
+      console.warn('❌ Error al crear el usuario');
     } finally {
       setIsChangingPassword(false);
     }
@@ -323,11 +323,11 @@ export default function SettingsPage() {
       });
       if (response.ok) {
         fetchCategories();
-        alert('Categoría eliminada');
+        console.log('Categoría eliminada');
       }
     } catch (error) {
       console.error('Error deleting category:', error);
-      alert('Error al eliminar la categoría');
+      console.warn('Error al eliminar la categoría');
     }
   };
 
@@ -339,11 +339,11 @@ export default function SettingsPage() {
       });
       if (response.ok) {
         fetchTiposComprobantes();
-        alert('Tipo de comprobante eliminado');
+        console.log('Tipo de comprobante eliminado');
       }
     } catch (error) {
       console.error('Error deleting tipo comprobante:', error);
-      alert('Error al eliminar el tipo de comprobante');
+      console.warn('Error al eliminar el tipo de comprobante');
     }
   };
 

@@ -4,9 +4,11 @@ import { useAuth } from "@/react-app/hooks/useAuth";
 import { Loader2, Download } from "lucide-react";
 import * as XLSX from 'xlsx';
 import Header from "@/react-app/components/Header";
+import Sidebar from "@/react-app/components/Sidebar";
 import ReportsSummary from "@/react-app/components/ReportsSummary";
 import CategoryChart from "@/react-app/components/CategoryChart";
 import MonthlyChart from "@/react-app/components/MonthlyChart";
+import TrendAIChart from "../components/TrendAIChart";
 
 interface ReportData {
   byCategory: Array<{ category: string; total: number; count: number }>;
@@ -121,7 +123,7 @@ export default function Reports() {
       XLSX.writeFile(wb, filename);
     } catch (error) {
       console.error("Error exportando a Excel:", error);
-      alert("Error al exportar el reporte");
+      console.warn("Error al exportar el reporte");
     } finally {
       setIsExporting(false);
     }
@@ -140,10 +142,13 @@ export default function Reports() {
   // Reportes disponibles para todos
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <Header userProfile={userProfile} />
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex">
+      {/* Sidebar - Desktop */}
+      <Sidebar />
+      <div className="flex-1 w-full">
+        <Header userProfile={userProfile} />
       
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Reportes</h1>
@@ -172,9 +177,11 @@ export default function Reports() {
           <div className="space-y-6">
             <ReportsSummary totals={reportData.totals} />
             
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-3 gap-6">
               <CategoryChart data={reportData.byCategory} />
               <MonthlyChart data={reportData.byMonth} />
+              {/* AI-powered trend chart */}
+              <TrendAIChart data={reportData.byMonth} />
             </div>
           </div>
         ) : (
@@ -183,6 +190,7 @@ export default function Reports() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

@@ -147,14 +147,15 @@ const loginRateLimit = async (c: any, next: any) => {
 app.post("/api/auth/login", loginRateLimit, async (c) => {
   const body = await c.req.json();
 
-  if (!body.email || !body.password) {
-    return c.json({ error: "Email y contraseña son requeridos" }, 400);
+  const identifier = body.identifier || body.email;
+  if (!identifier || !body.password) {
+    return c.json({ error: "Identificador (email o usuario) y contraseña son requeridos" }, 400);
   }
 
-  // Buscar usuario en la base de datos (case insensitive)
+  // Buscar usuario en la base de datos (case insensitive) por email o id
   const { results } = await c.env.DB.prepare(
-    'SELECT * FROM users WHERE LOWER(email) = LOWER(?)'
-  ).bind(body.email).all();
+    'SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(id) = LOWER(?)'
+  ).bind(identifier, identifier).all();
 
   if (results.length === 0) {
     return c.json({ error: "Credenciales inválidas" }, 401);
@@ -2707,7 +2708,27 @@ app.get('/api/users/:userId/transacciones-saldo', authMiddleware(), async (c) =>
         st.fecha_transaccion,
         st.created_at
       FROM saldo_transacciones st
-      LEFT JOIN users u ON st.user_id = u.id
+      LEFT JOIN users u ON st.      "emeraldwalk.runonsave": [
+        {
+          "match": ".*",
+          "command": "workbench.action.tasks.runTask",
+          "args": "Auto Git Push on Save (PowerShell)"
+        }
+      ]      "emeraldwalk.runonsave": [
+        {
+          "match": ".*",
+          "command": "workbench.action.tasks.runTask",
+          "args": "Auto Git Push on Save (PowerShell)"
+        }
+      ]      {
+        "emeraldwalk.runonsave": [
+          {
+            "match": ".*",
+            "command": "workbench.action.tasks.runTask",
+            "args": "Auto Git Push on Save (PowerShell)"
+          }
+        ]
+      }user_id = u.id
       WHERE st.user_id = ?
       ORDER BY st.fecha_transaccion DESC
     `).bind(userId).all();

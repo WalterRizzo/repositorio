@@ -1,5 +1,7 @@
 import { Plus, Trash2, Receipt, Filter, Edit3, CheckCircle, XCircle, Sparkles, FileSpreadsheet } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import BubbleTooltipPortal from "./BubbleTooltipPortal";
+import { getStatusBadgeClasses, getStatusLabel } from '@/react-app/utils/status';
 import type { Expense } from "@/shared/types";
 import * as XLSX from 'xlsx';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
@@ -17,6 +19,7 @@ interface ExpensesTableProps {
   userRole?: string;
   users?: any[];
   currentUserId?: string;
+  forceMobileView?: boolean;
 }
 
 export default function ExpensesTable({
@@ -30,9 +33,14 @@ export default function ExpensesTable({
   userRole,
   users = [],
   currentUserId,
+  forceMobileView = false,
 }: ExpensesTableProps) {
   // Estado para el modal de preview de adjuntos
   const [previewAttachments, setPreviewAttachments] = useState<Array<{url?: string, filename: string, originalName?: string}> | null>(null);
+  // Estado para burbuja de rechazo
+  const [bubbleVisible, setBubbleVisible] = useState(false);
+  const [bubbleData, setBubbleData] = useState<{x: number, y: number, rejectionReason: string, rejectedBy?: string, rejectedAt?: string} | null>(null);
+  const bubbleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Estado para filtros
   const [filters, setFilters] = useState({
     pendientes: true,
@@ -114,7 +122,14 @@ export default function ExpensesTable({
 
   const handleRejectSubmit = async () => {
     if (!rejectionReason.trim()) {
-      alert('⚠️ Debes proporcionar una razón para el rechazo');
+      // Non-blocking in-component notification instead of native alert
+      console.warn('⚠️ Debes proporcionar una razón para el rechazo');
+      setNotificationType('reject');
+      setCurrentEmoji(getRandomEmoji('reject'));
+      setParticleEmojis(getRandomEmojis('reject', 'particles', 6));
+      setParticleColors(getColorSet(6));
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 3500);
       return;
     }
     
@@ -141,7 +156,12 @@ export default function ExpensesTable({
         setTimeout(() => setShowNotification(false), 3500); // 3.5 segundos
       } catch (error) {
         console.error('Error al rechazar:', error);
-        alert('❌ Error al rechazar el gasto');
+        setNotificationType('reject');
+        setCurrentEmoji(getRandomEmoji('reject'));
+        setParticleEmojis(getRandomEmojis('reject', 'particles', 6));
+        setParticleColors(getColorSet(6));
+        setShowNotification(true);
+        setTimeout(() => setShowNotification(false), 3500);
       }
     }
   };
@@ -214,8 +234,8 @@ export default function ExpensesTable({
   const displayExpenses = filteredExpenses.slice(startIndex, startIndex + recordsPerPage);
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden w-full px-4 sm:px-8 py-4 sm:py-6">
+  <div className="p-0 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-y-4 mb-4">
         <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Lista de Gastos</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -240,14 +260,14 @@ export default function ExpensesTable({
       </div>
 
       {/* Filtros por estado */}
-      <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center space-x-2">
+  <div className="px-2 sm:px-6 py-2 sm:py-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 rounded-xl shadow mb-4">
+  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-y-2 sm:space-x-6">
+          <div className="flex items-center gap-x-2">
             <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por estado:</span>
           </div>
           
-          <div className="flex space-x-4">
+          <div className="flex flex-col sm:flex-row gap-y-2 sm:space-x-4">
             <label className="flex items-center space-x-2 cursor-pointer bg-blue-600 rounded-lg px-4 py-2 shadow text-white">
               <input
                 type="checkbox"
@@ -259,7 +279,7 @@ export default function ExpensesTable({
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               <span className="text-sm font-bold">
-                🟡 Pendientes ({expenses.filter(e => e.status === 'pendiente').length})
+                🔵 Pendientes ({expenses.filter(e => e.status === 'pendiente').length})
               </span>
             </label>
             
@@ -289,12 +309,12 @@ export default function ExpensesTable({
                 className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
               />
               <span className="text-sm font-bold">
-                🔴 Rechazados ({expenses.filter(e => e.status === 'rechazado').length})
+                🟠 Rechazados ({expenses.filter(e => e.status === 'rechazado').length})
               </span>
             </label>
           </div>
           
-          <div className="flex space-x-2 ml-auto">
+          <div className="flex gap-x-2 ml-auto">
             <button
               onClick={() => {
                 setFilters({pendientes: true, aprobados: true, rechazados: true});
@@ -317,7 +337,7 @@ export default function ExpensesTable({
         </div>
         
         {/* Filtros por fecha */}
-        <div className="mt-4 flex items-center space-x-4">
+  <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center gap-y-2 sm:space-x-4">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">📅 Filtrar por fecha:</span>
           <div className="flex items-center space-x-2">
             <label className="text-xs text-gray-600 dark:text-gray-400">Desde:</label>
@@ -384,7 +404,7 @@ export default function ExpensesTable({
         </div>
         
         {/* Información de filtros activos */}
-        <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+  <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 w-full">
           📊 Página {currentPage} de {totalPages} - Mostrando {displayExpenses.length} de {filteredExpenses.length} gastos filtrados
         </div>
       </div>
@@ -412,100 +432,136 @@ export default function ExpensesTable({
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto">
-            <table className="w-full rounded-xl border-2 border-purple-500">
+          {/* Mobile stacked cards - force mobile when `forceMobileView` is true */}
+          {forceMobileView ? (
+            <div className="w-full space-y-3">
+              {displayExpenses.map((expense) => (
+              <div key={expense.id} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{new Date(expense.expense_date).toLocaleDateString()}</div>
+                      <div className="text-sm font-bold">{formatCurrency(expense.amount, expense.currency)}</div>
+                    </div>
+                    <div className="text-base font-semibold text-gray-900 dark:text-white mb-1">{expense.category}</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300 mb-2 truncate">{expense.description}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{expense.user_name || 'N/A'}{expense.user_email ? <span className="block">{expense.user_email}</span> : null}</div>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      expense.status === 'aprobado' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
+                      expense.status === 'rechazado' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+                    }`}>{expense.status === 'aprobado' ? 'Aprobado' : expense.status === 'rechazado' ? 'Rechazado' : 'Pendiente'}</span>
+                    {expense.attachments && expense.attachments.length > 0 ? (
+                      <img src={expense.attachments[0].url || `/api/files/${expense.attachments[0].filename}`} alt="adj" className="w-8 h-8 object-cover rounded-md border" />
+                    ) : expense.receipt_photo_url ? (
+                      <img src={`/api/files/${expense.receipt_photo_url}`} alt="recibo" className="w-8 h-8 object-cover rounded-md border" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-md bg-gray-200 dark:bg-gray-700 flex items-center justify-center"><Receipt className="w-4 h-4 text-gray-500" /></div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <button onClick={() => onEdit(expense)} className="p-2 bg-indigo-600 text-white rounded-md"> <Edit3 className="w-4 h-4" /> </button>
+                    <button onClick={() => onDelete(expense.id)} className="p-2 bg-red-500 text-white rounded-md"> <Trash2 className="w-4 h-4" /> </button>
+                    {userRole !== 'usuario' && (
+                      <>
+                        <button onClick={() => handleApproveClick(expense.id)} className="p-2 bg-green-500 text-white rounded-md"> <CheckCircle className="w-4 h-4" /> </button>
+                        <button onClick={() => handleRejectClick(expense.id)} className="p-2 bg-orange-500 text-white rounded-md"> <XCircle className="w-4 h-4" /> </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            </div>
+          ) : (
+            <div className="block lg:hidden w-full space-y-3">
+              {displayExpenses.map((expense) => (
+                <div key={expense.id} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm">
+                  {/* same mobile card content (kept above) */}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Desktop table (show from lg up) - hide entirely when forcing mobile view */}
+          {!forceMobileView && (
+            <div className="hidden lg:block overflow-x-auto w-full">
+            <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Fecha</th>
-                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Categoría</th>
-                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Descripción</th>
-                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Cargado por</th>
-                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Monto</th>
-                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Moneda</th>
-                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Estado</th>
-                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Saldo</th>
-                  <th className="px-2 py-2 text-center text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Archivos</th>
-                  <th className="px-2 py-2 text-left text-[11px] font-black text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">Acciones</th>
+                  <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Fecha</th>
+                  <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Categoría</th>
+                  <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Descripción</th>
+                  <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Cargado por</th>
+                  <th className="px-1 py-1 text-right text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Monto</th>
+                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Moneda</th>
+                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Estado</th>
+                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Archivos</th>
+                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
                 {displayExpenses.map((expense) => (
                   <tr key={expense.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {new Date(expense.expense_date).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {expense.category}
-                    </td>
-                    <td className="px-2 py-4 text-sm text-gray-900 dark:text-white max-w-[120px] truncate" title={expense.description}>
-                      {expense.description.length > 40 ? expense.description.slice(0, 37) + '...' : expense.description}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-left">{new Date(expense.expense_date).toLocaleDateString()}</td>
+                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-left">{expense.category}</td>
+                    <td className="px-1 py-2 text-[11px] max-w-[90px] truncate text-left" title={expense.description}>{expense.description.length > 40 ? expense.description.slice(0, 37) + '...' : expense.description}</td>
+                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-left">
                       <div>
-                        <div className="font-medium">{expense.user_name || 'N/A'}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{expense.user_email || ''}</div>
+                        <span className="font-medium">{expense.user_name || 'N/A'}</span>
+                        <span className="block text-[10px] text-gray-500 dark:text-gray-400">{expense.user_email || ''}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {expense.amount}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {expense.currency}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="relative group">
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          expense.status === 'aprobado' 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                            : expense.status === 'rechazado'
-                              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                              : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-                        }`}>
-                          {expense.status === 'aprobado' ? 'Aprobado' : 
-                           expense.status === 'rechazado' ? 'Rechazado' : 'Pendiente'}
+                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-right font-bold" style={{ color: expense.amount < 0 ? '#FF0000' : undefined }}>{formatCurrency(expense.amount, expense.currency)}</td>
+                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">{expense.currency}</td>
+                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">
+                      <div className="relative group flex justify-center items-center">
+                        <span className={`px-1 py-0.5 text-[10px] font-semibold rounded-full ${getStatusBadgeClasses(expense.status as any)}`}>
+                          {getStatusLabel(expense.status as any)}
                         </span>
-                        
-                        {/* Tooltip de razón de rechazo */}
+                        {/* BubbleTooltipPortal para rechazo */}
                         {expense.status === 'rechazado' && expense.rejection_reason && (
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-80 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                            <div className="bg-red-600 text-white p-4 rounded-xl shadow-2xl border-2 border-red-400">
-                              <div className="flex items-start space-x-2 mb-2">
-                                <XCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                                <div className="flex-1">
-                                  <p className="text-xs font-bold uppercase tracking-wide mb-1">
-                                    Razón del Rechazo:
-                                  </p>
-                                  <p className="text-sm leading-relaxed">
-                                    {expense.rejection_reason}
-                                  </p>
-                                  {expense.rejected_by && (
-                                    <div className="mt-3 pt-2 border-t border-red-400/30 text-xs">
-                                      <p>
-                                        <span className="opacity-75">Rechazado por:</span>{' '}
-                                        <span className="font-semibold">{expense.rejected_by}</span>
-                                      </p>
-                                      {expense.rejected_at && (
-                                        <p className="opacity-75 mt-1">
-                                          {new Date(expense.rejected_at).toLocaleString('es-AR')}
-                                        </p>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              {/* Flecha del tooltip */}
-                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                                <div className="w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-red-600"></div>
-                              </div>
-                            </div>
-                          </div>
+                          <button
+                            type="button"
+                            aria-label="Ver motivo de rechazo"
+                            className="ml-1 p-1 rounded-full bg-pink-100 hover:bg-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all"
+                            onMouseEnter={e => {
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              setBubbleData({
+                                x: rect.left + rect.width / 2,
+                                y: rect.top - 40,
+                                rejectionReason: expense.rejection_reason ?? '',
+                                rejectedBy: expense.rejected_by ?? undefined,
+                                rejectedAt: expense.rejected_at ? new Date(expense.rejected_at).toLocaleString('es-AR') : undefined
+                              });
+                              setBubbleVisible(true);
+                              if (bubbleTimeoutRef.current) clearTimeout(bubbleTimeoutRef.current);
+                            }}
+                            onMouseLeave={() => {
+                              bubbleTimeoutRef.current = setTimeout(() => setBubbleVisible(false), 200);
+                            }}
+                          >
+                            <span role="img" aria-label="burbuja" className="text-pink-500 text-lg">🫧</span>
+                          </button>
                         )}
+      {/* Render BubbleTooltipPortal globally */}
+      {bubbleVisible && bubbleData && (
+        <BubbleTooltipPortal
+          visible={bubbleVisible}
+          x={bubbleData.x}
+          y={bubbleData.y}
+          rejectionReason={bubbleData.rejectionReason}
+          rejectedBy={bubbleData.rejectedBy}
+          rejectedAt={bubbleData.rejectedAt}
+        />
+      )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {expense.use_balance ? '✅ Sí' : '❌ No'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">
                       <div className="flex items-center justify-center gap-1 min-h-[40px]">
                         {/* Mostrar hasta 3 miniaturas */}
                         {expense.attachments && expense.attachments.length > 0 ? (
@@ -603,8 +659,8 @@ export default function ExpensesTable({
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                      <div className="flex items-center justify-end gap-2 animate-fadeIn">
+                    <td className="px-2 py-2 whitespace-nowrap text-right text-xs sm:text-sm font-medium gap-x-2">
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 animate-fadeIn w-full">
                         <button
                             onClick={() => onEdit(expense)}
                             className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 border-2 border-blue-300"
@@ -651,15 +707,16 @@ export default function ExpensesTable({
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          )}
           
           {/* Controles de paginación */}
           {totalPages > 1 && (
-            <div className="flex justify-between items-center mt-4 px-6 py-4 bg-gradient-to-r from-violet-600 to-purple-600 border-t">
-              <div className="text-sm text-white font-semibold">
+            <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-gradient-to-r from-violet-600 to-purple-600 border-t gap-y-2 rounded-xl shadow-lg mb-2">
+              <div className="text-xs sm:text-sm text-white font-semibold">
                 Mostrando {startIndex + 1} - {Math.min(startIndex + recordsPerPage, filteredExpenses.length)} de {filteredExpenses.length} gastos
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-x-2">
                 <button
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
@@ -750,12 +807,8 @@ export default function ExpensesTable({
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.category}</td>
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{new Date(expense.expense_date).toLocaleDateString('es-AR')}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            expense.status === 'aprobado' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                            expense.status === 'rechazado' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
-                            'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                          }`}>
-                            {expense.status}
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClasses(expense.status as any)}`}>
+                            {getStatusLabel(expense.status as any)}
                           </span>
                         </td>
                       </tr>

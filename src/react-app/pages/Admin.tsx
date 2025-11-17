@@ -81,7 +81,7 @@ export default function Admin() {
     
     // Validación en frontend
     if (!userForm.name.trim() || !userForm.email.trim()) {
-      alert("Nombre y email son requeridos en frontend");
+      console.warn("Nombre y email son requeridos en frontend");
       return;
     }
     
@@ -106,14 +106,14 @@ export default function Admin() {
         await fetchUsers();
         setShowUserModal(false);
         resetUserForm();
-        alert("Usuario creado exitosamente");
+        console.log("Usuario creado exitosamente");
       } else {
         const errorData = await response.json();
-        alert(`Error al crear usuario: ${errorData.error || 'Error desconocido'}`);
+        console.log(`Error al crear usuario: ${errorData.error || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error("Error creando usuario:", error);
-      alert("Error al crear usuario");
+      console.log("Error al crear usuario");
     }
   };
 
@@ -123,7 +123,7 @@ export default function Admin() {
     
     // Validación en frontend
     if (!userForm.name.trim() || !userForm.email.trim()) {
-      alert("Nombre y email son requeridos");
+      console.log("Nombre y email son requeridos");
       return;
     }
     
@@ -145,14 +145,14 @@ export default function Admin() {
         setShowUserModal(false);
         setEditingUser(null);
         resetUserForm();
-        alert("Usuario actualizado exitosamente");
+        console.log("Usuario actualizado exitosamente");
       } else {
         const errorData = await response.json();
-        alert(`Error al actualizar usuario: ${errorData.error || 'Error desconocido'}`);
+        console.log(`Error al actualizar usuario: ${errorData.error || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error("Error actualizando usuario:", error);
-      alert("Error al actualizar usuario");
+      console.log("Error al actualizar usuario");
     }
   };
 
@@ -165,13 +165,13 @@ export default function Admin() {
       
       if (response.ok) {
         await fetchUsers();
-        alert("Usuario eliminado exitosamente");
+        console.log("Usuario eliminado exitosamente");
       } else {
-        alert("Error al eliminar usuario");
+        console.log("Error al eliminar usuario");
       }
     } catch (error) {
       console.error("Error eliminando usuario:", error);
-      alert("Error al eliminar usuario");
+      console.log("Error al eliminar usuario");
     }
   };
 
@@ -209,10 +209,10 @@ export default function Admin() {
         method: "PUT",
       });
       await fetchExpenses();
-      alert("Gasto aprobado exitosamente");
+      console.log("Gasto aprobado exitosamente");
     } catch (error) {
       console.error("Error aprobando gasto:", error);
-      alert("Error al aprobar el gasto");
+      console.log("Error al aprobar el gasto");
     }
   };
 
@@ -223,10 +223,10 @@ export default function Admin() {
         method: "PUT",
       });
       await fetchExpenses();
-      alert("Gasto rechazado exitosamente");
+      console.log("Gasto rechazado exitosamente");
     } catch (error) {
       console.error("Error rechazando gasto:", error);
-      alert("Error al rechazar el gasto");
+      console.log("Error al rechazar el gasto");
     }
   };
 

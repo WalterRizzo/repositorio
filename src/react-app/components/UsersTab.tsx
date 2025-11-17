@@ -1,3 +1,10 @@
+// Utilidad para obtener la clase de color según el valor
+function getColorClass(value: any) {
+  const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/[^\d.-]/g, ''));
+  if (num < 0) return 'text-red-600';
+  if (num > 0) return 'text-green-600';
+  return 'text-gray-300';
+}
 import { useState, useEffect } from "react";
 
 interface UsersTabProps {
@@ -105,8 +112,8 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
                       </span>
                     </td>
                     <td className="px-4 py-2">{tx.moneda} {Number(tx.monto).toFixed(2)}</td>
-                    <td className="px-4 py-2">{tx.moneda} {Number(tx.saldo_anterior).toFixed(2)}</td>
-                    <td className="px-4 py-2 font-semibold text-green-600">{tx.moneda} {Number(tx.saldo_nuevo).toFixed(2)}</td>
+                    <td className={`px-4 py-2 font-semibold ${getColorClass(tx.saldo_anterior)}`}>{tx.moneda} {parseFloat(String(tx.saldo_anterior).replace(/[^\d.-]/g, '')).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                    <td className={`px-4 py-2 font-semibold ${getColorClass(tx.saldo_nuevo)}`}>{tx.moneda} {parseFloat(String(tx.saldo_nuevo).replace(/[^\d.-]/g, '')).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
                     <td className="px-4 py-2 text-xs">{tx.descripcion || '-'}</td>
                   </tr>
                 ))}

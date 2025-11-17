@@ -37,11 +37,19 @@
       href="https://mocha-cdn.com/apple-touch-icon.png"
       type="image/png"
     />
+    <link rel="manifest" href="/manifest.json" />
     <title>ExpenseFlow</title>
-    <script type="module" crossorigin src="/assets/index-CMeuOwNZ-1762871758480.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CypH8_I2-1762871758480.css">
+    <script type="module" crossorigin src="/assets/index-D92KgWzG-1763341565805.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-7onYAVJM-1763341565805.css">
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/src/react-app/service-worker.js');
+        });
+      }
+    </script>
   </body>
 </html>

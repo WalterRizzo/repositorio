@@ -71,6 +71,8 @@ export default function CategoriesPage() {
       if (response.ok) {
         fetchCategories();
         resetForm();
+      } else {
+        console.warn('Por favor ingresa una consulta SQL');
       }
     } catch (error) {
       console.error('Error saving category:', error);

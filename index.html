@@ -37,10 +37,18 @@
       href="https://mocha-cdn.com/apple-touch-icon.png"
       type="image/png"
     />
+    <link rel="manifest" href="/manifest.json" />
     <title>ExpenseFlow</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/react-app/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/src/react-app/service-worker.js');
+        });
+      }
+    </script>
   </body>
 </html>
