@@ -165,7 +165,6 @@ export default function Admin() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
     
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -243,7 +242,6 @@ export default function Admin() {
   };
 
   const handleApprove = async (id: number) => {
-    if (!confirm("¿Aprobar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/approve`, {
@@ -258,7 +256,6 @@ export default function Admin() {
   };
 
   const handleReject = async (id: number) => {
-    if (!confirm("¿Rechazar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/reject`, {

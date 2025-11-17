@@ -88,7 +88,6 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('Eliminar categoría?')) {
       try {
         const response = await fetch(`/api/categories/${id}`, {
           method: 'DELETE'
@@ -99,7 +98,7 @@ export default function CategoriesPage() {
       } catch (error) {
         console.error('Error deleting category:', error);
       }
-    }
+    
   };
 
   const resetForm = () => {
@@ -134,7 +133,7 @@ export default function CategoriesPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Header userProfile={userProfile} />
       
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Categorías</h1>

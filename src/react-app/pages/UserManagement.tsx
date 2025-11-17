@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { Loader2, Plus, Users, Edit2, Trash2, X, Save, UserPlus, CheckCircle } from "lucide-react";
 import Header from "@/react-app/components/Header";
+import Sidebar from "@/react-app/components/Sidebar";
+import argentinaFlag from '@/react-app/assets/argentina.svg';
 
 interface UserProfile {
   user_id: string;
@@ -21,6 +23,7 @@ interface NewUser {
 export default function UserManagement() {
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,6 +45,13 @@ export default function UserManagement() {
       fetchUsers();
     }
   }, [user]);
+
+  useEffect(() => {
+    // Open Create User modal if URL hash is '#create'
+    if (location.hash === '#create') {
+      setShowCreateModal(true);
+    }
+  }, [location.hash]);
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -95,6 +105,7 @@ export default function UserManagement() {
         setShowCreateModal(false);
         setNewUser({ user_id: "", role: "usuario", balance: 0 });
         await fetchUsers();
+        navigate('/users', { replace: true });
       } else {
         const errorData = await response.json();
         showMessage('error', errorData.error || 'Error creando usuario');
@@ -144,7 +155,6 @@ export default function UserManagement() {
   };
 
   const deleteUser = async (userId: string) => {
-    if (!confirm("Eliminar usuario?")) return;
 
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -188,10 +198,12 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="min-h-screen">
-      <Header userProfile={userProfile} />
-      
-      <div className="max-w-7xl mx-auto px-6 py-8 animate-fadeIn">
+    <div className="min-h-screen flex">
+      <Sidebar />
+      <div className="flex-1 w-full">
+        <Header userProfile={userProfile} />
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 animate-fadeIn">
         {/* MENSAJES */}
         {message && (
           <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-md animate-slideIn ${
@@ -220,7 +232,7 @@ export default function UserManagement() {
                 </p>
               </div>
               <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => { setShowCreateModal(true); window.location.hash = '#create' }}
                 className="flex items-center space-x-2 px-5 py-2.5 bg-gradient-primary text-white text-sm font-bold rounded-xl shadow-glow hover:scale-105 hover:shadow-glow-lg transition-all duration-200"
               >
                 <UserPlus className="w-4 h-4" />
@@ -256,7 +268,7 @@ export default function UserManagement() {
                 Comienza creando tu primer usuario
               </p>
               <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => { setShowCreateModal(true); window.location.hash = '#create' }}
                 className="inline-flex items-center px-4 py-2 bg-gradient-primary text-white text-sm font-bold rounded-lg hover:scale-105 transition-transform"
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -293,8 +305,8 @@ export default function UserManagement() {
                           <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-xs shadow-lg">
                             {userItem.user_id.charAt(0).toUpperCase()}
                           </div>
-                          <div>
-                            <div className="text-xs font-bold text-white">
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-white truncate max-w-[220px] whitespace-nowrap">
                               {userItem.user_id}
                             </div>
                             <div className="text-[10px] text-white/40">
@@ -394,18 +406,19 @@ export default function UserManagement() {
         {/* MODAL CREAR USUARIO */}
         {showCreateModal && (
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-            <div className="glass-light rounded-2xl shadow-2xl w-full max-w-md border border-white/20 animate-scaleIn">
+            <div className="rounded-2xl shadow-2xl w-full max-w-md border border-gray-700 bg-gray-900/80 backdrop-blur-sm animate-scaleIn">
               {/* HEADER */}
-              <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 p-5 rounded-t-2xl border-b border-white/10">
+              <div className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 p-5 rounded-t-2xl border-b border-gray-700">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
                       <UserPlus className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-white">
-                        CREAR USUARIO
-                      </h3>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-lg font-bold text-white">CREAR USUARIO</h3>
+                        <img src={argentinaFlag} alt="Bandera Argentina" className="w-5 h-3 object-cover rounded-sm" />
+                      </div>
                       <p className="text-[10px] text-white/70 uppercase tracking-wide">
                         Nuevo registro del sistema
                       </p>
@@ -417,26 +430,26 @@ export default function UserManagement() {
               {/* FORMULARIO */}
               <div className="p-6 space-y-5">
                 <div>
-                  <label className="block text-xs font-bold text-violet-400 mb-2 uppercase tracking-wide">
+                    <label className="block text-xs font-bold text-emerald-300 mb-2 uppercase tracking-wide">
                     👤 ID DE USUARIO *
                   </label>
-                  <input
+                    <input
                     type="text"
                     value={newUser.user_id}
                     onChange={(e) => setNewUser(prev => ({ ...prev, user_id: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-white text-sm hover:bg-white/10 transition-all placeholder-white/30"
+                    className="w-full px-4 py-2.5 bg-white/5 border border-emerald-400/20 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-white text-sm hover:bg-white/10 transition-all placeholder-white/30"
                     placeholder="Ej: juan.perez, admin123..."
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-bold text-violet-400 mb-2 uppercase tracking-wide">
+                  <label className="block text-xs font-bold text-emerald-300 mb-2 uppercase tracking-wide">
                     🎯 ROL DEL USUARIO
                   </label>
                   <select
                     value={newUser.role}
                     onChange={(e) => setNewUser(prev => ({ ...prev, role: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-white text-sm hover:bg-white/10 transition-all"
+                    className="w-full px-4 py-2.5 bg-white/5 border border-emerald-400/20 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-white text-sm hover:bg-white/10 transition-all"
                   >
                     <option value="usuario" className="bg-gray-800">Usuario</option>
                     <option value="supervisor" className="bg-gray-800">Supervisor</option>
@@ -445,7 +458,7 @@ export default function UserManagement() {
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-bold text-violet-400 mb-2 uppercase tracking-wide">
+                  <label className="block text-xs font-bold text-emerald-300 mb-2 uppercase tracking-wide">
                     💰 BALANCE INICIAL (ARS)
                   </label>
                   <input
@@ -454,27 +467,28 @@ export default function UserManagement() {
                     min="0"
                     value={newUser.balance}
                     onChange={(e) => setNewUser(prev => ({ ...prev, balance: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-4 py-2.5 bg-white/5 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-white text-sm hover:bg-white/10 transition-all placeholder-white/30"
+                    className="w-full px-4 py-2.5 bg-white/5 border border-emerald-400/20 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-white text-sm hover:bg-white/10 transition-all placeholder-white/30"
                     placeholder="0.00"
                   />
                 </div>
               </div>
               
               {/* ACCIONES */}
-              <div className="p-5 bg-white/5 rounded-b-2xl flex items-center justify-end space-x-3 border-t border-white/10">
-                <button
+                <div className="p-5 bg-white/5 rounded-b-2xl flex items-center justify-end space-x-3 border-t border-gray-700">
+                  <button
                   onClick={() => {
                     setShowCreateModal(false);
                     setNewUser({ user_id: "", role: "usuario", balance: 0 });
+                    navigate('/users', { replace: true });
                   }}
-                  className="px-5 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-bold rounded-xl transition-all hover:scale-105"
+                    className="px-5 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-bold rounded-xl transition-all hover:scale-105"
                 >
                   CANCELAR
                 </button>
                 <button
                   onClick={handleCreateUser}
                   disabled={!newUser.user_id.trim()}
-                  className="px-6 py-2 bg-gradient-primary text-white text-sm font-bold rounded-xl shadow-glow hover:scale-105 hover:shadow-glow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold rounded-xl shadow-glow hover:scale-105 hover:shadow-glow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
                   CREAR USUARIO
                 </button>
@@ -483,6 +497,7 @@ export default function UserManagement() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { Loader2, Plus, Users, Edit2, Trash2, X, Save, UserPlus, CheckCircle } from "lucide-react";
 import Header from "@/react-app/components/Header";
+import argentinaFlag from '@/react-app/assets/argentina.svg';
 
 interface UserProfile {
   user_id: string;
@@ -21,6 +22,7 @@ interface NewUser {
 export default function UserManagement() {
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,6 +44,12 @@ export default function UserManagement() {
       fetchUsers();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (location.hash === '#create') {
+      setShowCreateModal(true);
+    }
+  }, [location.hash]);
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -95,6 +103,7 @@ export default function UserManagement() {
         setShowCreateModal(false);
         setNewUser({ user_id: "", role: "usuario", balance: 0 });
         await fetchUsers();
+        navigate('/users', { replace: true });
       } else {
         const errorData = await response.json();
         showMessage('error', errorData.error || 'Error creando usuario');
@@ -144,7 +153,6 @@ export default function UserManagement() {
   };
 
   const deleteUser = async (userId: string) => {
-    if (!confirm("Eliminar usuario?")) return;
 
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -203,7 +211,7 @@ export default function UserManagement() {
     <div className="min-h-screen">
       <Header userProfile={userProfile} />
       
-      <div className="max-w-7xl mx-auto px-6 py-8 animate-fadeIn">
+      <div className="max-w-6xl mx-auto px-6 py-8 animate-fadeIn">
         {/* MENSAJES */}
         {message && (
           <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-md animate-slideIn ${
@@ -232,7 +240,7 @@ export default function UserManagement() {
                 </p>
               </div>
               <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => { setShowCreateModal(true); window.location.hash = '#create' }}
                 className="flex items-center space-x-2 px-5 py-2.5 bg-gradient-primary text-white text-sm font-bold rounded-xl shadow-glow hover:scale-105 hover:shadow-glow-lg transition-all duration-200"
               >
                 <UserPlus className="w-4 h-4" />
@@ -268,7 +276,7 @@ export default function UserManagement() {
                 Comienza creando tu primer usuario
               </p>
               <button
-                onClick={() => setShowCreateModal(true)}
+                onClick={() => { setShowCreateModal(true); window.location.hash = '#create' }}
                 className="inline-flex items-center px-4 py-2 bg-gradient-primary text-white text-sm font-bold rounded-lg hover:scale-105 transition-transform"
               >
                 <Plus className="w-4 h-4 mr-2" />
@@ -305,8 +313,8 @@ export default function UserManagement() {
                           <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-xs shadow-lg">
                             {userItem.user_id.charAt(0).toUpperCase()}
                           </div>
-                          <div>
-                            <div className="text-xs font-bold text-white">
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-white truncate max-w-[220px] whitespace-nowrap">
                               {userItem.user_id}
                             </div>
                             <div className="text-[10px] text-white/40">
@@ -413,9 +421,10 @@ export default function UserManagement() {
                       <UserPlus className="w-5 h-5 text-white" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-white">
-                        CREAR USUARIO
-                      </h3>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-lg font-bold text-white">CREAR USUARIO</h3>
+                        <img src={argentinaFlag} alt="Bandera Argentina" className="w-5 h-3 object-cover rounded-sm" />
+                      </div>
                       <p className="text-[10px] text-white/70 uppercase tracking-wide">
                         Nuevo registro del sistema
                       </p>
@@ -476,6 +485,7 @@ export default function UserManagement() {
                   onClick={() => {
                     setShowCreateModal(false);
                     setNewUser({ user_id: "", role: "usuario", balance: 0 });
+                    navigate('/users', { replace: true });
                   }}
                   className="px-5 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-bold rounded-xl transition-all hover:scale-105"
                 >

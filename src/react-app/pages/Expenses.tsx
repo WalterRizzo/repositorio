@@ -21,13 +21,14 @@ import type { Expense, UserProfile } from "@/shared/types";
 import ExpensesTable from "@/react-app/components/ExpensesTable";
 import ExpenseForm from "@/react-app/components/ExpenseForm";
 import Header from "@/react-app/components/Header";
+import Sidebar from "@/react-app/components/Sidebar";
 import * as XLSX from 'xlsx';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
 
 export default function Expenses() {
-  const { showNotification, permission, requestPermission, isSupported } = useNotifications();
+  const { showNotification, permission, isSupported } = useNotifications();
   const [dbaLoading, setDbaLoading] = useState(false);
   // Ejecutar consulta SQL en el panel DBA
   const executeDbaQuery = async (query?: string) => {
@@ -293,7 +294,6 @@ export default function Expenses() {
   };
 
   const handleDeleteExpense = async (id: number) => {
-    if (!confirm("¿Estás seguro de eliminar este gasto?")) return;
 
     try {
       const response = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
@@ -330,7 +330,6 @@ export default function Expenses() {
   };
 
   const handleApprove = async (id: number) => {
-    if (!confirm("¿Aprobar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/approve`, {
@@ -346,7 +345,6 @@ export default function Expenses() {
   };
 
   const handleReject = async (id: number) => {
-    if (!confirm("¿Rechazar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/reject`, {
@@ -466,7 +464,6 @@ export default function Expenses() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
     
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -771,7 +768,8 @@ export default function Expenses() {
   const pendingExpenses = expenses.filter(e => e.status === 'pendiente');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
+    <div className="flex min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
+      <Sidebar />
       {/* Notificación de eliminación de gasto */}
       {showDeleteNotification && (
         <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
@@ -793,11 +791,10 @@ export default function Expenses() {
           </div>
         </div>
       )}
-      <Header 
-        userProfile={userProfile} 
-      />
+      <div className="flex-1 w-full">
+        <Header userProfile={userProfile} />
       
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {/* HEADER PROFESIONAL */}
         <div className="mb-8 relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 p-6 shadow-lg border border-slate-600">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
@@ -921,18 +918,18 @@ export default function Expenses() {
 
         {/* Barras de estadísticas - Solo mostrar en tab de expenses */}
         {activeTab === 'expenses' && (
-          <div className="flex flex-row gap-6 mb-8 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 w-full">
             {/* CARD PENDIENTES */}
-            <div className="flex-1 bg-blue-600 border-2 border-blue-400 rounded-2xl p-5 flex flex-col items-start justify-between min-w-[180px] shadow-lg group transition-all duration-200 hover:-translate-y-1 cursor-pointer"
+            <div className="bg-gradient-to-br from-blue-600 to-blue-800 border border-blue-700 rounded-2xl p-5 flex flex-col items-start justify-between shadow-md group transition-all duration-200 hover:shadow-lg cursor-pointer"
               onMouseEnter={() => playRandomSound('money', 0.5)}>
               <div className="flex items-center space-x-3 mb-2">
-                <span className="bg-blue-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-300"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
-                <span className="text-3xl font-bold text-yellow-300">{pendingExpenses.length}</span>
+                <span className="bg-blue-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+                <span className="text-3xl font-bold text-white">{pendingExpenses.length}</span>
               </div>
               <div className="uppercase text-xs font-bold text-white tracking-wider">Gastos pendientes</div>
             </div>
             {/* CARD APROBADOS */}
-            <div className="flex-1 bg-emerald-600 border-2 border-emerald-400 rounded-2xl p-5 flex flex-col items-start justify-between min-w-[180px] shadow-lg group transition-all duration-200 hover:-translate-y-1 cursor-pointer"
+            <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 border border-emerald-700 rounded-2xl p-5 flex flex-col items-start justify-between shadow-md group transition-all duration-200 hover:shadow-lg cursor-pointer"
               onMouseEnter={() => playRandomSound('money', 0.5)}>
               <div className="flex items-center space-x-3 mb-2">
                 <span className="bg-emerald-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="10"/><path d="M16 10l-4 4-2-2"/></svg></span>
@@ -941,7 +938,7 @@ export default function Expenses() {
               <div className="uppercase text-xs font-bold text-white tracking-wider">Gastos aprobados</div>
             </div>
             {/* CARD RECHAZADOS */}
-            <div className="flex-1 bg-orange-500 border-2 border-orange-400 rounded-2xl p-5 flex flex-col items-start justify-between min-w-[180px] shadow-lg group transition-all duration-200 hover:-translate-y-1 cursor-pointer"
+            <div className="bg-gradient-to-br from-orange-500 to-orange-700 border border-orange-700 rounded-2xl p-5 flex flex-col items-start justify-between shadow-md group transition-all duration-200 hover:shadow-lg cursor-pointer"
               onMouseEnter={() => playRandomSound('money', 0.5)}>
               <div className="flex items-center space-x-3 mb-2">
                 <span className="bg-orange-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
@@ -2351,6 +2348,7 @@ export default function Expenses() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

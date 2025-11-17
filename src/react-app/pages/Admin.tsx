@@ -157,7 +157,6 @@ export default function Admin() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
     
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -204,7 +203,6 @@ export default function Admin() {
   };
 
   const handleApprove = async (id: number) => {
-    if (!confirm("¿Aprobar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/approve`, {
@@ -219,7 +217,6 @@ export default function Admin() {
   };
 
   const handleReject = async (id: number) => {
-    if (!confirm("¿Rechazar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/reject`, {
@@ -249,7 +246,7 @@ export default function Admin() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Header userProfile={userProfile} />
       
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Panel de Administración</h1>
           <p className="text-gray-600 dark:text-gray-300">Gestionar gastos y usuarios</p>
@@ -288,21 +285,21 @@ export default function Admin() {
         {activeTab === 'expenses' && (
           <>
             <div className="grid md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 shadow-sm border border-blue-700">
                 <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
                   {pendingExpenses.length}
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-300">Gastos Pendientes</div>
               </div>
               
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl p-6 shadow-sm border border-emerald-700">
                 <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
                   {expenses.filter(e => e.status === 'aprobado').length}
                 </div>
                 <div className="text-sm text-gray-600 dark:text-gray-300">Gastos Aprobados</div>
               </div>
               
-              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="bg-gradient-to-br from-orange-500 to-orange-700 rounded-2xl p-6 shadow-sm border border-orange-700">
                 <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
                   {expenses.filter(e => e.status === 'rechazado').length}
                 </div>
