@@ -17,6 +17,7 @@ import { useNotifications } from "@/react-app/hooks/useNotifications";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { Loader2, Receipt, Users, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Eye } from "lucide-react";
+import { getNumberColorClass } from '@/react-app/utils/numbers';
 import type { Expense, UserProfile } from "@/shared/types";
 import ExpensesTable from "@/react-app/components/ExpensesTable";
 import ExpenseForm from "@/react-app/components/ExpenseForm";
@@ -1231,10 +1232,10 @@ export default function Expenses() {
                                 {movement.currency}
                               </span>
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400 font-semibold">
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${getNumberColorClass(movement.balance_before)}`}>
                               ${Number(movement.balance_before).toFixed(2)}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm font-black text-green-400">
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-black ${getNumberColorClass(movement.balance_after)}`}>
                               ${Number(movement.balance_after).toFixed(2)}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-300">
@@ -1423,10 +1424,10 @@ export default function Expenses() {
                               {movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}
                             </span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400 font-semibold">
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${getNumberColorClass(movement.balance_before)}`}>
                             ${Number(movement.balance_before).toFixed(2)}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-black text-green-400">
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-black ${getNumberColorClass(movement.balance_after)}`}>
                             ${Number(movement.balance_after).toFixed(2)}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-300">
@@ -2239,10 +2240,10 @@ export default function Expenses() {
                               <td className="px-3 py-2 whitespace-nowrap text-white">
                                 {movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}
                               </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-gray-400">
+                              <td className={`px-3 py-2 whitespace-nowrap ${getNumberColorClass(movement.balance_before)}`}>
                                 ${Number(movement.balance_before).toFixed(2)}
                               </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-green-400 font-bold">
+                              <td className={`px-3 py-2 whitespace-nowrap font-bold ${getNumberColorClass(movement.balance_after)}`}>
                                 ${Number(movement.balance_after).toFixed(2)}
                               </td>
                               <td className="px-3 py-2 text-gray-300 truncate max-w-xs">{movement.description}</td>
