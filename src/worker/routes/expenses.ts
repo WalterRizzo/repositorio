@@ -1,4 +1,3 @@
-import type { Hono } from 'hono';
 import { authMiddleware } from '../auth';
 import { registrarTransaccionSaldo } from '../utils';
 

@@ -1,5 +1,3 @@
-import type { D1Database } from '@cloudflare/workers-types';
-
 export async function registrarTransaccionSaldo(
   db: any,
   userId: string,
