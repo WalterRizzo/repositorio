@@ -74,9 +74,9 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
       {/* FILTRO DE USUARIO */}
       <div className="mb-6 bg-gray-700 p-4 rounded">
         <label className="block text-sm font-semibold mb-2">Filtrar por usuario:</label>
-        <select
-          value={selectedUserFilter}
-          onChange={(e) => setSelectedUserFilter(e.target.value)}
+          <select
+        value={selectedUserFilter}
+        onChange={(e) => { setSelectedUserFilter(e.target.value); setTransactionsPage(1); }}
           className="w-full md:w-64 px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white"
         >
           <option value="">Todos los usuarios</option>
