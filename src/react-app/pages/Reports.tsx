@@ -53,6 +53,9 @@ export default function Reports() {
   const [reportType, setReportType] = useState<'expenses' | 'transacciones'>('expenses');
   const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
   const [filteredTransactionsSummary, setFilteredTransactionsSummary] = useState<any|null>(null);
+  const [transactionsPage, setTransactionsPage] = useState(1);
+  const [transactionsPerPage, setTransactionsPerPage] = useState(50);
+  const [totalTransactions, setTotalTransactions] = useState(0);
   // const [chartLayout] = useState<'portrait'>('portrait');
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
@@ -102,11 +105,20 @@ export default function Reports() {
   useEffect(() => {
     if (reportType === 'transacciones') {
       (async () => {
-        await fetchFilteredTransactionsFromBackend(appliedFilters || {});
+        await fetchFilteredTransactionsFromBackend(appliedFilters || {}, transactionsPage, transactionsPerPage);
         await fetchFilteredTransactionsSummaryFromBackend(appliedFilters || {});
       })();
     }
   }, [appliedFilters, reportType]);
+
+  // When page changes, reload transactions
+  useEffect(() => {
+    if (reportType === 'transacciones') {
+      (async () => {
+        await fetchFilteredTransactionsFromBackend(appliedFilters || {}, transactionsPage, transactionsPerPage);
+      })();
+    }
+  }, [transactionsPage, transactionsPerPage, reportType, appliedFilters]);
 
   const fetchUserProfile = async () => {
     try {
@@ -198,7 +210,7 @@ export default function Reports() {
     }
   };
 
-  const fetchFilteredTransactionsFromBackend = async (filtersToApply: any, limit?: number) => {
+  const fetchFilteredTransactionsFromBackend = async (filtersToApply: any, page?: number, perPage?: number) => {
     try {
       const params = new URLSearchParams();
       if (filtersToApply.from) params.set('from', filtersToApply.from);
@@ -209,7 +221,10 @@ export default function Reports() {
       if (filtersToApply.minAmount) params.set('minAmount', String(filtersToApply.minAmount));
       if (filtersToApply.maxAmount) params.set('maxAmount', String(filtersToApply.maxAmount));
       if (filtersToApply.search) params.set('search', filtersToApply.search);
-      if (limit) params.set('limit', String(limit));
+      if (perPage) params.set('limit', String(perPage));
+      const p = page || 1;
+      const offset = (p - 1) * (perPage || 0);
+      if (perPage) params.set('offset', String(offset));
 
       const response = await fetch(`/api/transacciones-saldo?${params.toString()}`);
       const data = await response.json();
@@ -219,6 +234,7 @@ export default function Reports() {
         return [];
       }
       setFilteredTransactions(data.transacciones || data.movements || data.results || []);
+      setTotalTransactions(data.total || (data.transacciones || []).length || 0);
       return data.transacciones || [];
     } catch (e) {
       console.error('Error fetching filtered transactions:', e);
@@ -730,6 +746,21 @@ export default function Reports() {
             </div>
             <p className="text-gray-600 dark:text-gray-300">Análisis detallado de los gastos</p>
           </div>
+          {/* Pagination controls for transacciones (outside nested ternary) */}
+          {!isLoading && reportType === 'transacciones' && filteredTransactions && filteredTransactions.length > 0 && (
+            <div className="mt-4">
+              <div className="flex justify-between items-center">
+                <div className="text-xs text-gray-600">Mostrando {(transactionsPage - 1) * transactionsPerPage + 1} - {Math.min(transactionsPage * transactionsPerPage, totalTransactions)} de {totalTransactions} transacciones</div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setTransactionsPage(1)} disabled={transactionsPage === 1} className="px-2 py-1 bg-indigo-600 text-white rounded">« Primera</button>
+                  <button onClick={() => setTransactionsPage(Math.max(1, transactionsPage - 1))} disabled={transactionsPage === 1} className="px-2 py-1 bg-indigo-600 text-white rounded">‹ Anterior</button>
+                  <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded">Página {transactionsPage} de {Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))}</span>
+                  <button onClick={() => setTransactionsPage(Math.min(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)), transactionsPage + 1))} disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))} className="px-2 py-1 bg-indigo-600 text-white rounded">Siguiente ›</button>
+                  <button onClick={() => setTransactionsPage(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)))} disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))} className="px-2 py-1 bg-indigo-600 text-white rounded">Última »</button>
+                </div>
+              </div>
+            </div>
+          )}
           
             <div className="flex items-center space-x-2">
               <div className="mr-3">
@@ -849,7 +880,7 @@ export default function Reports() {
                   <Loader2 className="w-10 h-10 text-indigo-600" />
                 </div>
               </div>
-            ) : reportType === 'expenses' ? (
+              ) : reportType === 'expenses' ? (
               filteredReportData ? (
                 <div className="space-y-6">
                   <ReportsSummary totals={filteredReportData.totals} isTransaction={false} />
