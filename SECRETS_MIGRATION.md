@@ -1,0 +1,31 @@
+# Migración de secretos y recomendaciones
+
+Este documento explica cómo mover las claves y secretos del archivo `wrangler.json` al mecanismo de secretos de Cloudflare (wrangler) y buenas prácticas para rotar claves.
+
+1) Verifica que has eliminado todas las claves sensibles del control de versiones (por ejemplo `wrangler.json`, `wrangler.toml`, `wrangler.config.js`). No metas secretos en archivos versionados.
+
+2) Rotar las claves:
+   - Si alguna clave estaba expuesta (ej: `JWT_SECRET`, `RESEND_API_KEY`), rotala en los servicios correspondientes (Resend API, Mocha) y genera una nueva.
+
+3) Guardar secretos en Cloudflare con wrangler:
+```powershell
+# En tu terminal (PowerShell):
+npx wrangler login
+npx wrangler secret put JWT_SECRET
+# pega el valor de JWT_SECRET y presiona Enter
+npx wrangler secret put RESEND_API_KEY
+# pega el valor de RESEND_API_KEY y presiona Enter
+npx wrangler secret put MOCHA_USERS_SERVICE_API_KEY
+```
+
+4) Para desarrollo local, usa `.env` (NO debe agregarse al repo) o la variable `.dev.vars` para wrangler. Mantén `.env.example` con placeholders.
+
+5) Recomendación de seguridad de Tokens y contraseñas:
+   - No uses `btoa(payload + '.' + secret)` como token. Implementa JWT firmes con `jose` o `jsonwebtoken`.
+   - Usa hashing con `bcrypt` o `argon2` para contraseñas y agrega `salt`.
+
+6) Comandos para limpiar el repo de secretos históricos (opcional/avanzado):
+   - Usar `git filter-repo` o `BFG` para eliminar secretos sensibles del historial de commits.
+
+7) Validación:
+   - Despliega en un entorno staging y prueba los endpoints que dependen de estas claves (env vars) antes de mover a producción.
