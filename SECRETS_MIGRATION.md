@@ -41,3 +41,16 @@ curl -H "Authorization: Bearer <token>" -H "x-dba-key: <secret>" -X POST https:/
 
 7) Validación:
    - Despliega en un entorno staging y prueba los endpoints que dependen de estas claves (env vars) antes de mover a producción.
+
+   ### Habilitar operaciones de escritura en DBA (opcional y peligroso)
+
+   Si en algún momento necesitas que el endpoint DBA permita INSERT/UPDATE/DELETE o DDL, **hazlo sólo bajo las siguientes condiciones**:
+
+   - Mantén `DBA_EXEC_KEY` secreto y solo disponible para administradores de confianza.
+   - Requiere `Authorization: Bearer <token>` con un usuario `admin` autenticado.
+   - Habilita el flag `ALLOW_DBA_WRITE` en tu entorno (Cloudflare Secrets) de forma temporal y limitada: 
+      - `npx wrangler secret put ALLOW_DBA_WRITE` y escribe `true` como valor.
+      - O usa `DBA_ALLOW_MUTATIONS=true` como alternativa si lo prefieres.
+   - Auditoría: Todas las operaciones ejecutadas a través del endpoint DBA se registran en la tabla `dba_logs` si existe. Revisa esa tabla periódicamente.
+
+   Si no habilitas `ALLOW_DBA_WRITE`, el endpoint DBA seguirá permitiendo solo SELECT como medida de seguridad por defecto.

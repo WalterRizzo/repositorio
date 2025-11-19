@@ -27,3 +27,29 @@ export function sanitizeSqlForSelectOnly(sqlQuery: string): boolean {
   const trimmed = sqlQuery.trim().toUpperCase();
   return /^SELECT\s+/i.test(trimmed);
 }
+
+export async function logDbaAction(db: any, userId: string, sqlQuery: string, ip?: string, changes?: number | null) {
+  try {
+    // Create table if not exists for logging (best-effort)
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS dba_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT,
+        sql TEXT,
+        ip TEXT,
+        changes INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
+  } catch (e) {
+    // non-fatal; permissions may vary
+  }
+
+  try {
+    await db.prepare(`INSERT INTO dba_logs (user_id, sql, ip, changes) VALUES (?, ?, ?, ?)`)
+      .bind(userId || 'unknown', sqlQuery, ip || 'unknown', changes || 0)
+      .run();
+  } catch (err) {
+    console.error('Error logging DBA action:', err);
+  }
+}

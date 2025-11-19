@@ -31,6 +31,7 @@ export default function Admin() {
   const [sqlQuery, setSqlQuery] = useState('SELECT * FROM users LIMIT 10;');
   const [queryResult, setQueryResult] = useState<any[]>([]);
   const [queryError, setQueryError] = useState('');
+  const [dbaKeyValue, setDbaKeyValue] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -283,6 +284,7 @@ export default function Admin() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(dbaKeyValue ? { 'x-dba-key': dbaKeyValue } : {}),
         },
         body: JSON.stringify({ query: sqlQuery }),
       });
@@ -555,6 +557,16 @@ export default function Admin() {
                   className="w-full h-32 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
                   placeholder="SELECT * FROM users LIMIT 10;"
                 />
+                <div className="mt-3">
+                  <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">DBA Key (secreto)</label>
+                  <input
+                    type="password"
+                    value={dbaKeyValue}
+                    onChange={(e) => setDbaKeyValue(e.target.value)}
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm"
+                    placeholder="x-dba-key"
+                  />
+                </div>
                 <div className="flex gap-2 mt-4">
                   <button
                     onClick={executeQuery}
