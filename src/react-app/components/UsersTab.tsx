@@ -111,7 +111,7 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
               </thead>
               <tbody>
                 {filteredTransactions.map((tx: any, idx: number) => (
-                  <tr key={idx} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <tr key={idx} className="border-b hover:bg-black/10 dark:hover:bg-gray-800">
                     <td className="px-4 py-2">{new Date(tx.fecha).toLocaleDateString()}</td>
                     <td className="px-4 py-2">{tx.usuario || 'N/A'}</td>
                     <td className="px-4 py-2">
