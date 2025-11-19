@@ -1,8 +1,0 @@
-{
-  "virtual:cloudflare/worker-entry": {
-    "file": "assets/index-DQzyjzL9-1763341565777.js",
-    "name": "index",
-    "src": "virtual:cloudflare/worker-entry",
-    "isEntry": true
-  }
-}
