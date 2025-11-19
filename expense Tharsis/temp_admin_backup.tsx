@@ -60,10 +60,12 @@ export default function Admin() {
     }
   };
 
-  const fetchExpenses = async () => {
+  const fetchExpenses = async (page = 1, perPage = 100) => {
     try {
-      const response = await fetch("/api/expenses");
-      const data = await response.json();
+      const offset = (page - 1) * perPage;
+      const response = await fetch(`/api/expenses?limit=${perPage}&offset=${offset}`);
+      const json = await response.json();
+      const data = (json && (json.data || json)) || [];
       setExpenses(data);
     } catch (error) {
       console.error("Error cargando gastos:", error);

@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { Loader2, Download, Filter, X } from "lucide-react";
-import ExcelJS from 'exceljs';
+// ExcelJS will be dynamically imported in export functions to reduce initial bundle size
 // @ts-ignore - file-saver has no types in this project
 import { saveAs } from 'file-saver';
 // Note: XLSX still available in project but this file now uses ExcelJS for exports
@@ -122,10 +122,11 @@ export default function Reports() {
     try {
       // Fetch raw expenses and initial (server) summary
       const [respExpenses, respSummary] = await Promise.all([
-        fetch('/api/expenses'),
+        fetch('/api/expenses?limit=100&offset=0'),
         fetch('/api/expenses/reports/summary')
       ]);
-      const expenses = await respExpenses.json();
+      const expensesRes = await respExpenses.json();
+      const expenses = (expensesRes && (expensesRes.data || expensesRes)) || [];
       const data = await respSummary.json();
       setAllExpenses(expenses || []);
       setReportData(data);
@@ -183,7 +184,8 @@ export default function Reports() {
       if (filtersToApply.search) params.set('search', filtersToApply.search);
 
       const response = await fetch(`/api/expenses?${params.toString()}`);
-      const data = await response.json();
+      const dataRes = await response.json();
+      const data = (dataRes && (dataRes.data || dataRes)) || [];
       if (!response.ok) {
         console.error('Error fetching filtered expenses', data);
         return [];
@@ -275,7 +277,22 @@ export default function Reports() {
     try {
       if (reportType === 'expenses') {
         // Export filtered expenses rather than all
-        const expenses = exportOnlyVisible ? (filteredExpenses.length ? filteredExpenses : await fetchFilteredExpensesFromBackend(appliedFilters || {})) : await (async () => { const res = await fetch('/api/expenses'); return res.json(); })();
+        const expenses = exportOnlyVisible ? (filteredExpenses.length ? filteredExpenses : await fetchFilteredExpensesFromBackend(appliedFilters || {})) : await (async () => { 
+          const all: any[] = [];
+          const limit = 500;
+          let offset = 0;
+          let total = -1;
+          do {
+            const res = await fetch(`/api/expenses?limit=${limit}&offset=${offset}`);
+            const json = await res.json();
+            const data = json && (json.data || json);
+            if (!Array.isArray(data)) break;
+            all.push(...data);
+            total = json.total ?? (data.length + offset);
+            offset += limit;
+          } while (total === -1 || offset < total);
+          return all;
+        })();
         const expToExport = applyFiltersToExpenses(expenses, appliedFilters || {});
         // Prepare data for Excel
         const excelData = expToExport.map((expense: any) => ({
@@ -329,6 +346,8 @@ export default function Reports() {
         // If a fileName was provided from the modal, use it; else generate
         const now = new Date();
         const useName = fileName || `ExpenseFlow_Reporte_${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+        const ExcelJSModule = (await import('exceljs'));
+        const ExcelJS = ExcelJSModule.default || ExcelJSModule;
         const workbook = new ExcelJS.Workbook();
         // Convert sheets created with XLSX to ExcelJS OR rebuild headers/rows in ExcelJS
         // To keep changes minimal, rebuild the data into ExcelJS workbook for richer formatting
@@ -492,7 +511,9 @@ export default function Reports() {
         const defaultNameTx = `ExpenseFlow_Transacciones_${nowTx.getFullYear()}-${(nowTx.getMonth() + 1).toString().padStart(2, '0')}-${nowTx.getDate().toString().padStart(2, '0')}`;
         const useNameTx = fileName || exportFileName || defaultNameTx;
         // Build ExcelJS workbook for transactions
-        const wbEx = new ExcelJS.Workbook();
+        const ExcelJSModuleTx = (await import('exceljs'));
+        const ExcelJSTx = ExcelJSModuleTx.default || ExcelJSModuleTx;
+        const wbEx = new ExcelJSTx.Workbook();
         const wsT = wbEx.addWorksheet('Transacciones');
         const headersTx = ['ID','Usuario','Tipo','Monto','Saldo Anterior','Saldo Nuevo','Moneda','Descripción','Fecha'];
         wsT.columns = headersTx.map(h => ({ header: h, key: h, width: 20 })) as any;

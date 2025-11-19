@@ -3,7 +3,7 @@ import { useState, useRef } from "react";
 import BubbleTooltipPortal from "./BubbleTooltipPortal";
 import { getStatusBadgeClasses, getStatusLabel } from '@/react-app/utils/status';
 import type { Expense } from "@/shared/types";
-import ExcelJS from 'exceljs';
+// ExcelJS loaded dynamically in exportToExcel
 // @ts-ignore - file-saver typing not installed in repo
 import { saveAs } from 'file-saver';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
@@ -89,6 +89,8 @@ export default function ExpensesTable({
   // Función exportar Excel
   const exportToExcel = async () => {
     // Use ExcelJS to build a richer, styled workbook
+    const ExcelJSModule = (await import('exceljs'));
+    const ExcelJS = ExcelJSModule.default || ExcelJSModule;
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Gastos');
     const headers = ['ID','Usuario','Descripción','Monto','Moneda','Categoría','Fecha','Estado'];

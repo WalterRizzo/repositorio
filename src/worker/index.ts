@@ -559,8 +559,15 @@ app.get('/api/expenses', authMiddleware(), async (c) => {
     }
 
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    query = `SELECT e.*, u.name as user_name, u.email as user_email FROM expenses e LEFT JOIN users u ON e.user_id = u.id ${whereSql} ORDER BY e.expense_date DESC, e.created_at DESC`;
-    params = bindParams;
+    // Pagination params (limit + offset)
+    const limitParam = Number(paramsQs.get('limit') || paramsQs.get('per_page') || 50);
+    const pageParam = Number(paramsQs.get('page') || 0);
+    const offsetParam = Number(paramsQs.get('offset') || (pageParam > 0 ? (pageParam - 1) * limitParam : 0));
+    const limit = Math.min(Math.max(limitParam, 1), 500);
+    const offset = Math.max(offsetParam, 0);
+
+    query = `SELECT e.*, u.name as user_name, u.email as user_email FROM expenses e LEFT JOIN users u ON e.user_id = u.id ${whereSql} ORDER BY e.expense_date DESC, e.created_at DESC LIMIT ? OFFSET ?`;
+    params = [...bindParams, limit, offset];
 
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
     
@@ -583,7 +590,12 @@ app.get('/api/expenses', authMiddleware(), async (c) => {
       })
     );
     
-    return c.json(expensesWithAttachments);
+    // Also return pagination info: total count
+    const countQuery = `SELECT COUNT(1) as total FROM expenses e ${whereSql}`;
+    const { results: countRes } = await c.env.DB.prepare(countQuery).bind(...bindParams).all();
+    const total = countRes?.[0]?.total ?? (expensesWithAttachments?.length || 0);
+
+    return c.json({ data: expensesWithAttachments, total, limit, offset });
   } catch (error) {
     return c.json({ error: String(error) }, 500);
   }
@@ -2608,15 +2620,8 @@ app.post('/api/dba/execute', authMiddleware(), async (c) => {
         message: `Query ejecutado exitosamente. ${result.results?.length || 0} filas retornadas.`
       });
     } else {
-      // Para INSERT, UPDATE, DELETE, etc.
-      result = await c.env.DB.prepare(sqlQuery).run();
-      
-      return c.json({
-        success: true,
-        results: [],
-        changes: result.meta?.changes || 0,
-        message: `Query ejecutado exitosamente. ${result.meta?.changes || 0} filas afectadas.`
-      });
+      // Disallow non-SELECT queries via DBA endpoint for security: use migrations or admin tools for modifications
+      return c.json({ error: 'Solo se permiten consultas SELECT a través de este endpoint (por seguridad).' }, 403);
     }
 
   } catch (error: any) {

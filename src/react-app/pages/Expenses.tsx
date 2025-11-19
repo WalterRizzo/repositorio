@@ -23,7 +23,6 @@ import ExpensesTable from "@/react-app/components/ExpensesTable";
 import ExpenseForm from "@/react-app/components/ExpenseForm";
 import Header from "@/react-app/components/Header";
 import Sidebar from "@/react-app/components/Sidebar";
-import * as XLSX from 'xlsx';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
@@ -84,6 +83,9 @@ export default function Expenses() {
   const location = useLocation();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expensesPage, setExpensesPage] = useState(1);
+  const [expensesPerPage, setExpensesPerPage] = useState(50);
+  const [totalExpenses, setTotalExpenses] = useState(0);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'expenses' | 'users' | 'dba' | 'movements'>('expenses');
@@ -243,11 +245,14 @@ export default function Expenses() {
     }
   };
 
-  const fetchExpenses = async () => {
+  const fetchExpenses = async (page = expensesPage, perPage = expensesPerPage) => {
     try {
-      const response = await fetch("/api/expenses");
-      const data = await response.json();
+      const offset = (page - 1) * perPage;
+      const res = await fetch(`/api/expenses?limit=${perPage}&offset=${offset}`);
+      const json = await res.json();
+      const data = (json && (json.data || json)) || [];
       setExpenses(data);
+      setTotalExpenses(json?.total ?? data.length);
     } catch (error) {
       console.error("Error cargando gastos:", error);
     } finally {
@@ -706,7 +711,7 @@ export default function Expenses() {
 
 
   // Función para exportar movimientos a Excel
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     const filteredMovements = balanceMovements
       .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
       .filter(m => userFilter === 'all' || m.user_id === userFilter);
@@ -728,6 +733,8 @@ export default function Expenses() {
       'Descripción': movement.description
     }));
 
+    const XLSXModule = (await import('xlsx'));
+    const XLSX = XLSXModule.default || XLSXModule;
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Movimientos');
