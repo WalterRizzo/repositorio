@@ -299,7 +299,7 @@ export default function UserManagement() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {users.map((userItem) => (
-                    <tr key={userItem.user_id} className="hover:bg-white/5 transition-all duration-200 group">
+                      <tr key={userItem.user_id} className="hover:bg-white/5 transition-all duration-200 group hover-lift">
                       <td className="px-4 py-3">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-xs shadow-lg">

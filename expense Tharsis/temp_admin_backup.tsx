@@ -32,6 +32,7 @@ export default function Admin() {
   const [queryResult, setQueryResult] = useState<any[]>([]);
   const [queryError, setQueryError] = useState('');
   const [dbaKeyValue, setDbaKeyValue] = useState('');
+  const [dbaTestResult, setDbaTestResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -304,6 +305,29 @@ export default function Admin() {
     }
   };
 
+  // Test DBA Key with a simple safe query
+  const testDbaKey = async () => {
+    setDbaTestResult(null);
+    try {
+      const response = await fetch('/api/dba/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(dbaKeyValue ? { 'x-dba-key': dbaKeyValue } : {}),
+        },
+        body: JSON.stringify({ query: 'SELECT 1 as ok;' }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setDbaTestResult('OK: DBA key works (SELECT 1 returned)');
+      } else {
+        setDbaTestResult(`ERROR: ${data.error || 'Error desconocido'}`);
+      }
+    } catch (e: any) {
+      setDbaTestResult(`ERROR: ${e?.message || 'Error de conexión'}`);
+    }
+  };
+
   const loadTableData = (table: string) => {
     setSelectedTable(table);
     setSqlQuery(`SELECT * FROM ${table} LIMIT 10;`);
@@ -566,6 +590,10 @@ export default function Admin() {
                     className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm"
                     placeholder="x-dba-key"
                   />
+                  <div className="mt-2 flex items-center gap-2">
+                    <button onClick={testDbaKey} className="px-3 py-1 bg-black text-white rounded">Probar DBA Key</button>
+                    {dbaTestResult && <div className="text-sm text-gray-200">{dbaTestResult}</div>}
+                  </div>
                 </div>
                 <div className="flex gap-2 mt-4">
                   <button

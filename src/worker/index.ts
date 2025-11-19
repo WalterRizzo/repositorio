@@ -1404,25 +1404,45 @@ app.get('/api/balance/movements', authMiddleware(), async (c) => {
       return c.json({ error: 'No tienes permisos para ver el historial' }, 403);
     }
 
-    // Obtener todos los movimientos con información del usuario
-    const { results } = await c.env.DB.prepare(`
-      SELECT 
-        st.id,
-        st.user_id,
-        u.name as user_name,
-        st.currency,
-        st.tipo as type,
-        st.monto as amount,
-        st.saldo_anterior as balance_before,
-        st.saldo_nuevo as balance_after,
-        st.descripcion as description,
-        st.realizado_por as created_by,
-        st.fecha_transaccion as created_at
-      FROM saldo_transacciones st
-      LEFT JOIN users u ON st.user_id = u.id
-      ORDER BY st.fecha_transaccion DESC
-      LIMIT 100
-    `).all();
+    // Supervisors should see transactions for all users
+    const query = userResults[0].role === 'supervisor' 
+      ? `SELECT 
+          st.id,
+          st.user_id,
+          u.name as user_name,
+          st.currency,
+          st.tipo as type,
+          st.monto as amount,
+          st.saldo_anterior as balance_before,
+          st.saldo_nuevo as balance_after,
+          st.descripcion as description,
+          st.realizado_por as created_by,
+          st.fecha_transaccion as created_at
+        FROM saldo_transacciones st
+        LEFT JOIN users u ON st.user_id = u.id
+        ORDER BY st.fecha_transaccion DESC
+        LIMIT 100`
+      : `SELECT 
+          st.id,
+          st.user_id,
+          u.name as user_name,
+          st.currency,
+          st.tipo as type,
+          st.monto as amount,
+          st.saldo_anterior as balance_before,
+          st.saldo_nuevo as balance_after,
+          st.descripcion as description,
+          st.realizado_por as created_by,
+          st.fecha_transaccion as created_at
+        FROM saldo_transacciones st
+        LEFT JOIN users u ON st.user_id = u.id
+        WHERE st.user_id = ?
+        ORDER BY st.fecha_transaccion DESC
+        LIMIT 100`;
+
+    const bindParams = userResults[0].role === 'supervisor' ? [] : [user.id];
+
+    const { results } = await c.env.DB.prepare(query).bind(...bindParams).all();
 
     return c.json({
       success: true,
@@ -2432,10 +2452,6 @@ async function performGoogleVisionOCR(_arrayBuffer: ArrayBuffer, _contentType: s
   return null;
 }
 
-
-
-
-
 // Función para generar montos aleatorios realistas (legacy - mantenida para compatibilidad)
 function generateRandomAmount(): number {
   const ranges = [
@@ -2709,11 +2725,16 @@ app.delete('/api/expenses/:expenseId/attachments/:attachmentId', authMiddleware(
 
     // Verificar que el gasto pertenece al usuario
     const { results: expenseResults } = await c.env.DB.prepare(
-      'SELECT * FROM expenses WHERE id = ? AND user_id = ?'
-    ).bind(expenseId, user.id).all();
+      'SELECT * FROM expenses WHERE id = ?'
+    ).bind(expenseId).all();
 
     if (expenseResults.length === 0) {
-      return c.json({ error: 'Gasto no encontrado o no autorizado' }, 404);
+      return c.json({ error: 'Gasto no encontrado' }, 404);
+    }
+
+    const expense = expenseResults[0] as any;
+    if (expense.user_id !== user.id) {
+      return c.json({ error: 'No tienes permisos para eliminar este archivo' }, 403);
     }
 
     // Obtener información del archivo antes de eliminarlo
@@ -2772,14 +2793,14 @@ app.get('/api/transacciones-saldo', authMiddleware(), async (c) => {
         u.name as user_name,
         u.email as user_email,
         st.currency,
-        st.tipo,
-        st.monto,
-        st.saldo_anterior,
-        st.saldo_nuevo,
-        st.descripcion,
-        st.realizado_por,
-        st.fecha_transaccion,
-        st.created_at
+        st.tipo as type,
+        st.monto as amount,
+        st.saldo_anterior as balance_before,
+        st.saldo_nuevo as balance_after,
+        st.descripcion as description,
+        st.realizado_por as created_by,
+        st.fecha_transaccion as created_at,
+        st.created_at as inserted_at
       FROM saldo_transacciones st
       LEFT JOIN users u ON st.user_id = u.id
     `;
@@ -2831,11 +2852,11 @@ app.get('/api/transacciones-saldo', authMiddleware(), async (c) => {
     
     const limitParam = params.get('limit');
     const offsetParam = params.get('offset');
-    const limit = limitParam ? Math.max(0, Math.min(10000, Number(limitParam))) : 100; // cap limit to 10k
+    const limit = limitParam ? Math.max(0, Math.min(10000, Number(limitParam))) : 100;
     const offset = offsetParam ? Math.max(0, Number(offsetParam)) : 0;
 
     // Build total count using same filters (no limit/offset)
-    const countQuery = `SELECT COUNT(*) as total_count FROM saldo_transacciones st ${whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : ''}`;
+    const countQuery = `SELECT COUNT(*) as total_count FROM (${query})`;
     const { results: countRes } = await c.env.DB.prepare(countQuery).bind(...bindParams).all();
     const totalCount = (countRes && countRes[0] && Number(countRes[0].total_count)) || 0;
 
@@ -2930,52 +2951,45 @@ app.get('/api/users/:userId/transacciones-saldo', authMiddleware(), async (c) =>
       return c.json({ error: 'Solo administradores pueden consultar transacciones de otros usuarios' }, 403);
     }
     
-    const { results } = await c.env.DB.prepare(`
-      SELECT 
+    // Build query with pagination for user transactions
+    const url = new URL(c.req.url);
+    const params = url.searchParams;
+    const limitParam = params.get('limit');
+    const offsetParam = params.get('offset');
+    const limit = limitParam ? Math.max(0, Math.min(10000, Number(limitParam))) : 100;
+    const offset = offsetParam ? Math.max(0, Number(offsetParam)) : 0;
+
+    const baseQuery = `
+      SELECT
         st.id,
         st.user_id,
         u.name as user_name,
         u.email as user_email,
         st.currency,
-        st.tipo,
-        st.monto,
-        st.saldo_anterior,
-        st.saldo_nuevo,
-        st.descripcion,
-        st.realizado_por,
-        st.fecha_transaccion,
-        st.created_at
+        st.tipo as type,
+        st.monto as amount,
+        st.saldo_anterior as balance_before,
+        st.saldo_nuevo as balance_after,
+        st.descripcion as description,
+        st.realizado_por as created_by,
+        st.fecha_transaccion as created_at,
+        st.created_at as inserted_at
       FROM saldo_transacciones st
-      LEFT JOIN users u ON st.      "emeraldwalk.runonsave": [
-        {
-          "match": ".*",
-          "command": "workbench.action.tasks.runTask",
-          "args": "Auto Git Push on Save (PowerShell)"
-        }
-      ]      "emeraldwalk.runonsave": [
-        {
-          "match": ".*",
-          "command": "workbench.action.tasks.runTask",
-          "args": "Auto Git Push on Save (PowerShell)"
-        }
-      ]      {
-        "emeraldwalk.runonsave": [
-          {
-            "match": ".*",
-            "command": "workbench.action.tasks.runTask",
-            "args": "Auto Git Push on Save (PowerShell)"
-          }
-        ]
-      }user_id = u.id
+      LEFT JOIN users u ON st.user_id = u.id
       WHERE st.user_id = ?
-      ORDER BY st.fecha_transaccion DESC
-    `).bind(userId).all();
+    `;
+
+    const { results: countRes } = await c.env.DB.prepare(`SELECT COUNT(*) as total_count FROM (${baseQuery})`).bind(userId).all();
+    const totalCount = (countRes && countRes[0] && Number(countRes[0].total_count)) || 0;
+
+    let pagedQuery = baseQuery + ' ORDER BY st.fecha_transaccion DESC';
+    if (limit > 0) pagedQuery += ' LIMIT ? OFFSET ?';
+    const bindParams: any[] = [userId];
+    if (limit > 0) bindParams.push(limit, offset);
+
+    const { results } = await c.env.DB.prepare(pagedQuery).bind(...bindParams).all();
     
-    return c.json({
-      transacciones: results,
-      total: results.length,
-      user_id: userId
-    });
+    return c.json({ transacciones: results, total: totalCount, limit, offset, user_id: userId });
     
   } catch (error) {
     console.error('Error fetching user transactions:', error);

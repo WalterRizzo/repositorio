@@ -199,7 +199,7 @@ export default function ExpensesTable({
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 table-container-card">
         <div className="animate-pulse space-y-4">
           <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/4"></div>
           <div className="space-y-2">
@@ -502,7 +502,7 @@ export default function ExpensesTable({
           {/* Desktop table (show from lg up) - hide entirely when forcing mobile view */}
           {!forceMobileView && (
             <div className="hidden lg:block overflow-x-auto w-full">
-            <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900">
+            <table className="w-full rounded-2xl border-2 border-black/20 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-card">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Fecha</th>
@@ -797,7 +797,7 @@ export default function ExpensesTable({
                 Mostrando los primeros 10 registros de {filteredExpenses.length}
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm table-card">
                   <thead className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-700">
                     <tr>
                       <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">ID</th>
@@ -811,7 +811,7 @@ export default function ExpensesTable({
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredExpenses.slice(0, 10).map((expense) => (
-                      <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 hover-lift">
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.id}</td>
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.user_name || 'N/A'}</td>
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.description}</td>

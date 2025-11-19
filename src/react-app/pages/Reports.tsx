@@ -50,7 +50,7 @@ export default function Reports() {
   const [exportFileName, setExportFileName] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [reportType, setReportType] = useState<'expenses' | 'transacciones'>('expenses');
+  const [reportType] = useState<'expenses' | 'transacciones'>('expenses');
   const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
   const [filteredTransactionsSummary, setFilteredTransactionsSummary] = useState<any|null>(null);
   const [transactionsPage, setTransactionsPage] = useState(1);
@@ -762,13 +762,7 @@ export default function Reports() {
             </div>
           )}
           
-            <div className="flex items-center space-x-2">
-              <div className="mr-3">
-              <select value={reportType} onChange={(e) => setReportType(e.target.value as any)} className="px-3 py-2 rounded bg-gray-800 text-white">
-                <option value="expenses">Gastos</option>
-                <option value="transacciones">Transacciones de Saldo</option>
-              </select>
-            </div>
+            {/* reportType selector removed from header to avoid duplicated label in pagination area */}
               {/* Chart layout is fixed to portrait per recent UX decision */}
             <button
               onClick={() => {
@@ -1019,7 +1013,6 @@ export default function Reports() {
         setExportOnlyVisible={setExportOnlyVisible}
       />
       <Toast message={toastMessage} open={showToast} onClose={handleCloseToast} />
-    </div>
     </div>
   );
 }
