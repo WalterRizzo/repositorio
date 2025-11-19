@@ -329,7 +329,7 @@ app.post("/api/auth/login", loginRateLimit, async (c) => {
     role: user.role
   };
   
-  const token = generateToken(userData, c.env.JWT_SECRET);
+  const token = await generateToken(userData, c.env.JWT_SECRET);
 
   // Establecer cookie
   setCookie(c, 'auth_token', token, {
@@ -395,7 +395,7 @@ app.post("/api/auth/register", async (c) => {
     role: 'usuario'
   };
 
-  const token = generateToken(userData, c.env.JWT_SECRET);
+  const token = await generateToken(userData, c.env.JWT_SECRET);
 
   setCookie(c, 'auth_token', token, {
     httpOnly: true,
@@ -2539,6 +2539,11 @@ app.post('/api/dba/execute', authMiddleware(), async (c) => {
   }
 
   try {
+    // Extra secret header to execute queries (double-check)
+    const dbaKey = c.req.header('x-dba-key') || c.req.header('X-DBA-Key');
+    if (!dbaKey || dbaKey !== c.env.DBA_EXEC_KEY) {
+      return c.json({ error: 'DBA key is required' }, 403);
+    }
     const body = await c.req.json();
     const { query } = body;
 

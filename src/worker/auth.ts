@@ -1,4 +1,6 @@
 import { getCookie } from 'hono/cookie';
+import bcrypt from 'bcryptjs';
+import { SignJWT, jwtVerify } from 'jose';
 
 export interface User {
   id: string;
@@ -13,53 +15,32 @@ export interface AuthRequest {
 
 // Función para hashear contraseñas usando Web Crypto API
 export async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  const saltRounds = 12;
+  return await bcrypt.hash(password, saltRounds);
 }
 
 // Función para verificar contraseñas
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  const hashedInput = await hashPassword(password);
-  return hashedInput === hash;
+  return await bcrypt.compare(password, hash);
 }
 
 // Función para generar token simple (base64 encoded)
-export function generateToken(user: User, secret: string): string {
-  const payload = {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    exp: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 días
-  };
-  const tokenData = JSON.stringify(payload);
-  return btoa(tokenData + '.' + secret);
+export async function generateToken(user: User, secret: string): Promise<string> {
+  const alg = 'HS256';
+  const jwt = await new SignJWT({ id: user.id, email: user.email, name: user.name, role: user.role })
+    .setProtectedHeader({ alg })
+    .setExpirationTime('7d')
+    .sign(new TextEncoder().encode(secret));
+  return jwt;
 }
 
 // Función para verificar token
-export function verifyToken(token: string, secret: string): User | null {
+export async function verifyToken(token: string, secret: string): Promise<User | null> {
   try {
-    const decoded = atob(token);
-    const [payloadStr, tokenSecret] = decoded.split('.' + secret);
-    
-    if (tokenSecret !== '') return null;
-    
-    const payload = JSON.parse(payloadStr);
-    
-    // Verificar expiración
-    if (payload.exp < Date.now()) {
-      return null;
-    }
-    
-    return {
-      id: payload.id,
-      email: payload.email,
-      name: payload.name,
-      role: payload.role
-    };
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret), { algorithms: ['HS256'] });
+    const p = payload as any;
+    // @ts-ignore
+    return { id: p.id, email: p.email, name: p.name, role: p.role } as User;
   } catch (error) {
     return null;
   }
@@ -81,7 +62,7 @@ export function authMiddleware() {
       return c.json({ error: 'Token de autenticación requerido' }, 401);
     }
 
-    const user = verifyToken(token, c.env.JWT_SECRET);
+    const user = await verifyToken(token, c.env.JWT_SECRET);
     if (!user) {
       return c.json({ error: 'Token inválido' }, 401);
     }
