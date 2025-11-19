@@ -83,9 +83,9 @@ export default function Expenses() {
   const location = useLocation();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [expensesPage, setExpensesPage] = useState(1);
-  const [expensesPerPage, setExpensesPerPage] = useState(50);
-  const [totalExpenses, setTotalExpenses] = useState(0);
+  const [expensesPage, _setExpensesPage] = useState(1);
+  const [expensesPerPage, _setExpensesPerPage] = useState(50);
+  const [_totalExpenses, setTotalExpenses] = useState(0);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'expenses' | 'users' | 'dba' | 'movements'>('expenses');
@@ -211,13 +211,20 @@ export default function Expenses() {
   useEffect(() => {
     if (user) {
       fetchUserProfile();
-      fetchExpenses();
+      fetchExpenses(expensesPage, expensesPerPage);
       fetchMultiBalances();
       if (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') {
         fetchUsers();
       }
     }
   }, [user, userProfile?.role]);
+
+  useEffect(() => {
+    // Fetch expenses when page or perPage changes
+    if (user) {
+      fetchExpenses(expensesPage, expensesPerPage);
+    }
+  }, [expensesPage, expensesPerPage]);
 
   const fetchUserProfile = async () => {
     try {
@@ -1048,7 +1055,7 @@ export default function Expenses() {
             {/* Tabla de usuarios */}
             <div className="overflow-x-auto">
               <table className="w-full rounded-xl border-2 border-purple-500 shadow-lg">
-                <thead className="bg-gradient-to-r from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-700 dark:via-gray-700 dark:to-gray-700">
+                <thead className="bg-black dark:bg-gray-800">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       👤 Usuario
@@ -1068,7 +1075,7 @@ export default function Expenses() {
                   {users
                     .slice((usersPage - 1) * recordsPerPage, usersPage * recordsPerPage)
                     .map((user) => (
-                    <tr key={user.user_id} className="hover:bg-violet-50/50 dark:hover:bg-gray-700/50 transition-all">
+                    <tr key={user.user_id} className="hover:bg-black/10 dark:hover:bg-gray-700/50 transition-all">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         <div>
                           <div className="font-bold">{user.name}</div>
@@ -1379,7 +1386,7 @@ export default function Expenses() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-max">
-                  <thead className="bg-gradient-to-r from-violet-600 to-purple-600">
+                  <thead className="bg-black">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
                       <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
@@ -1403,7 +1410,7 @@ export default function Expenses() {
                       })
                       .slice(0, 5)
                       .map((movement) => (
-                        <tr key={movement.id} className="hover:bg-violet-900/30 transition-all">
+                        <tr key={movement.id} className="hover:bg-black/25 transition-all">
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
                             {new Date(movement.created_at).toLocaleString('es-AR', {
                               year: 'numeric',
@@ -1663,7 +1670,7 @@ export default function Expenses() {
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="bg-gradient-to-r from-violet-600 to-purple-600">
+                        <thead className="bg-black">
                           <tr>
                             {Object.keys(dbaResults.results[0]).map((key) => (
                               <th key={key} className="px-4 py-3 text-left font-black text-white uppercase tracking-wider">
@@ -1674,7 +1681,7 @@ export default function Expenses() {
                         </thead>
                         <tbody className="divide-y divide-gray-700">
                           {dbaResults.results.slice(auditStartIdx, auditStartIdx + auditPageSize).map((row: any, index: number) => (
-                            <tr key={index} className="hover:bg-violet-900/30 transition-all">
+                            <tr key={index} className="hover:bg-black/25 transition-all">
                               {Object.values(row).map((value: any, cellIndex: number) => (
                                 <td key={cellIndex} className="px-4 py-3 text-white font-semibold">
                                   {value !== null ? String(value) : <span className="text-gray-500 italic">null</span>}
@@ -2213,7 +2220,7 @@ export default function Expenses() {
                   </h3>
                   <div className="overflow-x-auto max-h-96">
                     <table className="w-full text-sm">
-                      <thead className="bg-gradient-to-r from-violet-600 to-purple-600 sticky top-0">
+                      <thead className="bg-black sticky top-0">
                         <tr>
                           <th className="px-3 py-2 text-left text-xs font-black text-white">Fecha</th>
                           <th className="px-3 py-2 text-left text-xs font-black text-white">Usuario</th>
@@ -2230,7 +2237,7 @@ export default function Expenses() {
                           .filter(m => userFilter === 'all' || m.user_id === userFilter)
                           .slice(0, 10)
                           .map((movement, idx) => (
-                            <tr key={idx} className="hover:bg-violet-900/30 transition-all">
+                            <tr key={idx} className="hover:bg-black/25 transition-all">
                               <td className="px-3 py-2 whitespace-nowrap text-white">
                                 {new Date(movement.created_at).toLocaleString('es-AR', {
                                   year: 'numeric',

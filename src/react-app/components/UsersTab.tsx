@@ -131,7 +131,7 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
             </table>
               {/* Pagination controls (mirrored from Expenses grid) */}
               {Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)) > 1 && (
-                <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-gradient-to-r from-violet-600 to-purple-600 border-t gap-y-2 rounded-xl shadow-lg mb-2">
+                <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black border-t gap-y-2 rounded-xl shadow-lg mb-2">
                   <div className="text-xs sm:text-sm text-white font-semibold">
                     Mostrando {(transactionsPage - 1) * transactionsPerPage + 1} - {Math.min(transactionsPage * transactionsPerPage, totalTransactions)} de {totalTransactions} transacciones
                   </div>
@@ -146,31 +146,31 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
                     <button
                       onClick={() => setTransactionsPage(1)}
                       disabled={transactionsPage === 1}
-                      className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                      className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                     >
                       « Primera
                     </button>
                     <button
                       onClick={() => setTransactionsPage(Math.max(1, transactionsPage - 1))}
                       disabled={transactionsPage === 1}
-                      className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                      className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                     >
                       ‹ Anterior
                     </button>
-                    <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm font-bold">
+                    <span className="px-3 py-1 bg-black text-white rounded text-sm font-bold">
                       Página {transactionsPage} de {Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))}
                     </span>
                     <button
                       onClick={() => setTransactionsPage(Math.min(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)), transactionsPage + 1))}
                       disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))}
-                      className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                      className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                     >
                       Siguiente ›
                     </button>
                     <button
                       onClick={() => setTransactionsPage(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)))}
                       disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))}
-                      className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                      className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                     >
                       Última »
                     </button>

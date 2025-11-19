@@ -752,11 +752,11 @@ export default function Reports() {
               <div className="flex justify-between items-center">
                 <div className="text-xs text-gray-600">Mostrando {(transactionsPage - 1) * transactionsPerPage + 1} - {Math.min(transactionsPage * transactionsPerPage, totalTransactions)} de {totalTransactions} transacciones</div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setTransactionsPage(1)} disabled={transactionsPage === 1} className="px-2 py-1 bg-indigo-600 text-white rounded">« Primera</button>
-                  <button onClick={() => setTransactionsPage(Math.max(1, transactionsPage - 1))} disabled={transactionsPage === 1} className="px-2 py-1 bg-indigo-600 text-white rounded">‹ Anterior</button>
-                  <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded">Página {transactionsPage} de {Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))}</span>
-                  <button onClick={() => setTransactionsPage(Math.min(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)), transactionsPage + 1))} disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))} className="px-2 py-1 bg-indigo-600 text-white rounded">Siguiente ›</button>
-                  <button onClick={() => setTransactionsPage(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)))} disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))} className="px-2 py-1 bg-indigo-600 text-white rounded">Última »</button>
+                  <button onClick={() => setTransactionsPage(1)} disabled={transactionsPage === 1} className="px-2 py-1 bg-black hover:bg-gray-800 text-white rounded">« Primera</button>
+                  <button onClick={() => setTransactionsPage(Math.max(1, transactionsPage - 1))} disabled={transactionsPage === 1} className="px-2 py-1 bg-black hover:bg-gray-800 text-white rounded">‹ Anterior</button>
+                  <span className="px-2 py-1 bg-black text-white rounded">Página {transactionsPage} de {Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))}</span>
+                  <button onClick={() => setTransactionsPage(Math.min(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)), transactionsPage + 1))} disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))} className="px-2 py-1 bg-black hover:bg-gray-800 text-white rounded">Siguiente ›</button>
+                  <button onClick={() => setTransactionsPage(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)))} disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))} className="px-2 py-1 bg-black hover:bg-gray-800 text-white rounded">Última »</button>
                 </div>
               </div>
             </div>
