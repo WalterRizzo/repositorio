@@ -16,6 +16,18 @@ npx wrangler secret put JWT_SECRET
 npx wrangler secret put RESEND_API_KEY
 # pega el valor de RESEND_API_KEY y presiona Enter
 npx wrangler secret put MOCHA_USERS_SERVICE_API_KEY
+### DBA Exec Key
+
+If you keep the DBA endpoint, protect it with an additional secret to avoid accidental exposure via a leaked cookie or compromised admin account. Set it with:
+
+```powershell
+npx wrangler secret put DBA_EXEC_KEY
+```
+
+Then call the endpoint with an extra header:
+
+curl -H "Authorization: Bearer <token>" -H "x-dba-key: <secret>" -X POST https://.../api/dba/execute -d '{"query": "SELECT ..."}'
+
 ```
 
 4) Para desarrollo local, usa `.env` (NO debe agregarse al repo) o la variable `.dev.vars` para wrangler. Mantén `.env.example` con placeholders.
