@@ -1,5 +1,5 @@
 import { authMiddleware } from '../auth';
-import { sanitizeSqlForSelectOnly, logDbaAction } from '../utils';
+import { logDbaAction } from '../utils';
 
 export function registerDbaRoutes(app: any) {
   app.post('/api/dba/execute', authMiddleware(), async (c: any) => {

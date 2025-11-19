@@ -54,7 +54,7 @@ export default function Reports() {
   const [filteredTransactions, setFilteredTransactions] = useState<any[]>([]);
   const [filteredTransactionsSummary, setFilteredTransactionsSummary] = useState<any|null>(null);
   const [transactionsPage, setTransactionsPage] = useState(1);
-  const [transactionsPerPage, setTransactionsPerPage] = useState(50);
+  const [transactionsPerPage, _setTransactionsPerPage] = useState(50);
   const [totalTransactions, setTotalTransactions] = useState(0);
   // const [chartLayout] = useState<'portrait'>('portrait');
   const [isLoading, setIsLoading] = useState(true);
