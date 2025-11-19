@@ -2566,74 +2566,7 @@ function extractAmountFromText(text: string): number | null {
   return null;
 }
 
-// DBA endpoint - Solo para administradores
-app.post('/api/dba/execute', authMiddleware(), async (c) => {
-  const user = c.get('user');
-  
-  // Verificar que el usuario es admin
-  if (user.role !== 'admin') {
-    return c.json({ error: 'Acceso denegado. Solo administradores.' }, 403);
-  }
-
-  try {
-    // Extra secret header to execute queries (double-check)
-    const dbaKey = c.req.header('x-dba-key') || c.req.header('X-DBA-Key');
-    if (!dbaKey || dbaKey !== c.env.DBA_EXEC_KEY) {
-      return c.json({ error: 'DBA key is required' }, 403);
-    }
-    const body = await c.req.json();
-    const { query } = body;
-
-    if (!query || typeof query !== 'string') {
-      return c.json({ error: 'Query SQL es requerido' }, 400);
-    }
-
-    const sqlQuery = query.trim();
-    
-    // DBA tiene permisos COMPLETOS - Solo bloqueamos operaciones extremadamente peligrosas
-    const extremelyDangerousPatterns = [
-      /DROP\s+DATABASE/i,
-      /DROP\s+SCHEMA/i,
-      /PRAGMA\s+/i  // Evitar cambios de configuración de SQLite
-    ];
-
-    for (const pattern of extremelyDangerousPatterns) {
-      if (pattern.test(sqlQuery)) {
-        return c.json({ 
-          error: 'Operación extremadamente peligrosa bloqueada. Contacte al administrador del sistema.' 
-        }, 400);
-      }
-    }
-
-    console.log(`DBA Query ejecutado por ${user.email}: ${sqlQuery}`);
-
-    let result;
-    
-    // Determinar si es una consulta que retorna resultados o no
-    const isSelectQuery = /^\s*SELECT/i.test(sqlQuery);
-    
-    if (isSelectQuery) {
-      result = await c.env.DB.prepare(sqlQuery).all();
-      
-      return c.json({
-        success: true,
-        results: result.results || [],
-        count: result.results?.length || 0,
-        message: `Query ejecutado exitosamente. ${result.results?.length || 0} filas retornadas.`
-      });
-    } else {
-      // Disallow non-SELECT queries via DBA endpoint for security: use migrations or admin tools for modifications
-      return c.json({ error: 'Solo se permiten consultas SELECT a través de este endpoint (por seguridad).' }, 403);
-    }
-
-  } catch (error: any) {
-    console.error('Error ejecutando query DBA:', error);
-    
-    return c.json({ 
-      error: `Error SQL: ${error.message || 'Error desconocido'}` 
-    }, 500);
-  }
-});
+// DBA endpoint is handled in src/worker/routes/dba.ts (modularized). Keep logic there, and avoid duplicate handlers here.
 
 // ========== MÚLTIPLES ARCHIVOS ADJUNTOS ==========
 
