@@ -9,6 +9,68 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+// -----------------------
+// BACKUP UTILITIES
+// -----------------------
+async function runBackupWithBindings(bindings: any) {
+  try {
+    const DB = bindings.DB;
+    const R2_BUCKET = bindings.R2_BUCKET;
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-');
+
+    // get list of tables
+    const { results: tablesRes } = await DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
+    const tableNames = (tablesRes || []).map((r: any) => r.name).filter(Boolean);
+
+    const backupData: any = { generated_at: now.toISOString(), tables: {} };
+    for (const name of tableNames) {
+      try {
+        const { results } = await DB.prepare(`SELECT * FROM \"${name}\"`).all();
+        backupData.tables[name] = results || [];
+      } catch (e) {
+        console.error(`Error dumping table ${name}:`, e);
+        backupData.tables[name] = { error: String(e) };
+      }
+    }
+
+    const content = JSON.stringify(backupData);
+    const filename = `backup-${timestamp}.json`;
+
+    if (R2_BUCKET && typeof R2_BUCKET.put === 'function') {
+      // Save full backup as a single JSON file in R2
+      console.log('Saving backup to R2:', filename);
+      await R2_BUCKET.put(`backups/${filename}`, content);
+      return { location: `r2://backups/${filename}` };
+    }
+
+    // Fallback: store in D1 backups table
+    console.log('Saving backup to D1 backups table:', filename);
+    await DB.prepare('INSERT INTO backups (name, content, size) VALUES (?, ?, ?)').bind(filename, content, content.length).run();
+    return { location: `d1:backups/${filename}` };
+  } catch (err) {
+    console.error('Error running backup:', err);
+    throw err;
+  }
+}
+
+// Manual backup endpoint for admin users (protected)
+app.post('/api/admin/backups/backup-now', authMiddleware(), async (c) => {
+  try {
+    const user = c.get('user')! as User;
+    // Only admins or supervisors allowed
+    if (!user || (user.role !== 'admin' && user.role !== 'supervisor')) {
+      return c.json({ error: 'Unauthorized' }, 403);
+    }
+
+    const result = await runBackupWithBindings(c.env as any);
+    return c.json({ success: true, result });
+  } catch (e) {
+    console.error('Manual backup failed:', e);
+    return c.json({ error: String(e) }, 500);
+  }
+});
+
 // ============================================================
 // RATE LIMITING - Protección contra DDoS
 // ============================================================
@@ -434,22 +496,48 @@ app.get('/api/expenses', authMiddleware(), async (c) => {
     const userRole = userResults[0].role;
     let query = '';
     let params: any[] = [];
+    // Parse optional query params for filtering
+    const url = new URL(c.req.url);
+    const paramsQs = url.searchParams;
+    const from = paramsQs.get('from');
+    const to = paramsQs.get('to');
+    const qUserId = paramsQs.get('userId');
+    const category = paramsQs.get('category');
+    const currency = paramsQs.get('currency');
+    const status = paramsQs.get('status');
+    const minAmount = paramsQs.get('minAmount');
+    const maxAmount = paramsQs.get('maxAmount');
+    const hasReceipt = paramsQs.get('hasReceipt');
 
     // If user is admin or supervisor, show all expenses with user info
     // If regular user, show only their expenses with user info
-    if (userRole === 'admin' || userRole === 'supervisor') {
-      query = `SELECT e.*, u.name as user_name, u.email as user_email 
-               FROM expenses e 
-               LEFT JOIN users u ON e.user_id = u.id 
-               ORDER BY e.expense_date DESC, e.created_at DESC`;
-    } else {
-      query = `SELECT e.*, u.name as user_name, u.email as user_email 
-               FROM expenses e 
-               LEFT JOIN users u ON e.user_id = u.id 
-               WHERE e.user_id = ? 
-               ORDER BY e.expense_date DESC, e.created_at DESC`;
-      params = [user.id];
+    // Build WHERE clause with filters
+    const whereClauses: string[] = [];
+    const bindParams: any[] = [];
+    // If non-admin, always limit to own user
+    if (userRole !== 'admin' && userRole !== 'supervisor') {
+      whereClauses.push('e.user_id = ?');
+      bindParams.push(user.id);
+    } else if (qUserId) {
+      whereClauses.push('e.user_id = ?');
+      bindParams.push(qUserId);
     }
+    if (from) { whereClauses.push('e.expense_date >= ?'); bindParams.push(from); }
+    if (to) { whereClauses.push('e.expense_date <= ?'); bindParams.push(to); }
+    if (category) { whereClauses.push('e.category = ?'); bindParams.push(category); }
+    if (currency) { whereClauses.push('e.currency = ?'); bindParams.push(currency); }
+    if (status) { whereClauses.push('e.status = ?'); bindParams.push(status); }
+    if (minAmount) { whereClauses.push('e.amount >= ?'); bindParams.push(Number(minAmount)); }
+    if (maxAmount) { whereClauses.push('e.amount <= ?'); bindParams.push(Number(maxAmount)); }
+    if (hasReceipt === 'true') {
+      whereClauses.push('EXISTS (SELECT 1 FROM expense_attachments a WHERE a.expense_id = e.id)');
+    } else if (hasReceipt === 'false') {
+      whereClauses.push('NOT EXISTS (SELECT 1 FROM expense_attachments a WHERE a.expense_id = e.id)');
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    query = `SELECT e.*, u.name as user_name, u.email as user_email FROM expenses e LEFT JOIN users u ON e.user_id = u.id ${whereSql} ORDER BY e.expense_date DESC, e.created_at DESC`;
+    params = bindParams;
 
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
     
@@ -1312,13 +1400,69 @@ app.get('/api/balance/movements', authMiddleware(), async (c) => {
 // Get expense reports - SIN AUTH PARA QUE FUNCIONE
 app.get('/api/expenses/reports/summary', async (c) => {
   try {
+    // Extract query params for filtering
+    const url = new URL(c.req.url);
+    const params = url.searchParams;
+    const from = params.get('from');
+    const to = params.get('to');
+    const userId = params.get('userId');
+    const category = params.get('category');
+    const currency = params.get('currency');
+    const status = params.get('status');
+    const minAmount = params.get('minAmount');
+    const maxAmount = params.get('maxAmount');
+    const hasReceipt = params.get('hasReceipt');
+
+    const whereClauses: string[] = [];
+    const bindParams: any[] = [];
+
+    if (from) {
+      whereClauses.push('expense_date >= ?');
+      bindParams.push(from);
+    }
+    if (to) {
+      whereClauses.push('expense_date <= ?');
+      bindParams.push(to);
+    }
+    if (userId) {
+      whereClauses.push('user_id = ?');
+      bindParams.push(userId);
+    }
+    if (category) {
+      whereClauses.push('category = ?');
+      bindParams.push(category);
+    }
+    if (currency) {
+      whereClauses.push('currency = ?');
+      bindParams.push(currency);
+    }
+    if (status) {
+      whereClauses.push('status = ?');
+      bindParams.push(status);
+    }
+    if (minAmount) {
+      whereClauses.push('amount >= ?');
+      bindParams.push(Number(minAmount));
+    }
+    if (maxAmount) {
+      whereClauses.push('amount <= ?');
+      bindParams.push(Number(maxAmount));
+    }
+    if (hasReceipt === 'true') {
+      whereClauses.push("EXISTS (SELECT 1 FROM expense_attachments a WHERE a.expense_id = expenses.id)");
+    } else if (hasReceipt === 'false') {
+      whereClauses.push("NOT EXISTS (SELECT 1 FROM expense_attachments a WHERE a.expense_id = expenses.id)");
+    }
+
+    const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     // Total by category
     const { results: byCategory } = await c.env.DB.prepare(
       `SELECT category, SUM(amount) as total, COUNT(*) as count
-       FROM expenses 
+       FROM expenses
+       ${whereSQL}
        GROUP BY category
        ORDER BY total DESC`
-    ).all();
+    ).bind(...bindParams).all();
 
     // Total by month (last 12 months)
     const { results: byMonth } = await c.env.DB.prepare(
@@ -1327,18 +1471,20 @@ app.get('/api/expenses/reports/summary', async (c) => {
          SUM(amount) as total,
          COUNT(*) as count
        FROM expenses 
+       ${whereSQL}
        GROUP BY month
        ORDER BY month DESC
        LIMIT 12`
-    ).all();
+    ).bind(...bindParams).all();
 
     // Overall totals
     const { results: totals } = await c.env.DB.prepare(
       `SELECT 
          SUM(amount) as total_amount,
          COUNT(*) as total_count
-       FROM expenses`
-    ).all();
+       FROM expenses
+       ${whereSQL}`
+    ).bind(...bindParams).all();
 
     return c.json({
       byCategory,
@@ -2640,6 +2786,17 @@ app.get('/api/transacciones-saldo', authMiddleware(), async (c) => {
     const user = c.get('user')! as User;
     
     // Solo admins pueden ver todas las transacciones
+    const url = new URL(c.req.url);
+    const params = url.searchParams;
+    const from = params.get('from');
+    const to = params.get('to');
+    const userId = params.get('userId');
+    const type = params.get('type');
+    const currency = params.get('currency');
+    const minAmount = params.get('minAmount');
+    const maxAmount = params.get('maxAmount');
+    const search = params.get('search');
+
     let query = `
       SELECT 
         st.id,
@@ -2659,17 +2816,60 @@ app.get('/api/transacciones-saldo', authMiddleware(), async (c) => {
       LEFT JOIN users u ON st.user_id = u.id
     `;
     
-    const params = [];
+    const whereClauses: string[] = [];
+    const bindParams: any[] = [];
     
     if (user.role !== 'admin') {
       // Los usuarios normales solo ven sus propias transacciones
-      query += ' WHERE st.user_id = ?';
-      params.push(user.id);
+      whereClauses.push('st.user_id = ?');
+      bindParams.push(user.id);
+    } else if (userId) {
+      whereClauses.push('st.user_id = ?');
+      bindParams.push(userId);
+    }
+
+    if (from) {
+      whereClauses.push('st.fecha_transaccion >= ?');
+      bindParams.push(from);
+    }
+    if (to) {
+      whereClauses.push('st.fecha_transaccion <= ?');
+      bindParams.push(to);
+    }
+    if (type) {
+      whereClauses.push('st.tipo = ?');
+      bindParams.push(type);
+    }
+    if (currency) {
+      whereClauses.push('st.currency = ?');
+      bindParams.push(currency);
+    }
+    if (minAmount) {
+      whereClauses.push('st.monto >= ?');
+      bindParams.push(Number(minAmount));
+    }
+    if (maxAmount) {
+      whereClauses.push('st.monto <= ?');
+      bindParams.push(Number(maxAmount));
+    }
+    if (search) {
+      whereClauses.push("(st.descripcion LIKE ? OR u.name LIKE ? OR u.email LIKE ?)");
+      bindParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    if (whereClauses.length > 0) {
+      query += ' WHERE ' + whereClauses.join(' AND ');
     }
     
-    query += ' ORDER BY st.fecha_transaccion DESC LIMIT 50';
-    
-    const { results } = await c.env.DB.prepare(query).bind(...params).all();
+    const limitParam = params.get('limit');
+    const limit = limitParam ? Math.max(0, Math.min(10000, Number(limitParam))) : 100; // cap limit to 10k
+    if (limit > 0) {
+      query += ' ORDER BY st.fecha_transaccion DESC LIMIT ?';
+      bindParams.push(limit);
+    } else {
+      query += ' ORDER BY st.fecha_transaccion DESC';
+    }
+    const { results } = await c.env.DB.prepare(query).bind(...bindParams).all();
     
     return c.json({
       transacciones: results,
@@ -2678,6 +2878,65 @@ app.get('/api/transacciones-saldo', authMiddleware(), async (c) => {
     
   } catch (error) {
     console.error('Error fetching transactions:', error);
+    return c.json({ error: String(error) }, 500);
+  }
+});
+
+// Get reports summary for transacciones de saldo
+app.get('/api/transacciones-saldo/reports/summary', authMiddleware(), async (c) => {
+  try {
+    const user = c.get('user')! as User;
+    const url = new URL(c.req.url);
+    const params = url.searchParams;
+    const from = params.get('from');
+    const to = params.get('to');
+    const userId = params.get('userId');
+    const type = params.get('type');
+    const currency = params.get('currency');
+    const minAmount = params.get('minAmount');
+    const maxAmount = params.get('maxAmount');
+
+    const whereClauses: string[] = [];
+    const bindParams: any[] = [];
+
+    if (user.role !== 'admin') {
+      whereClauses.push('st.user_id = ?');
+      bindParams.push(user.id);
+    } else if (userId) {
+      whereClauses.push('st.user_id = ?');
+      bindParams.push(userId);
+    }
+    if (from) { whereClauses.push('st.fecha_transaccion >= ?'); bindParams.push(from); }
+    if (to) { whereClauses.push('st.fecha_transaccion <= ?'); bindParams.push(to); }
+    if (type) { whereClauses.push('st.tipo = ?'); bindParams.push(type); }
+    if (currency) { whereClauses.push('st.currency = ?'); bindParams.push(currency); }
+    if (minAmount) { whereClauses.push('st.monto >= ?'); bindParams.push(Number(minAmount)); }
+    if (maxAmount) { whereClauses.push('st.monto <= ?'); bindParams.push(Number(maxAmount)); }
+
+    const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    // By type
+    const { results: byType } = await c.env.DB.prepare(
+      `SELECT tipo as type, SUM(monto) as total, COUNT(*) as count FROM saldo_transacciones st ${whereSQL} GROUP BY tipo ORDER BY total DESC`
+    ).bind(...bindParams).all();
+
+    // By month
+    const { results: byMonth } = await c.env.DB.prepare(
+      `SELECT strftime('%Y-%m', fecha_transaccion) as month, SUM(monto) as total, COUNT(*) as count FROM saldo_transacciones st ${whereSQL} GROUP BY month ORDER BY month DESC LIMIT 12`
+    ).bind(...bindParams).all();
+
+    const { results: totals } = await c.env.DB.prepare(
+      `SELECT SUM(monto) as total_amount, COUNT(*) as total_count FROM saldo_transacciones st ${whereSQL}`
+    ).bind(...bindParams).all();
+
+    // By currency (for transactional totals per currency)
+    const { results: byCurrency } = await c.env.DB.prepare(
+      `SELECT currency, SUM(monto) as total, COUNT(*) as count FROM saldo_transacciones st ${whereSQL} GROUP BY currency ORDER BY total DESC`
+    ).bind(...bindParams).all();
+
+    return c.json({ byType, byMonth, totals: totals[0] || { total_amount: 0, total_count: 0 }, byCurrency });
+  } catch (error) {
+    console.error('Error fetching transaction summary:', error);
     return c.json({ error: String(error) }, 500);
   }
 });
@@ -2806,3 +3065,16 @@ app.get('*', async (c) => {
 });
 
 export default app;
+
+// Scheduled cron handler - weekly backup (if cron triggers configured)
+addEventListener('scheduled', (event: any) => {
+  event.waitUntil((async () => {
+    try {
+      console.log('🕒 Cron scheduled backup triggered');
+      await runBackupWithBindings((globalThis as any).DB ? { DB: (globalThis as any).DB, R2_BUCKET: (globalThis as any).R2_BUCKET } : ({} as any));
+      console.log('✅ Scheduled backup completed');
+    } catch (e) {
+      console.error('❌ Scheduled backup failed:', e);
+    }
+  })());
+});

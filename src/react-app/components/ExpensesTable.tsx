@@ -3,7 +3,9 @@ import { useState, useRef } from "react";
 import BubbleTooltipPortal from "./BubbleTooltipPortal";
 import { getStatusBadgeClasses, getStatusLabel } from '@/react-app/utils/status';
 import type { Expense } from "@/shared/types";
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+// @ts-ignore - file-saver typing not installed in repo
+import { saveAs } from 'file-saver';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
@@ -85,31 +87,37 @@ export default function ExpensesTable({
   };
 
   // Función exportar Excel
-  const exportToExcel = () => {
-    const excelData = filteredExpenses.map(expense => ({
-      'ID': expense.id,
-      'Usuario': expense.user_name || 'N/A',
-      'Descripción': expense.description,
-      'Monto': expense.amount,
-      'Moneda': expense.currency,
-      'Categoría': expense.category,
-      'Fecha': new Date(expense.expense_date).toLocaleDateString('es-AR'),
-      'Estado': expense.status,
-      'Creado': new Date(expense.created_at).toLocaleDateString('es-AR'),
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
-    const colWidths = [
-      { wch: 8 }, { wch: 25 }, { wch: 40 }, { wch: 15 }, { wch: 10 },
-      { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 15 },
-    ];
-    worksheet['!cols'] = colWidths;
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Gastos');
-
-    const date = new Date().toLocaleDateString('es-AR').replace(/\//g, '-');
-    XLSX.writeFile(workbook, `gastos_${date}.xlsx`);
+  const exportToExcel = async () => {
+    // Use ExcelJS to build a richer, styled workbook
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Gastos');
+    const headers = ['ID','Usuario','Descripción','Monto','Moneda','Categoría','Fecha','Estado'];
+    ws.columns = headers.map(h => ({ header: h, key: h, width: 20 })) as any;
+    // Map rows ensuring Fecha is a Date object and Creado is omitted
+    filteredExpenses.forEach(expense => {
+      ws.addRow([
+        expense.id,
+        expense.user_name || 'N/A',
+        expense.description,
+        Number(expense.amount || 0),
+        expense.currency,
+        expense.category,
+        new Date(expense.expense_date),
+        expense.status
+      ]);
+    });
+    // Header style
+    ws.getRow(1).eachCell((cell:any) => { cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '6D28D9' } }; cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; });
+    // Format columns: Monto, Fecha
+    const montoCol = ws.getColumn(headers.indexOf('Monto') + 1);
+    montoCol.numFmt = '#,##0.00'; montoCol.alignment = { horizontal: 'right' } as any;
+    const fechaCol = ws.getColumn(headers.indexOf('Fecha') + 1);
+    fechaCol.numFmt = 'dd/mm/yyyy'; fechaCol.alignment = { horizontal: 'center' } as any;
+    // Add borders to all rows
+    ws.eachRow((row:any) => { row.eachCell((cell:any) => { cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; }); });
+    ws.views = [{ state: 'frozen', ySplit: 1 }];
+    const buf = await wb.xlsx.writeBuffer();
+    saveAs(new Blob([buf]), `gastos_${new Date().toISOString().split('T')[0]}.xlsx`);
     setShowExportPreview(false);
   };
 
@@ -384,13 +392,15 @@ export default function ExpensesTable({
               </>
             )}
           </select>
-          <button
-            onClick={() => setShowExportPreview(true)}
-            className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
-          >
-            <FileSpreadsheet className="w-5 h-5" />
-            <span>Exportar Excel</span>
-          </button>
+                {userRole === 'usuario' && (
+                  <button
+                    onClick={() => setShowExportPreview(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
+                  >
+                    <FileSpreadsheet className="w-5 h-5" />
+                    <span>Exportar Excel</span>
+                  </button>
+                )}
           <button
             onClick={() => {
               setDateFilters({desde: '', hasta: ''});

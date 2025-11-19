@@ -12,6 +12,11 @@
     "directory": "./dist/client",
     "binding": "ASSETS"
   },
+  "triggers": {
+    "crons": [
+      "0 3 * * SUN"
+    ]
+  },
   "d1_databases": [
     {
       "binding": "DB",

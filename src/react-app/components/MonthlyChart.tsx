@@ -10,9 +10,12 @@ import {
 
 interface MonthlyChartProps {
   data: Array<{ month: string; total: number; count: number }>;
+  title?: string;
+  subtitle?: string;
+  itemLabel?: string;
 }
 
-export default function MonthlyChart({ data }: MonthlyChartProps) {
+export default function MonthlyChart({ data, title = 'Gastos por Mes', subtitle = 'Últimos 12 meses', itemLabel = 'gasto' }: MonthlyChartProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("es-AR", {
       style: "currency",
@@ -37,17 +40,17 @@ export default function MonthlyChart({ data }: MonthlyChartProps) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
       <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Gastos por Mes</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Últimos 12 meses</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{subtitle}</p>
       </div>
 
       {data.length === 0 ? (
-        <div className="flex items-center justify-center h-64 text-gray-400">
+        <div className="flex items-center justify-center h-full text-gray-400">
           No hay datos disponibles
         </div>
       ) : (
         <>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
               <XAxis
@@ -95,7 +98,7 @@ export default function MonthlyChart({ data }: MonthlyChartProps) {
                     {formatMonth(item.month)}
                   </span>
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    ({item.count} {item.count === 1 ? "gasto" : "gastos"})
+                    ({item.count} {item.count === 1 ? itemLabel : `${itemLabel}s`})
                   </span>
                 </div>
                 <span className="text-sm font-semibold text-gray-900 dark:text-white">

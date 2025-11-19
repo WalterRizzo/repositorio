@@ -12,7 +12,7 @@
 
   // Resetear página de movimientos al cambiar filtros
   // Eliminado: paginación de movimientos
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNotifications } from "@/react-app/hooks/useNotifications";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
@@ -119,6 +119,7 @@ export default function Expenses() {
   const [usersPage, setUsersPage] = useState(1);
   // Pagination state for movements grid
   const [movementsPage, setMovementsPage] = useState(1);
+  const [expandedMovements, setExpandedMovements] = useState<Record<string, boolean>>({});
   const recordsPerPage = 10;
   
   // Settings modal state
@@ -1159,13 +1160,15 @@ export default function Expenses() {
                     style={{ minWidth: 120 }}
                   />
                 </div>
-                <button
-                  onClick={() => setShowExportPreview(true)}
-                  className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
-                >
-                  <FileSpreadsheet className="w-5 h-5" />
-                  <span>Exportar Excel</span>
-                </button>
+                {userProfile?.role === 'usuario' && (
+                  <button
+                    onClick={() => setShowExportPreview(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
+                  >
+                    <FileSpreadsheet className="w-5 h-5" />
+                    <span>Exportar Excel</span>
+                  </button>
+                )}
               </div>
 
               {isLoadingMovements ? (
@@ -1177,23 +1180,30 @@ export default function Expenses() {
                   <table className="w-full min-w-max magic-movements-table">
                     <thead className="bg-black text-white">
                       <tr>
+                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap sm:hidden"> </th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">MONEDA</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📊 SALDO ANTERIOR</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📈 SALDO NUEVO</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📝 DESCRIPCIÓN</th>
+                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap hidden sm:table-cell">📊 SALDO ANTERIOR</th>
+                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap hidden sm:table-cell">📈 SALDO NUEVO</th>
+                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap hidden sm:table-cell">📝 DESCRIPCIÓN</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
                       {balanceMovements
                         .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
                         .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                        .slice((movementsPage - 1) * recordsPerPage, movementsPage * recordsPerPage)
+                        .slice(0, movementsPage * recordsPerPage)
                         .map((movement) => (
-                          <tr key={movement.id} className="bg-black text-white">
+                          <React.Fragment key={movement.id}>
+                          <tr className="bg-black text-white magic-movements-row">
+                            <td className="px-2 py-2 sm:hidden text-sm">
+                              <button onClick={() => setExpandedMovements(prev => ({...prev, [String(movement.id)]: !prev[String(movement.id)]}))} className="px-2 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700">
+                                {expandedMovements[String(movement.id)] ? '−' : '+'}
+                              </button>
+                            </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
                               {new Date(movement.created_at).toLocaleString('es-AR', {
                                 year: 'numeric',
@@ -1232,16 +1242,40 @@ export default function Expenses() {
                                 {movement.currency}
                               </span>
                             </td>
-                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${getNumberColorClass(movement.balance_before)}`}>
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold hidden sm:table-cell ${getNumberColorClass(movement.balance_before)}`}>
                               ${Number(movement.balance_before).toFixed(2)}
                             </td>
-                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-black ${getNumberColorClass(movement.balance_after)}`}>
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-black hidden sm:table-cell ${getNumberColorClass(movement.balance_after)}`}>
                               ${Number(movement.balance_after).toFixed(2)}
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-300">
+                            <td className="px-4 py-3 text-sm text-gray-300 hidden sm:table-cell">
                               {movement.description}
                             </td>
                           </tr>
+                          {/* Mobile-only expanded content */}
+                          {expandedMovements[movement.id] && (
+                            <tr className="bg-gray-900 text-white sm:hidden" key={movement.id + '-details'}>
+                              <td colSpan={9} className="px-4 py-3 text-sm">
+                                <div className="flex flex-col gap-y-1 text-xs">
+                                  <div><span className="font-semibold">Saldo Anterior:</span> <span className={`${getNumberColorClass(movement.balance_before)} font-mono`}>${Number(movement.balance_before).toFixed(2)}</span></div>
+                                  <div><span className="font-semibold">Saldo Nuevo:</span> <span className={`${getNumberColorClass(movement.balance_after)} font-mono`}>${Number(movement.balance_after).toFixed(2)}</span></div>
+                                  <div><span className="font-semibold">Descripción:</span> <span className="text-gray-300">{movement.description}</span></div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          {expandedMovements[String(movement.id)] && (
+                            <tr className="bg-gray-900 text-white sm:hidden" key={movement.id + '-details'}>
+                              <td colSpan={9} className="px-4 py-3 text-sm">
+                                <div className="flex flex-col gap-y-1 text-xs">
+                                  <div><span className="font-semibold">Saldo Anterior:</span> <span className={`${getNumberColorClass(movement.balance_before)} font-mono`}>${Number(movement.balance_before).toFixed(2)}</span></div>
+                                  <div><span className="font-semibold">Saldo Nuevo:</span> <span className={`${getNumberColorClass(movement.balance_after)} font-mono`}>${Number(movement.balance_after).toFixed(2)}</span></div>
+                                  <div><span className="font-semibold">Descripción:</span> <span className="text-gray-300">{movement.description}</span></div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          </React.Fragment>
                         ))}
                     </tbody>
                   </table>
@@ -1274,42 +1308,14 @@ export default function Expenses() {
                   {balanceMovements
                     .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
                     .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                    .length > recordsPerPage && (
-                    <div className="flex justify-between items-center mt-4">
-                      <div className="text-sm text-gray-300">
-                        Mostrando {Math.min((movementsPage - 1) * recordsPerPage + 1, balanceMovements.length)} - {Math.min(movementsPage * recordsPerPage, balanceMovements.length)} de {balanceMovements
-                          .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                          .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                          .length} movimientos
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => setMovementsPage(Math.max(1, movementsPage - 1))}
-                          disabled={movementsPage === 1}
-                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm"
-                        >
-                          ← Anterior
-                        </button>
-                        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm">
-                          Página {movementsPage} de {Math.ceil(balanceMovements
-                            .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                            .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                            .length / recordsPerPage)}
-                        </span>
-                        <button
-                          onClick={() => setMovementsPage(Math.min(Math.ceil(balanceMovements
-                            .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                            .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                            .length / recordsPerPage), movementsPage + 1))}
-                          disabled={movementsPage >= Math.ceil(balanceMovements
-                            .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                            .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                            .length / recordsPerPage)}
-                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm"
-                        >
-                          Siguiente →
-                        </button>
-                      </div>
+                    .length > movementsPage * recordsPerPage && (
+                    <div className="flex justify-center items-center mt-4">
+                      <button
+                        onClick={() => setMovementsPage(prev => prev + 1)}
+                        className="px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl shadow-md"
+                      >
+                        Cargar más
+                      </button>
                     </div>
                   )}
                 </div>

@@ -19,9 +19,10 @@ export default function Header({ userProfile }: HeaderProps) {
   // kept for possible future usage, but not currently used
 
   return (
-    <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b-2 border-indigo-500/30 shadow-xl backdrop-blur-sm w-full">
+    <>
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b-2 border-indigo-500/30 shadow-xl backdrop-blur-sm w-full">
   <div className="w-full lg:max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row items-center justify-between h-auto sm:h-16 gap-y-2 sm:gap-0 w-full">
+        <div className="flex flex-col sm:flex-row items-center justify-between h-16 gap-y-0 w-full">
             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-8 w-full">
             <Link to="/expenses" className="group flex items-center space-x-3">
               <div className="relative">
@@ -101,5 +102,8 @@ export default function Header({ userProfile }: HeaderProps) {
         </div>
       </div>
     </header>
+    {/* Spacer to prevent content from being hidden under the fixed header */}
+    <div className="h-16" aria-hidden="true"></div>
+    </>
   );
 }
