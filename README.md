@@ -245,5 +245,11 @@ npm run check        # Verificar build + dry-run deploy
 5. Crear un Pull Request
 
 ## 📄 Licencia
+## 🔐 Seguridad y secretos
+
+Este proyecto no debería contener secretos en el repositorio. Los valores sensibles deben almacenarse como `wrangler` secrets o variables de entorno en CI/CD.
+
+Lee `SECRETS_MIGRATION.md` para instrucciones sobre cómo rotar y migrar claves fuera del repositorio.
+
 
 Este proyecto fue creado usando [getmocha.com](https://getmocha.com) - MIT License.
