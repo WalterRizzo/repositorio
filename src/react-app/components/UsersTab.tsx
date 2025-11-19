@@ -129,17 +129,54 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
                 ))}
               </tbody>
             </table>
-              {/* Pagination controls */}
-              <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-gray-500">Mostrando {(transactionsPage - 1) * transactionsPerPage + 1} - {Math.min(transactionsPage * transactionsPerPage, totalTransactions)} de {totalTransactions} transacciones</div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setTransactionsPage(1)} disabled={transactionsPage === 1} className="px-2 py-1 bg-gray-700 text-white rounded disabled:opacity-50">« Primera</button>
-                  <button onClick={() => setTransactionsPage(Math.max(1, transactionsPage - 1))} disabled={transactionsPage === 1} className="px-2 py-1 bg-gray-700 text-white rounded disabled:opacity-50">‹ Anterior</button>
-                  <span className="px-3 py-1 bg-gray-200 text-gray-800 rounded">Página {transactionsPage} de {Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))}</span>
-                  <button onClick={() => setTransactionsPage(Math.min(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)), transactionsPage + 1))} disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))} className="px-2 py-1 bg-gray-700 text-white rounded disabled:opacity-50">Siguiente ›</button>
-                  <button onClick={() => setTransactionsPage(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)))} disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))} className="px-2 py-1 bg-gray-700 text-white rounded disabled:opacity-50">Última »</button>
+              {/* Pagination controls (mirrored from Expenses grid) */}
+              {Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)) > 1 && (
+                <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-gradient-to-r from-violet-600 to-purple-600 border-t gap-y-2 rounded-xl shadow-lg mb-2">
+                  <div className="text-xs sm:text-sm text-white font-semibold">
+                    Mostrando {(transactionsPage - 1) * transactionsPerPage + 1} - {Math.min(transactionsPage * transactionsPerPage, totalTransactions)} de {totalTransactions} transacciones
+                  </div>
+                  <div className="flex items-center gap-x-2">
+                    <label className="text-xs text-white mr-2">Mostrar:</label>
+                    <select value={transactionsPerPage} onChange={(e) => { setTransactionsPerPage(Number(e.target.value)); setTransactionsPage(1);} } className="px-2 py-1 rounded text-sm font-medium">
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                    <button
+                      onClick={() => setTransactionsPage(1)}
+                      disabled={transactionsPage === 1}
+                      className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                    >
+                      « Primera
+                    </button>
+                    <button
+                      onClick={() => setTransactionsPage(Math.max(1, transactionsPage - 1))}
+                      disabled={transactionsPage === 1}
+                      className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                    >
+                      ‹ Anterior
+                    </button>
+                    <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm font-bold">
+                      Página {transactionsPage} de {Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))}
+                    </span>
+                    <button
+                      onClick={() => setTransactionsPage(Math.min(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)), transactionsPage + 1))}
+                      disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))}
+                      className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                    >
+                      Siguiente ›
+                    </button>
+                    <button
+                      onClick={() => setTransactionsPage(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)))}
+                      disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))}
+                      className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                    >
+                      Última »
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
           </div>
         ) : (
           <div className="text-center py-4 text-gray-500">No hay transacciones registradas</div>
