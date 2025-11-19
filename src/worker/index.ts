@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { setCookie, deleteCookie } from "hono/cookie";
 import { cors } from "hono/cors";
 import { authMiddleware, generateToken, verifyPassword, hashPassword, type User } from "./auth";
+import bcrypt from 'bcryptjs';
 
 type Variables = {
   user: User;
@@ -243,8 +244,30 @@ app.post("/api/auth/login", loginRateLimit, async (c) => {
     }
   }
   
-  // Verificar contraseña
-  const isValidPassword = await verifyPassword(body.password, user.password_hash);
+  // Verificar contraseña (soportar hashes legacy SHA-256 y migrar a bcrypt)
+  let isValidPassword = false;
+  try {
+    // Si el hash parece ser bcrypt (empieza con $2a$ o $2b$ o $2y$)
+    if (typeof user.password_hash === 'string' && /^\$2[aby]\$/.test(user.password_hash)) {
+      isValidPassword = await bcrypt.compare(body.password, user.password_hash);
+    } else {
+      // Legacy: SHA-256
+      const encoder = new TextEncoder();
+      const data = encoder.encode(body.password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const shaHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      if (shaHex === user.password_hash) {
+        isValidPassword = true;
+        // Migrar a bcrypt
+        const newHash = await bcrypt.hash(body.password, 12);
+        await c.env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(newHash, user.id).run();
+      }
+    }
+  } catch (err) {
+    console.error('Error verificando password:', err);
+    isValidPassword = false;
+  }
   
   if (!isValidPassword) {
     // Incrementar intentos fallidos
