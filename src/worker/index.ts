@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { setCookie, deleteCookie } from "hono/cookie";
 import { cors } from "hono/cors";
 import { authMiddleware, generateToken, verifyPassword, hashPassword, type User } from "./auth";
+import registerExpenseRoutes from './routes/expenses';
+import registerDbaRoutes from './routes/dba';
 import bcrypt from 'bcryptjs';
 
 type Variables = {
@@ -3111,3 +3113,7 @@ addEventListener('scheduled', (event: any) => {
     }
   })());
 });
+
+// Register modular routes
+registerExpenseRoutes(app);
+registerDbaRoutes(app);
