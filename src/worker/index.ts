@@ -2830,18 +2830,29 @@ app.get('/api/transacciones-saldo', authMiddleware(), async (c) => {
     }
     
     const limitParam = params.get('limit');
+    const offsetParam = params.get('offset');
     const limit = limitParam ? Math.max(0, Math.min(10000, Number(limitParam))) : 100; // cap limit to 10k
+    const offset = offsetParam ? Math.max(0, Number(offsetParam)) : 0;
+
+    // Build total count using same filters (no limit/offset)
+    const countQuery = `SELECT COUNT(*) as total_count FROM saldo_transacciones st ${whereClauses.length > 0 ? 'WHERE ' + whereClauses.join(' AND ') : ''}`;
+    const { results: countRes } = await c.env.DB.prepare(countQuery).bind(...bindParams).all();
+    const totalCount = (countRes && countRes[0] && Number(countRes[0].total_count)) || 0;
+
     if (limit > 0) {
-      query += ' ORDER BY st.fecha_transaccion DESC LIMIT ?';
-      bindParams.push(limit);
+      query += ' ORDER BY st.fecha_transaccion DESC LIMIT ? OFFSET ?';
+      bindParams.push(limit, offset);
     } else {
       query += ' ORDER BY st.fecha_transaccion DESC';
     }
+
     const { results } = await c.env.DB.prepare(query).bind(...bindParams).all();
-    
+
     return c.json({
       transacciones: results,
-      total: results.length
+      total: totalCount,
+      limit,
+      offset
     });
     
   } catch (error) {

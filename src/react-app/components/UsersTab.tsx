@@ -10,21 +10,30 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [selectedUserFilter, setSelectedUserFilter] = useState('');
+  const [transactionsPage, setTransactionsPage] = useState(1);
+  const [transactionsPerPage, setTransactionsPerPage] = useState(25);
+  const [totalTransactions, setTotalTransactions] = useState(0);
 
   useEffect(() => {
     if (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') {
-      fetchTransactions();
+      fetchTransactions(transactionsPage, transactionsPerPage);
       fetchUsers();
     }
   }, [userProfile?.role]);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (page = transactionsPage, perPage = transactionsPerPage) => {
     try {
       setTransactionsLoading(true);
-      const response = await fetch("/api/transacciones-saldo");
+      const offset = (page - 1) * perPage;
+      const url = new URL('/api/transacciones-saldo', location.origin);
+      url.searchParams.set('limit', String(perPage));
+      url.searchParams.set('offset', String(offset));
+      if (selectedUserFilter) url.searchParams.set('userId', String(selectedUserFilter));
+      const response = await fetch(url.toString());
       if (response.ok) {
         const data = await response.json();
         setTransactions(data.transacciones || []);
+        setTotalTransactions(data.total || 0);
       } else {
         console.error("Error al cargar transacciones");
         setTransactions([]);
@@ -36,6 +45,13 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
       setTransactionsLoading(false);
     }
   };
+
+  useEffect(() => {
+    // re-fetch when page/perpage/filter changes
+    if (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') {
+      fetchTransactions(transactionsPage, transactionsPerPage);
+    }
+  }, [transactionsPage, transactionsPerPage, selectedUserFilter]);
 
   const fetchUsers = async () => {
     try {
@@ -113,6 +129,17 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
                 ))}
               </tbody>
             </table>
+              {/* Pagination controls */}
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-gray-500">Mostrando {(transactionsPage - 1) * transactionsPerPage + 1} - {Math.min(transactionsPage * transactionsPerPage, totalTransactions)} de {totalTransactions} transacciones</div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setTransactionsPage(1)} disabled={transactionsPage === 1} className="px-2 py-1 bg-gray-700 text-white rounded disabled:opacity-50">« Primera</button>
+                  <button onClick={() => setTransactionsPage(Math.max(1, transactionsPage - 1))} disabled={transactionsPage === 1} className="px-2 py-1 bg-gray-700 text-white rounded disabled:opacity-50">‹ Anterior</button>
+                  <span className="px-3 py-1 bg-gray-200 text-gray-800 rounded">Página {transactionsPage} de {Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))}</span>
+                  <button onClick={() => setTransactionsPage(Math.min(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)), transactionsPage + 1))} disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))} className="px-2 py-1 bg-gray-700 text-white rounded disabled:opacity-50">Siguiente ›</button>
+                  <button onClick={() => setTransactionsPage(Math.max(1, Math.ceil(totalTransactions / transactionsPerPage)))} disabled={transactionsPage === Math.max(1, Math.ceil(totalTransactions / transactionsPerPage))} className="px-2 py-1 bg-gray-700 text-white rounded disabled:opacity-50">Última »</button>
+                </div>
+              </div>
           </div>
         ) : (
           <div className="text-center py-4 text-gray-500">No hay transacciones registradas</div>
