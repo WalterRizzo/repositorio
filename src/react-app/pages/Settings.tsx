@@ -146,15 +146,15 @@ export default function SettingsPage() {
         console.log('✅ Categoría guardada:', result);
         fetchCategories();
         resetCategoryForm();
-        console.log('✅ Categoría guardada exitosamente');
+        alert('✅ Categoría guardada exitosamente');
       } else {
         const error = await response.json();
         console.error('❌ Error del servidor:', error);
-        console.warn('❌ Error: ' + (error.error || 'Error desconocido'));
+        alert('❌ Error: ' + (error.error || 'Error desconocido'));
       }
     } catch (error) {
       console.error('❌ Error saving category:', error);
-      console.warn('❌ Error al guardar la categoría: ' + error);
+      alert('❌ Error al guardar la categoría: ' + error);
     }
   };
 
@@ -173,11 +173,11 @@ export default function SettingsPage() {
       if (response.ok) {
         fetchTiposComprobantes();
         resetComprobanteForm();
-        console.log('Tipo de comprobante guardado exitosamente');
+        alert('Tipo de comprobante guardado exitosamente');
       }
     } catch (error) {
       console.error('Error saving tipo comprobante:', error);
-      console.warn('Error al guardar el tipo de comprobante');
+      alert('Error al guardar el tipo de comprobante');
     }
   };
 
@@ -185,12 +185,12 @@ export default function SettingsPage() {
     e.preventDefault();
     
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
 
     if (passwordForm.newPassword.length < 6) {
-      console.warn('La contraseña debe tener al menos 6 caracteres');
+      alert('La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
@@ -206,15 +206,15 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        console.log('✅ Contraseña cambiada exitosamente');
+        alert('✅ Contraseña cambiada exitosamente');
         setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       } else {
         const error = await response.json();
-        console.warn('❌ ' + (error.error || 'Error al cambiar la contraseña'));
+        alert('❌ ' + (error.error || 'Error al cambiar la contraseña'));
       }
     } catch (error) {
       console.error('Error changing password:', error);
-      console.warn('❌ Error al cambiar la contraseña');
+      alert('❌ Error al cambiar la contraseña');
     } finally {
       setIsChangingPassword(false);
     }
@@ -224,11 +224,13 @@ export default function SettingsPage() {
     e.preventDefault();
     
     if (userPasswordForm.newPassword !== userPasswordForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
 
-    // Removing confirmation prompt per user request - proceed immediately
+    if (!confirm('¿Estás seguro de cambiar la contraseña de este usuario?')) {
+      return;
+    }
 
     setIsChangingPassword(true);
     try {
@@ -241,15 +243,15 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        console.log('✅ Contraseña del usuario cambiada exitosamente');
+        alert('✅ Contraseña del usuario cambiada exitosamente');
         setUserPasswordForm({ userId: '', newPassword: '', confirmPassword: '' });
       } else {
         const error = await response.json();
-        console.warn('❌ ' + (error.error || 'Error al cambiar la contraseña'));
+        alert('❌ ' + (error.error || 'Error al cambiar la contraseña'));
       }
     } catch (error) {
       console.error('Error changing user password:', error);
-      console.warn('❌ Error al cambiar la contraseña del usuario');
+      alert('❌ Error al cambiar la contraseña del usuario');
     } finally {
       setIsChangingPassword(false);
     }
@@ -259,7 +261,7 @@ export default function SettingsPage() {
     e.preventDefault();
     
     if (createUserForm.password !== createUserForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
 
@@ -277,16 +279,16 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        console.log('✅ Usuario creado exitosamente');
+        alert('✅ Usuario creado exitosamente');
         setCreateUserForm({ name: '', email: '', role: 'usuario', password: '', confirmPassword: '' });
         fetchUsers(); // Refresh users list
       } else {
         const error = await response.json();
-        console.warn('❌ ' + (error.error || 'Error al crear el usuario'));
+        alert('❌ ' + (error.error || 'Error al crear el usuario'));
       }
     } catch (error) {
       console.error('Error creating user:', error);
-      console.warn('❌ Error al crear el usuario');
+      alert('❌ Error al crear el usuario');
     } finally {
       setIsChangingPassword(false);
     }
@@ -316,6 +318,7 @@ export default function SettingsPage() {
   };
 
   const handleDeleteCategory = async (id: number) => {
+    if (!confirm('¿Eliminar esta categoría?')) return;
     
     try {
       const response = await fetch(`/api/categories/${id}`, {
@@ -323,15 +326,16 @@ export default function SettingsPage() {
       });
       if (response.ok) {
         fetchCategories();
-        console.log('Categoría eliminada');
+        alert('Categoría eliminada');
       }
     } catch (error) {
       console.error('Error deleting category:', error);
-      console.warn('Error al eliminar la categoría');
+      alert('Error al eliminar la categoría');
     }
   };
 
   const handleDeleteComprobante = async (id: number) => {
+    if (!confirm('¿Eliminar este tipo de comprobante?')) return;
     
     try {
       const response = await fetch(`/api/tipo-comprobantes/${id}`, {
@@ -339,11 +343,11 @@ export default function SettingsPage() {
       });
       if (response.ok) {
         fetchTiposComprobantes();
-        console.log('Tipo de comprobante eliminado');
+        alert('Tipo de comprobante eliminado');
       }
     } catch (error) {
       console.error('Error deleting tipo comprobante:', error);
-      console.warn('Error al eliminar el tipo de comprobante');
+      alert('Error al eliminar el tipo de comprobante');
     }
   };
 

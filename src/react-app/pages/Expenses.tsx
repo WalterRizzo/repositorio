@@ -1,4 +1,4 @@
-// ...existing code...
+  // ...existing code...
 
   // ...existing code...
 
@@ -12,17 +12,17 @@
 
   // Resetear página de movimientos al cambiar filtros
   // Eliminado: paginación de movimientos
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNotifications } from "@/react-app/hooks/useNotifications";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { Loader2, Receipt, Users, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Eye } from "lucide-react";
-import { getNumberColorClass } from '@/react-app/utils/numbers';
 import type { Expense, UserProfile } from "@/shared/types";
 import ExpensesTable from "@/react-app/components/ExpensesTable";
 import ExpenseForm from "@/react-app/components/ExpenseForm";
 import Header from "@/react-app/components/Header";
 import Sidebar from "@/react-app/components/Sidebar";
+import * as XLSX from 'xlsx';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
@@ -36,7 +36,7 @@ export default function Expenses() {
     console.log('Ejecutando consulta SQL:', sql);
     setDbaLoading(true);
     if (!sql) {
-      console.warn('Por favor, ingrese una consulta SQL');
+      alert('Por favor, ingrese una consulta SQL');
       setDbaLoading(false);
       return;
     }
@@ -44,7 +44,7 @@ export default function Expenses() {
     try {
       const response = await fetch('/api/dba/execute', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...(dbaKeyValue ? { 'x-dba-key': dbaKeyValue } : {}) },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: sql }),
       });
       const result = await response.json();
@@ -83,9 +83,6 @@ export default function Expenses() {
   const location = useLocation();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [expensesPage, _setExpensesPage] = useState(1);
-  const [expensesPerPage, _setExpensesPerPage] = useState(50);
-  const [_totalExpenses, setTotalExpenses] = useState(0);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'expenses' | 'users' | 'dba' | 'movements'>('expenses');
@@ -104,7 +101,6 @@ export default function Expenses() {
   // Balance movements state
   const [balanceMovements, setBalanceMovements] = useState<any[]>([]);
   const [isLoadingMovements, setIsLoadingMovements] = useState(false);
-  const [movementsTotal, setMovementsTotal] = useState(0);
   const [movementsFilter, setMovementsFilter] = useState<string>('all'); // 'all', 'carga', 'descuento', 'ajuste'
   const [userFilter, setUserFilter] = useState<string>('all'); // Filtro por usuario
 
@@ -117,15 +113,12 @@ export default function Expenses() {
   const [selectedTable, setSelectedTable] = useState('users');
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
   const [dbaTables, setDbaTables] = useState<string[]>([]);
-  const [dbaKeyValue, setDbaKeyValue] = useState('');
-  const [dbaTestResult, setDbaTestResult] = useState('');
 
   // Pagination state for users table
   const [usersPage, setUsersPage] = useState(1);
   // Pagination state for movements grid
   const [movementsPage, setMovementsPage] = useState(1);
-  const [expandedMovements, setExpandedMovements] = useState<Record<string, boolean>>({});
-  const [recordsPerPage, setRecordsPerPage] = useState(10);
+  const recordsPerPage = 10;
   
   // Settings modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -214,20 +207,13 @@ export default function Expenses() {
   useEffect(() => {
     if (user) {
       fetchUserProfile();
-      fetchExpenses(expensesPage, expensesPerPage);
+      fetchExpenses();
       fetchMultiBalances();
       if (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') {
         fetchUsers();
       }
     }
   }, [user, userProfile?.role]);
-
-  useEffect(() => {
-    // Fetch expenses when page or perPage changes
-    if (user) {
-      fetchExpenses(expensesPage, expensesPerPage);
-    }
-  }, [expensesPage, expensesPerPage]);
 
   const fetchUserProfile = async () => {
     try {
@@ -255,14 +241,11 @@ export default function Expenses() {
     }
   };
 
-  const fetchExpenses = async (page = expensesPage, perPage = expensesPerPage) => {
+  const fetchExpenses = async () => {
     try {
-      const offset = (page - 1) * perPage;
-      const res = await fetch(`/api/expenses?limit=${perPage}&offset=${offset}`);
-      const json = await res.json();
-      const data = (json && (json.data || json)) || [];
+      const response = await fetch("/api/expenses");
+      const data = await response.json();
       setExpenses(data);
-      setTotalExpenses(json?.total ?? data.length);
     } catch (error) {
       console.error("Error cargando gastos:", error);
     } finally {
@@ -280,67 +263,38 @@ export default function Expenses() {
     }
   };
 
-  // Fetch per-currency balances for the current user
   const fetchMultiBalances = async () => {
     try {
-      const response = await fetch('/api/users/me/balances', { credentials: 'include' });
-      if (!response.ok) return;
+      const response = await fetch("/api/users/me/balances");
+      if (!response.ok) throw new Error("Error fetching balances");
       const data = await response.json();
-      if (data && Array.isArray(data)) setMultiBalances(data);
-    } catch (err) {
-      console.error('Error fetching multi balances:', err);
-    }
-  };
-
-  // Format currency helper (local to this page)
-  const formatCurrency = (amount: number | string | null | undefined, currency: string = 'ARS') => {
-    if (amount === null || amount === undefined || amount === '') return '-';
-    const value = Number(amount);
-    if (Number.isNaN(value)) return '-';
-    const currencyMap: Record<string, string> = { ARS: 'es-AR', USD: 'en-US', EUR: 'de-DE', BRL: 'pt-BR' };
-    const locale = currencyMap[currency] || 'es-AR';
-    try {
-      return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(value);
-    } catch (e) {
-      return `${value.toFixed(2)} ${currency}`;
-    }
-  };
-
-  const fetchDbaTables = async () => {
-    try {
-      const url = new URL('/api/dba/tables', window.location.origin);
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(dbaKeyValue ? { 'x-dba-key': dbaKeyValue } : {})
-        },
-      });
-      const result = await response.json();
-      if (response.ok && result.results) {
-        // Filter & prioritize transactional tables first
-        const knownTransactional = ['saldo_transacciones', 'saldos', 'balance_transactions', 'expense_attachments', 'expenses', 'audit_logs', 'users', 'user_profiles', 'tipo_comprobantes', 'categories'];
-        const tableNames = result.results
-          .filter((n:any) => n && typeof n === 'string')
-          .sort((a:any,b:any) => {
-            const ai = knownTransactional.indexOf(a) >= 0 ? knownTransactional.indexOf(a) : knownTransactional.length;
-            const bi = knownTransactional.indexOf(b) >= 0 ? knownTransactional.indexOf(b) : knownTransactional.length;
-            return ai - bi || a.localeCompare(b);
-          });
-        setDbaTables(tableNames);
-        console.log('✅ Tablas cargadas:', tableNames);
-        return;
-      }
-      // If the call returns but empty, fallback
-      throw new Error('No table names returned');
+      setMultiBalances(data.balances || []);
     } catch (error) {
-      console.error('Error cargando tablas:', error);
-      // Full default tables (include transactional tables by default)
-      setDbaTables(['users', 'user_profiles', 'expenses', 'expense_attachments', 'tipo_comprobantes', 'categories', 'saldos', 'saldo_transacciones', 'audit_logs']);
+      console.error("Error cargando saldos multimoneda:", error);
+      setMultiBalances([]);
     }
+  };
+
+  const formatCurrency = (amount: number, currency: string) => {
+    const symbols: Record<string, string> = {
+      'ARS': '$',
+      'USD': 'US$',
+      'EUR': '€',
+      'BRL': 'R$',
+      'CLP': 'CLP$',
+      'UYU': '$U'
+    };
+    const symbol = symbols[currency] || currency;
+    return `${symbol} ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  };
+
+  const handleEditExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    setShowForm(true);
   };
 
   const handleDeleteExpense = async (id: number) => {
+    if (!confirm("¿Estás seguro de eliminar este gasto?")) return;
 
     try {
       const response = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
@@ -360,17 +314,12 @@ export default function Expenses() {
         }
         await fetchExpenses();
       } else {
-        console.warn(`❌ Error: ${result.error}`);
+        alert(`❌ Error: ${result.error}`);
       }
     } catch (error) {
       console.error("Error eliminando gasto:", error);
-      console.warn("❌ Error al eliminar el gasto");
+      alert("❌ Error al eliminar el gasto");
     }
-  };
-
-  const handleEditExpense = (expense: Expense) => {
-    setEditingExpense(expense);
-    setShowForm(true);
   };
 
   const handleFormSuccess = async () => {
@@ -382,6 +331,7 @@ export default function Expenses() {
   };
 
   const handleApprove = async (id: number) => {
+    if (!confirm("¿Aprobar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/approve`, {
@@ -389,14 +339,15 @@ export default function Expenses() {
         headers: { "Content-Type": "application/json" },
       });
       await fetchExpenses();
-      console.log("Gasto aprobado exitosamente");
+      alert("Gasto aprobado exitosamente");
     } catch (error) {
       console.error("Error aprobando gasto:", error);
-      console.warn("Error al aprobar el gasto");
+      alert("Error al aprobar el gasto");
     }
   };
 
   const handleReject = async (id: number) => {
+    if (!confirm("¿Rechazar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/reject`, {
@@ -404,7 +355,7 @@ export default function Expenses() {
         headers: { "Content-Type": "application/json" },
       });
       await fetchExpenses();
-      console.log("Gasto rechazado exitosamente");
+      alert("Gasto rechazado exitosamente");
         // Notificación push al usuario
         if (isSupported && permission === "granted") {
           showNotification(
@@ -418,7 +369,7 @@ export default function Expenses() {
         }
     } catch (error) {
       console.error("Error rechazando gasto:", error);
-      console.warn("Error al rechazar el gasto");
+      alert("Error al rechazar el gasto");
     }
   };
 
@@ -428,27 +379,15 @@ export default function Expenses() {
   };
 
   // Fetch balance movements
-  const fetchBalanceMovements = async (page = 1, perPage = recordsPerPage) => {
+  const fetchBalanceMovements = async () => {
     setIsLoadingMovements(true);
     try {
-      const offset = (page - 1) * perPage;
-      const url = new URL('/api/transacciones-saldo', window.location.origin);
-      url.searchParams.set('limit', String(perPage));
-      url.searchParams.set('offset', String(offset));
-      if (movementsFilter && movementsFilter !== 'all') url.searchParams.set('type', movementsFilter);
-      if (userFilter && userFilter !== 'all') url.searchParams.set('userId', String(userFilter));
-      if (dateFilter.from) url.searchParams.set('from', dateFilter.from);
-      if (dateFilter.to) url.searchParams.set('to', dateFilter.to);
-
-      const response = await fetch(url.toString());
+      const response = await fetch('/api/balance/movements');
       if (response.ok) {
         const data = await response.json();
-        // Replace the current page with the fetched page items (paginated view)
-        setBalanceMovements(data.transacciones || []);
-        setMovementsTotal(data.total || 0);
-        setMovementsPage(page);
+        setBalanceMovements(data.movements || []);
       } else {
-        console.error('Error fetching movements: ', response.status);
+        console.error('Error fetching movements');
       }
     } catch (error) {
       console.error('Error fetching balance movements:', error);
@@ -460,18 +399,9 @@ export default function Expenses() {
   // Load movements when tab is active
   useEffect(() => {
     if ((activeTab === 'movements' || activeTab === 'users') && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor')) {
-      fetchBalanceMovements(1); // load first page
+      fetchBalanceMovements();
     }
   }, [activeTab, userProfile?.role]);
-
-  useEffect(() => {
-    // When filters change, reset page and reload the first page of movements
-    if ((activeTab === 'movements' || activeTab === 'users') && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor')) {
-      setMovementsPage(1);
-      fetchBalanceMovements(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [movementsFilter, userFilter, dateFilter.from, dateFilter.to, recordsPerPage]);
 
   // Funciones de usuarios
 
@@ -481,7 +411,7 @@ export default function Expenses() {
     
     const newBalance = parseFloat(userForm.balance);
     if (isNaN(newBalance) || newBalance < 0) {
-      console.warn("Por favor ingrese un saldo válido");
+      alert("Por favor ingrese un saldo válido");
       return;
     }
     
@@ -526,17 +456,18 @@ export default function Expenses() {
         }
       } else {
         const errorData = await response.json();
-        console.warn(`Error: ${errorData.error}`);
+        alert(`Error: ${errorData.error}`);
       }
     } catch (error) {
       console.error("Error actualizando usuario:", error);
-      console.warn("Error al actualizar usuario");
+      alert("Error al actualizar usuario");
     } finally {
       setIsUpdatingUser(false);
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
+    if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
     
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -545,13 +476,13 @@ export default function Expenses() {
       
       if (response.ok) {
         await fetchUsers();
-        console.log("Usuario eliminado exitosamente");
+        alert("Usuario eliminado exitosamente");
       } else {
-        console.warn("Error al eliminar usuario");
+        alert("Error al eliminar usuario");
       }
     } catch (error) {
       console.error("Error eliminando usuario:", error);
-      console.warn("Error al eliminar usuario");
+      alert("Error al eliminar usuario");
     }
   };
 
@@ -612,12 +543,12 @@ export default function Expenses() {
     e.preventDefault();
     
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
     
     if (passwordForm.newPassword.length < 6) {
-      console.warn('La contraseña debe tener al menos 6 caracteres');
+      alert('La contraseña debe tener al menos 6 caracteres');
       return;
     }
     
@@ -635,16 +566,16 @@ export default function Expenses() {
       });
       
       if (response.ok) {
-        console.log('✅ Contraseña actualizada correctamente');
+        alert('✅ Contraseña actualizada correctamente');
         setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
         setShowSettingsModal(false);
       } else {
         const data = await response.json();
-        console.warn(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
+        alert(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
       }
     } catch (error) {
       console.error('Error cambiando contraseña:', error);
-      console.warn('❌ Error al cambiar contraseña');
+      alert('❌ Error al cambiar contraseña');
     } finally {
       setIsChangingPassword(false);
     }
@@ -654,17 +585,17 @@ export default function Expenses() {
     e.preventDefault();
     
     if (userPasswordForm.newPassword !== userPasswordForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
     
     if (userPasswordForm.newPassword.length < 6) {
-      console.warn('La contraseña debe tener al menos 6 caracteres');
+      alert('La contraseña debe tener al menos 6 caracteres');
       return;
     }
     
     if (!userPasswordForm.userId) {
-      console.warn('Por favor, selecciona un usuario');
+      alert('Por favor, selecciona un usuario');
       return;
     }
     
@@ -681,15 +612,15 @@ export default function Expenses() {
       });
       
       if (response.ok) {
-        console.log('✅ Contraseña del usuario actualizada correctamente');
+        alert('✅ Contraseña del usuario actualizada correctamente');
         setUserPasswordForm({ userId: '', newPassword: '', confirmPassword: '' });
       } else {
         const data = await response.json();
-        console.warn(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
+        alert(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
       }
     } catch (error) {
       console.error('Error cambiando contraseña de usuario:', error);
-      console.warn('❌ Error al cambiar contraseña');
+      alert('❌ Error al cambiar contraseña');
     } finally {
       setIsChangingPassword(false);
     }
@@ -700,17 +631,17 @@ export default function Expenses() {
     e.preventDefault();
     
     if (createUserForm.password !== createUserForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
     
     if (createUserForm.password.length < 6) {
-      console.warn('La contraseña debe tener al menos 6 caracteres');
+      alert('La contraseña debe tener al menos 6 caracteres');
       return;
     }
     
     if (!createUserForm.email || !createUserForm.name) {
-      console.warn('Por favor, completa todos los campos');
+      alert('Por favor, completa todos los campos');
       return;
     }
     
@@ -730,48 +661,54 @@ export default function Expenses() {
       });
       
       if (response.ok) {
-        console.log('✅ Usuario creado exitosamente');
+        alert('✅ Usuario creado exitosamente');
         setCreateUserForm({ email: '', password: '', confirmPassword: '', name: '', role: 'usuario' });
         setShowSettingsModal(false);
         await fetchUsers(); // Recargar lista de usuarios
       } else {
         const data = await response.json();
-        console.warn(`❌ Error: ${data.error || 'No se pudo crear el usuario'}`);
+        alert(`❌ Error: ${data.error || 'No se pudo crear el usuario'}`);
       }
     } catch (error) {
       console.error('Error creando usuario:', error);
-      console.warn('❌ Error al crear usuario');
+      alert('❌ Error al crear usuario');
     } finally {
       setIsChangingPassword(false);
     }
   };
 
-  // NOTE: Duplicated fetchDbaTables removed - refer to the top-level implementation
-
-  const testDbaKey = async () => {
-    if (!dbaKeyValue) {
-      setDbaTestResult('Por favor ingrese un DBA key');
-      return;
-    }
+  // Función para cargar todas las tablas de la BD
+  const fetchDbaTables = async () => {
     try {
-      setDbaTestResult('Probando...');
-      const res = await fetch('/api/dba/execute', {
+      const response = await fetch('/api/dba/execute', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-dba-key': dbaKeyValue },
-        body: JSON.stringify({ query: 'SELECT 1;' }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          query: "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+        }),
       });
-      const json = await res.json();
-      if (res.ok) setDbaTestResult('DBA key válida ✅');
-      else setDbaTestResult(`Error: ${json.error || 'clave inválida'}`);
-    } catch (e) {
-      console.error(e);
-      setDbaTestResult('Error de conexión al probar DBA key');
+
+      const result = await response.json();
+      
+      if (response.ok && result.results) {
+        // Filtrar solo las tablas principales
+  const mainTables = ['users', 'user_profiles', 'expenses', 'tipo_comprobantes', 'categories', 'balance_transactions', 'saldos', 'saldo_transacciones'];
+        const tableNames = result.results
+          .map((row: any) => row.name)
+          .filter((name: string) => mainTables.includes(name));
+        setDbaTables(tableNames);
+        console.log('✅ Tablas principales cargadas:', tableNames);
+      }
+    } catch (error) {
+      console.error('Error cargando tablas:', error);
+      // Si falla, usar tablas por defecto
+      setDbaTables(['users', 'expenses', 'tipo_comprobantes', 'categories']);
     }
   };
 
 
   // Función para exportar movimientos a Excel
-  const exportToExcel = async () => {
+  const exportToExcel = () => {
     const filteredMovements = balanceMovements
       .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
       .filter(m => userFilter === 'all' || m.user_id === userFilter);
@@ -793,8 +730,6 @@ export default function Expenses() {
       'Descripción': movement.description
     }));
 
-    const XLSXModule = (await import('xlsx'));
-    const XLSX = XLSXModule.default || XLSXModule;
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Movimientos');
@@ -888,12 +823,12 @@ export default function Expenses() {
           <div className="bg-white dark:bg-slate-800 rounded-lg p-1.5 shadow-md border border-slate-200 dark:border-slate-700">
             <style>{`
               .magic-tab-active {
-                box-shadow: 0 0 12px 2px rgba(0,0,0,0.6), 0 0 24px 4px rgba(0,0,0,0.4);
+                box-shadow: 0 0 12px 2px #6366f1, 0 0 24px 4px #818cf8;
                 animation: magicGlow 2s infinite alternate;
               }
               @keyframes magicGlow {
-                0% { box-shadow: 0 0 12px 2px rgba(0,0,0,0.6), 0 0 24px 4px rgba(0,0,0,0.4); }
-                100% { box-shadow: 0 0 24px 6px rgba(0,0,0,0.5), 0 0 32px 8px rgba(0,0,0,0.3); }
+                0% { box-shadow: 0 0 12px 2px #6366f1, 0 0 24px 4px #818cf8; }
+                100% { box-shadow: 0 0 24px 6px #818cf8, 0 0 32px 8px #6366f1; }
               }
             `}</style>
             <nav className="flex space-x-1">
@@ -1048,8 +983,7 @@ export default function Expenses() {
                       </span>
                     </div>
                   ))
-                )
-                }
+                )}
               </div>
             </div>
           </div>
@@ -1087,13 +1021,6 @@ export default function Expenses() {
               </div>
               <div className="flex space-x-2">
                 <button
-                  onClick={() => setUsersPage(1)}
-                  disabled={usersPage === 1}
-                  className="px-3 py-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-700 rounded text-sm"
-                >
-                  « Primera
-                </button>
-                <button
                   onClick={() => setUsersPage(Math.max(1, usersPage - 1))}
                   disabled={usersPage === 1}
                   className="px-3 py-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-700 rounded text-sm"
@@ -1110,20 +1037,13 @@ export default function Expenses() {
                 >
                   Siguiente →
                 </button>
-                <button
-                  onClick={() => setUsersPage(Math.ceil(users.length / recordsPerPage))}
-                  disabled={usersPage >= Math.ceil(users.length / recordsPerPage)}
-                  className="px-3 py-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-700 rounded text-sm"
-                >
-                  Última »
-                </button>
               </div>
             </div>
 
             {/* Tabla de usuarios */}
             <div className="overflow-x-auto">
-              <table className="w-full rounded-xl border-2 border-black/20 shadow-lg">
-                <thead className="bg-black dark:bg-gray-800">
+              <table className="w-full rounded-xl border-2 border-purple-500 shadow-lg">
+                <thead className="bg-gradient-to-r from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-700 dark:via-gray-700 dark:to-gray-700">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       👤 Usuario
@@ -1143,8 +1063,8 @@ export default function Expenses() {
                   {users
                     .slice((usersPage - 1) * recordsPerPage, usersPage * recordsPerPage)
                     .map((user) => (
-                    <tr key={user.user_id} className="hover:bg-black/10 dark:hover:bg-gray-700/50 transition-all border-b border-white/5 group hover:shadow-lg">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white border-l-4 border-transparent group-hover:border-indigo-500/40 transition-all">
+                    <tr key={user.user_id} className="hover:bg-violet-50/50 dark:hover:bg-gray-700/50 transition-all">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         <div>
                           <div className="font-bold">{user.name}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
@@ -1153,10 +1073,10 @@ export default function Expenses() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-3 py-1.5 text-xs font-bold rounded-full shadow-md ${
                           user.role === 'admin' 
-                            ? 'bg-black text-white'
+                            ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white'
                             : user.role === 'supervisor' 
-                              ? 'bg-black text-white'
-                              : 'bg-black text-white'
+                              ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
+                              : 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
                         }`}>
                           {user.role === 'admin' ? '🔴 ADMIN' : user.role === 'supervisor' ? '🟡 SUPERVISOR' : '🟢 USUARIO'}
                         </span>
@@ -1174,7 +1094,7 @@ export default function Expenses() {
                         <div className="flex items-center space-x-3">
                           <button
                             onClick={() => openUserModal(user)}
-                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all hover:from-blue-600 hover:to-indigo-700"
+                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 hover:scale-110"
                             title="Editar saldo"
                           >
                             <Edit3 className="w-4 h-4" />
@@ -1182,7 +1102,7 @@ export default function Expenses() {
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user.user_id)}
-                            className="group relative inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow hover:shadow-md transform transition-all hover:from-red-600 hover:to-pink-700"
+                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 hover:from-red-600 hover:to-pink-700 hover:scale-110"
                             title="Eliminar usuario"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -1200,7 +1120,7 @@ export default function Expenses() {
             <div className="mt-8 pt-8 border-t border-violet-500/20">
               <div className="mb-6 flex items-center space-x-2">
                 <button
-                  onClick={() => fetchBalanceMovements(1)}
+                  onClick={fetchBalanceMovements}
                   className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl"
                 >
                   🔄 Actualizar
@@ -1208,7 +1128,7 @@ export default function Expenses() {
                 <select
                   value={userFilter}
                   onChange={(e) => setUserFilter(e.target.value)}
-                  className="px-4 py-2 bg-gray-800 border border-gray-800/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all"
+                  className="px-4 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all"
                 >
                   <option value="all" className="bg-gray-800">Todos los usuarios</option>
                   {users.map(u => (
@@ -1218,7 +1138,7 @@ export default function Expenses() {
                 <select
                   value={movementsFilter}
                   onChange={(e) => setMovementsFilter(e.target.value)}
-                  className="px-4 py-2 bg-gray-800 border border-gray-800/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all"
+                  className="px-4 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all"
                 >
                   <option value="all" className="bg-gray-800">Todos los movimientos</option>
                   <option value="carga" className="bg-gray-800">Cargas</option>
@@ -1242,50 +1162,41 @@ export default function Expenses() {
                     style={{ minWidth: 120 }}
                   />
                 </div>
-                {userProfile?.role === 'usuario' && (
-                  <button
-                    onClick={() => setShowExportPreview(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
-                  >
-                    <FileSpreadsheet className="w-5 h-5" />
-                    <span>Exportar Excel</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => setShowExportPreview(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
+                >
+                  <FileSpreadsheet className="w-5 h-5" />
+                  <span>Exportar Excel</span>
+                </button>
               </div>
 
               {isLoadingMovements ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-white" />
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
                 </div>
               ) : (
-                <div className="overflow-x-auto table-container-card bg-black rounded-xl p-4 border border-gray-900" style={{background:'#000',borderColor:'#23272F'}}>
-                  <table className="w-full min-w-max magic-movements-table table-card">
+                <div className="overflow-x-auto bg-black rounded-xl p-4 border border-gray-900" style={{background:'#000',borderColor:'#23272F'}}>
+                  <table className="w-full min-w-max magic-movements-table">
                     <thead className="bg-black text-white">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap sm:hidden"> </th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">MONEDA</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap hidden sm:table-cell">📊 SALDO ANTERIOR</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap hidden sm:table-cell">📈 SALDO NUEVO</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap hidden sm:table-cell">📝 DESCRIPCIÓN</th>
+                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📊 SALDO ANTERIOR</th>
+                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📈 SALDO NUEVO</th>
+                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📝 DESCRIPCIÓN</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
                       {balanceMovements
-                        // server returns filtered/paged results already; keep local filter as fallback
                         .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
                         .filter(m => userFilter === 'all' || m.user_id === userFilter)
+                        .slice((movementsPage - 1) * recordsPerPage, movementsPage * recordsPerPage)
                         .map((movement) => (
-                          <React.Fragment key={movement.id}>
-                          <tr className="hover-lift text-white table-row-card" data-type={movement.type} title={movement.type}>
-                            <td className="px-2 py-2 sm:hidden text-sm">
-                              <button onClick={() => setExpandedMovements(prev => ({...prev, [String(movement.id)]: !prev[String(movement.id)]}))} className="px-2 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700">
-                                {expandedMovements[String(movement.id)] ? '−' : '+'}
-                              </button>
-                            </td>
+                          <tr key={movement.id} className="bg-black text-white">
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
                               {new Date(movement.created_at).toLocaleString('es-AR', {
                                 year: 'numeric',
@@ -1316,7 +1227,7 @@ export default function Expenses() {
                                   ? 'text-green-400' 
                                   : 'text-red-400'
                               }`}>
-                                {movement.type === 'carga' ? '+' : ''}{movement.amount != null ? Number(movement.amount).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '-'}
+                                {movement.type === 'carga' ? '+' : ''}{movement.amount}
                               </span>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
@@ -1324,45 +1235,34 @@ export default function Expenses() {
                                 {movement.currency}
                               </span>
                             </td>
-                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold hidden sm:table-cell ${getNumberColorClass(movement.balance_before)}`}>
-                              {movement.balance_before != null ? `$${Number(movement.balance_before).toFixed(2)}` : '-'}
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400 font-semibold">
+                              ${Number(movement.balance_before).toFixed(2)}
                             </td>
-                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-black hidden sm:table-cell ${getNumberColorClass(movement.balance_after)}`}>
-                              {movement.balance_after != null ? `$${Number(movement.balance_after).toFixed(2)}` : '-'}
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-black text-green-400">
+                              ${Number(movement.balance_after).toFixed(2)}
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-300 hidden sm:table-cell">
+                            <td className="px-4 py-3 text-sm text-gray-300">
                               {movement.description}
                             </td>
                           </tr>
-                          {/* Mobile-only expanded content */}
-                          {expandedMovements[movement.id] && (
-                            <tr className="bg-gray-900 text-white sm:hidden" key={movement.id + '-details'}>
-                              <td colSpan={9} className="px-4 py-3 text-sm">
-                                <div className="flex flex-col gap-y-1 text-xs">
-                                  <div><span className="font-semibold">Saldo Anterior:</span> <span className={`${getNumberColorClass(movement.balance_before)} font-mono`}>${Number(movement.balance_before).toFixed(2)}</span></div>
-                                  <div><span className="font-semibold">Saldo Nuevo:</span> <span className={`${getNumberColorClass(movement.balance_after)} font-mono`}>${Number(movement.balance_after).toFixed(2)}</span></div>
-                                  <div><span className="font-semibold">Descripción:</span> <span className="text-gray-300">{movement.description}</span></div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                          {expandedMovements[String(movement.id)] && (
-                            <tr className="bg-gray-900 text-white sm:hidden" key={movement.id + '-details'}>
-                              <td colSpan={9} className="px-4 py-3 text-sm">
-                                <div className="flex flex-col gap-y-1 text-xs">
-                                  <div><span className="font-semibold">Saldo Anterior:</span> <span className={`${getNumberColorClass(movement.balance_before)} font-mono`}>${Number(movement.balance_before).toFixed(2)}</span></div>
-                                  <div><span className="font-semibold">Saldo Nuevo:</span> <span className={`${getNumberColorClass(movement.balance_after)} font-mono`}>${Number(movement.balance_after).toFixed(2)}</span></div>
-                                  <div><span className="font-semibold">Descripción:</span> <span className="text-gray-300">{movement.description}</span></div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                          </React.Fragment>
                         ))}
                     </tbody>
                   </table>
                   <style>{`
-                    .magic-movements-table { border-radius: 0.75rem; border: 2px solid rgba(255,255,255,0.03); transition: box-shadow 0.3s ease; }
+                    .magic-movements-table {
+                      border-radius: 0.75rem;
+                      border: 2px solid #a855f7;
+                      box-shadow: 0 4px 24px 0 #a855f7a0;
+                      transition: box-shadow 0.3s ease;
+                    }
+                    .magic-movements-row {
+                      transition: box-shadow 0.3s, background 0.3s, transform 0.3s;
+                    }
+                    .magic-movements-row:hover {
+                      box-shadow: 0 0 16px 2px #a855f7cc, 0 2px 8px 0 #9333ea99;
+                      background: linear-gradient(90deg, #a855f7 0%, #9333ea 100%);
+                      transform: scale(1.01);
+                    }
                   `}</style>
                   
                   {balanceMovements
@@ -1374,27 +1274,47 @@ export default function Expenses() {
                     </div>
                   )}
                   
-                                  {movementsTotal > 0 && (
-                                    <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black/40 border-t gap-y-2 rounded-xl shadow-lg mb-2">
-                                      <div className="text-xs sm:text-sm text-white font-semibold">
-                                        Mostrando {(movementsPage - 1) * recordsPerPage + 1} - {Math.min(movementsPage * recordsPerPage, movementsTotal)} de {movementsTotal} movimientos
-                                      </div>
-                                      <div className="flex items-center gap-x-2">
-                                        <label className="text-xs text-white mr-2">Mostrar:</label>
-                                        <select value={recordsPerPage} onChange={(e) => { setRecordsPerPage(Number(e.target.value)); setMovementsPage(1); }} className="px-2 py-1 rounded text-sm font-medium">
-                                          <option value={10}>10</option>
-                                          <option value={25}>25</option>
-                                          <option value={50}>50</option>
-                                          <option value={100}>100</option>
-                                        </select>
-                                        <button onClick={() => fetchBalanceMovements(1)} disabled={movementsPage === 1} className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg">« Primera</button>
-                                        <button onClick={() => fetchBalanceMovements(Math.max(1, movementsPage - 1))} disabled={movementsPage === 1} className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg">‹ Anterior</button>
-                                        <span className="px-3 py-1 bg-black text-white rounded text-sm font-bold">Página {movementsPage} de {Math.max(1, Math.ceil(movementsTotal / recordsPerPage))}</span>
-                                        <button onClick={() => fetchBalanceMovements(Math.min(Math.max(1, Math.ceil(movementsTotal / recordsPerPage)), movementsPage + 1))} disabled={movementsPage === Math.max(1, Math.ceil(movementsTotal / recordsPerPage))} className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg">Siguiente ›</button>
-                                        <button onClick={() => fetchBalanceMovements(Math.max(1, Math.ceil(movementsTotal / recordsPerPage)))} disabled={movementsPage === Math.max(1, Math.ceil(movementsTotal / recordsPerPage))} className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg">Última »</button>
-                                      </div>
-                                    </div>
-                                  )}
+                  {balanceMovements
+                    .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
+                    .filter(m => userFilter === 'all' || m.user_id === userFilter)
+                    .length > recordsPerPage && (
+                    <div className="flex justify-between items-center mt-4">
+                      <div className="text-sm text-gray-300">
+                        Mostrando {Math.min((movementsPage - 1) * recordsPerPage + 1, balanceMovements.length)} - {Math.min(movementsPage * recordsPerPage, balanceMovements.length)} de {balanceMovements
+                          .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
+                          .filter(m => userFilter === 'all' || m.user_id === userFilter)
+                          .length} movimientos
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setMovementsPage(Math.max(1, movementsPage - 1))}
+                          disabled={movementsPage === 1}
+                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm"
+                        >
+                          ← Anterior
+                        </button>
+                        <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm">
+                          Página {movementsPage} de {Math.ceil(balanceMovements
+                            .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
+                            .filter(m => userFilter === 'all' || m.user_id === userFilter)
+                            .length / recordsPerPage)}
+                        </span>
+                        <button
+                          onClick={() => setMovementsPage(Math.min(Math.ceil(balanceMovements
+                            .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
+                            .filter(m => userFilter === 'all' || m.user_id === userFilter)
+                            .length / recordsPerPage), movementsPage + 1))}
+                          disabled={movementsPage >= Math.ceil(balanceMovements
+                            .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
+                            .filter(m => userFilter === 'all' || m.user_id === userFilter)
+                            .length / recordsPerPage)}
+                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm"
+                        >
+                          Siguiente →
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1403,12 +1323,12 @@ export default function Expenses() {
 
         {/* Sección Historial de Movimientos - Solo para admin/supervisor */}
         {activeTab === 'movements' && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
-          <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-800/30 p-6">
+          <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-violet-500/20 p-6">
             <div className="mb-6 flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => fetchBalanceMovements(1)}
-                  className="px-4 py-2 bg-black hover:bg-gray-800 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl"
+                  onClick={() => fetchBalanceMovements()}
+                  className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl"
                 >
                   🔄 Actualizar
                 </button>
@@ -1443,13 +1363,13 @@ export default function Expenses() {
             </div>
 
             {isLoadingMovements ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-white" />
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
               </div>
             ) : (
-              <div className="overflow-x-auto table-container-card">
-                <table className="w-full min-w-max table-card">
-                  <thead className="bg-black">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-max">
+                  <thead className="bg-gradient-to-r from-violet-600 to-purple-600">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
                       <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
@@ -1473,7 +1393,7 @@ export default function Expenses() {
                       })
                       .slice(0, 5)
                       .map((movement) => (
-                        <tr key={movement.id} className="hover:bg-black/25 transition-all">
+                        <tr key={movement.id} className="hover:bg-violet-900/30 transition-all">
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
                             {new Date(movement.created_at).toLocaleString('es-AR', {
                               year: 'numeric',
@@ -1492,7 +1412,6 @@ export default function Expenses() {
                               movement.type === 'carga' 
                                 ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
                                 : movement.type === 'descuento'
-                               
                                 ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white'
                                 : 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
                             }`}>
@@ -1508,10 +1427,10 @@ export default function Expenses() {
                               {movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}
                             </span>
                           </td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${getNumberColorClass(movement.balance_before)}`}>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400 font-semibold">
                             ${Number(movement.balance_before).toFixed(2)}
                           </td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-black ${getNumberColorClass(movement.balance_after)}`}>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-black text-green-400">
                             ${Number(movement.balance_after).toFixed(2)}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-300">
@@ -1538,29 +1457,15 @@ export default function Expenses() {
 
         {/* Sección DBA - Solo para admin */}
         {activeTab === 'dba' && (userProfile?.role === 'admin' || user?.role === 'admin' || user?.email === 'WRIZZO6802@GMAIL.COM') && (
-          <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-gray-800/30 p-6">
+          <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-violet-500/20 p-6">
             <div className="mb-6">
               <h2 className="text-2xl font-black bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 bg-clip-text text-transparent">🔧 ADMINISTRACIÓN DBA</h2>
               <p className="text-sm font-bold text-gray-400 mt-1">⚠️ Herramientas avanzadas - Solo administradores</p>
-              <div className="mt-3">
-                <label className="block text-sm text-gray-400 mb-1">DBA Key (secreto)</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="password"
-                    value={dbaKeyValue}
-                    onChange={(e) => setDbaKeyValue(e.target.value)}
-                    className="w-full p-2 border border-gray-700 rounded bg-black text-sm text-white"
-                    placeholder="x-dba-key"
-                  />
-                  <button onClick={testDbaKey} className="px-3 py-1 bg-black text-white rounded">Probar DBA Key</button>
-                </div>
-                {dbaTestResult && <div className="text-sm text-gray-300 mt-1">{dbaTestResult}</div>}
-              </div>
             </div>
 
             {/* Selector de tabla */}
             <div className="mb-6">
-              <label className="block text-sm font-bold text-gray-400 mb-2 uppercase tracking-wider">
+              <label className="block text-sm font-bold text-violet-300 mb-2 uppercase tracking-wider">
                 📊 Tabla:
               </label>
               <select
@@ -1590,7 +1495,7 @@ export default function Expenses() {
 
             {/* Editor de consultas SQL */}
             <div className="mb-6">
-              <label className="block text-sm font-bold text-gray-400 mb-2 uppercase tracking-wider">
+              <label className="block text-sm font-bold text-violet-300 mb-2 uppercase tracking-wider">
                 💻 Consulta SQL:
               </label>
               <textarea
@@ -1647,36 +1552,38 @@ export default function Expenses() {
               </p>
             </div>
 
+            {/* ...eliminado script de paginación, lógica ya está en useEffect... */}
+
             {/* Controles de paginación modernos para audit_logs */}
             {selectedTable === 'audit_logs' && (
               <div className="flex flex-wrap gap-3 mb-6 items-center">
                 <button
                   onClick={() => setAuditPage(1)}
                   disabled={auditPage === 1}
-                  className="px-3 py-2 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded font-bold"
+                  className="px-3 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded font-bold"
                 >« Primero</button>
                 <button
                   onClick={() => setAuditPage(Math.max(1, auditPage - 1))}
                   disabled={auditPage === 1}
-                  className="px-3 py-2 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded font-bold"
+                  className="px-3 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded font-bold"
                 >‹ Anterior</button>
-                <span className="px-3 py-2 bg-gray-100 text-gray-700 rounded font-bold">
+                <span className="px-3 py-2 bg-purple-100 text-purple-700 rounded font-bold">
                   Página {auditPage} de {totalAuditPages}
                 </span>
                 <button
                   onClick={() => setAuditPage(Math.min(totalAuditPages, auditPage + 1))}
                   disabled={auditPage === totalAuditPages}
-                  className="px-3 py-2 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded font-bold"
+                  className="px-3 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded font-bold"
                 >Siguiente ›</button>
                 <button
                   onClick={() => setAuditPage(totalAuditPages)}
                   disabled={auditPage === totalAuditPages}
-                  className="px-3 py-2 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded font-bold"
+                  className="px-3 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded font-bold"
                 >Última »</button>
                 <select
                   value={auditPageSize}
                   onChange={e => setAuditPageSize(Number(e.target.value))}
-                  className="ml-4 px-3 py-2 bg-gray-800 border border-gray-800/20 rounded-xl text-white font-semibold"
+                  className="ml-4 px-3 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white font-semibold"
                 >
                   {[10, 20, 50, 100].map(size => (
                     <option key={size} value={size}>{size} por página</option>
@@ -1746,7 +1653,7 @@ export default function Expenses() {
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead className="bg-black">
+                        <thead className="bg-gradient-to-r from-violet-600 to-purple-600">
                           <tr>
                             {Object.keys(dbaResults.results[0]).map((key) => (
                               <th key={key} className="px-4 py-3 text-left font-black text-white uppercase tracking-wider">
@@ -1757,7 +1664,7 @@ export default function Expenses() {
                         </thead>
                         <tbody className="divide-y divide-gray-700">
                           {dbaResults.results.slice(auditStartIdx, auditStartIdx + auditPageSize).map((row: any, index: number) => (
-                            <tr key={index} className="hover:bg-black/25 transition-all">
+                            <tr key={index} className="hover:bg-violet-900/30 transition-all">
                               {Object.values(row).map((value: any, cellIndex: number) => (
                                 <td key={cellIndex} className="px-4 py-3 text-white font-semibold">
                                   {value !== null ? String(value) : <span className="text-gray-500 italic">null</span>}
@@ -2296,7 +2203,7 @@ export default function Expenses() {
                   </h3>
                   <div className="overflow-x-auto max-h-96">
                     <table className="w-full text-sm">
-                      <thead className="bg-black sticky top-0">
+                      <thead className="bg-gradient-to-r from-violet-600 to-purple-600 sticky top-0">
                         <tr>
                           <th className="px-3 py-2 text-left text-xs font-black text-white">Fecha</th>
                           <th className="px-3 py-2 text-left text-xs font-black text-white">Usuario</th>
@@ -2313,7 +2220,7 @@ export default function Expenses() {
                           .filter(m => userFilter === 'all' || m.user_id === userFilter)
                           .slice(0, 10)
                           .map((movement, idx) => (
-                            <tr key={idx} className="hover:bg-black/25 transition-all">
+                            <tr key={idx} className="hover:bg-violet-900/30 transition-all">
                               <td className="px-3 py-2 whitespace-nowrap text-white">
                                 {new Date(movement.created_at).toLocaleString('es-AR', {
                                   year: 'numeric',
@@ -2336,10 +2243,10 @@ export default function Expenses() {
                               <td className="px-3 py-2 whitespace-nowrap text-white">
                                 {movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}
                               </td>
-                              <td className={`px-3 py-2 whitespace-nowrap ${getNumberColorClass(movement.balance_before)}`}>
+                              <td className="px-3 py-2 whitespace-nowrap text-gray-400">
                                 ${Number(movement.balance_before).toFixed(2)}
                               </td>
-                              <td className={`px-3 py-2 whitespace-nowrap font-bold ${getNumberColorClass(movement.balance_after)}`}>
+                              <td className="px-3 py-2 whitespace-nowrap text-green-400 font-bold">
                                 ${Number(movement.balance_after).toFixed(2)}
                               </td>
                               <td className="px-3 py-2 text-gray-300 truncate max-w-xs">{movement.description}</td>
@@ -2349,7 +2256,7 @@ export default function Expenses() {
                     </table>
                   </div>
                   {getFilteredMovementsCount() > 10 && (
-                    <p className="text-gray-400 text-xs mt-2 text-center">
+                    <p className="text-violet-300 text-xs mt-2 text-center">
                       Mostrando primeros 10 de {getFilteredMovementsCount()} movimientos
                     </p>
                   )}

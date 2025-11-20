@@ -21,6 +21,7 @@ export default function Reports() {
   const navigate = useNavigate();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [movementSummary, setMovementSummary] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   // Removed balance min/max filters — kept only simple type filter for 'carga' export
@@ -42,8 +43,16 @@ export default function Reports() {
     if (userProfile) {
       // Fetch reports for everyone (no auth restriction)
       fetchReports();
+      // Also fetch transactions movements summary and re-run when typeFilter changes
+      fetchMovementSummary(typeFilter);
     }
   }, [userProfile]);
+
+  useEffect(() => {
+    if (userProfile) {
+      fetchMovementSummary(typeFilter);
+    }
+  }, [typeFilter, userProfile]);
 
   const fetchUserProfile = async () => {
     try {
@@ -64,6 +73,21 @@ export default function Reports() {
       console.error("Error cargando reportes:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchMovementSummary = async (type?: string) => {
+    try {
+      const params = new URLSearchParams();
+      if (type) params.set('type', type);
+      
+      const response = await fetch(`/api/transacciones-saldo/reports/summary?${params.toString()}`);
+      if (!response.ok) throw new Error('Error fetching movement summary');
+      const data = await response.json();
+      setMovementSummary(data);
+    } catch (error) {
+      console.error('Error fetching movement summary:', error);
+      setMovementSummary(null);
     }
   };
 
@@ -258,6 +282,13 @@ export default function Reports() {
               <option value="ajuste">Ajuste</option>
             </select>
           </div>
+          {movementSummary && (
+            <div className="ml-4 text-sm text-gray-700 dark:text-gray-300 bg-white/5 px-3 py-2 rounded-lg">
+              <div className="font-semibold">Movimientos:</div>
+              <div className="text-xs">Total: {movementSummary.totals?.total_count || 0}</div>
+              <div className="text-xs">Monto total: {movementSummary.totals?.total_amount || 0}</div>
+            </div>
+          )}
           
         </div>
 

@@ -153,6 +153,7 @@ export default function UserManagement() {
   };
 
   const deleteUser = async (userId: string) => {
+    if (!confirm("Eliminar usuario?")) return;
 
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -284,8 +285,8 @@ export default function UserManagement() {
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto table-container-card">
-              <table className="w-full table-card">
+            <div className="overflow-x-auto">
+              <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/5">
                     <th className="px-4 py-3 text-left text-[10px] font-bold text-white/70 uppercase tracking-wider">
@@ -307,7 +308,7 @@ export default function UserManagement() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {users.map((userItem) => (
-                    <tr key={userItem.user_id} className="hover:bg-white/5 transition-all duration-200 group hover-lift">
+                    <tr key={userItem.user_id} className="hover:bg-white/5 transition-all duration-200 group">
                       <td className="px-4 py-3">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-xs shadow-lg">

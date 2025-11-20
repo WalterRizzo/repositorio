@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, Save, Upload, Eye, Wallet } from "lucide-react";
 import type { Expense, TipoComprobante } from "@/shared/types";
 import { EXPENSE_CATEGORIES } from "@/shared/types";
-// Tesseract will be dynamically imported in extractAmountFromReceipt
+import { createWorker } from 'tesseract.js';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
@@ -194,9 +194,7 @@ export default function ExpenseForm({
     try {
       setError('🔄 Analizando ticket con IA... Esto puede tardar unos segundos');
       
-      // Crear worker de Tesseract (lazy import to avoid bundling heavy library)
-      const tesseract = await import('tesseract.js');
-      const createWorker = tesseract.createWorker || tesseract.default?.createWorker;
+      // Crear worker de Tesseract
       const worker = await createWorker('spa'); // Español
       
       // Procesar imagen

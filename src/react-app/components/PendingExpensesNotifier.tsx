@@ -69,7 +69,7 @@ export default function PendingExpensesNotifier() {
         }
       );
     } else {
-      console.warn('❌ Permiso de notificaciones denegado');
+      alert('❌ Permiso de notificaciones denegado');
     }
   };
 

@@ -1,11 +1,8 @@
-import { Plus, Trash2, Receipt, Filter, Edit3, CheckCircle, XCircle, Sparkles, FileSpreadsheet } from "lucide-react";
+import { Plus, Trash2, Receipt, Filter, Edit3, CheckCircle, XCircle, Sparkles } from "lucide-react";
 import { useState, useRef } from "react";
 import BubbleTooltipPortal from "./BubbleTooltipPortal";
 import { getStatusBadgeClasses, getStatusLabel } from '@/react-app/utils/status';
 import type { Expense } from "@/shared/types";
-// ExcelJS loaded dynamically in exportToExcel
-// @ts-ignore - file-saver typing not installed in repo
-import { saveAs } from 'file-saver';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
@@ -60,7 +57,6 @@ export default function ExpensesTable({
   const [userFilter, setUserFilter] = useState<string>(
     userRole === 'usuario' ? (currentUserId || 'all') : 'all'
   );
-  const [showExportPreview, setShowExportPreview] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectingExpenseId, setRejectingExpenseId] = useState<number | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -86,42 +82,6 @@ export default function ExpensesTable({
     }).format(amount);
   };
 
-  // Función exportar Excel
-  const exportToExcel = async () => {
-    // Use ExcelJS to build a richer, styled workbook
-    const ExcelJSModule = (await import('exceljs'));
-    const ExcelJS = ExcelJSModule.default || ExcelJSModule;
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('Gastos');
-    const headers = ['ID','Usuario','Descripción','Monto','Moneda','Categoría','Fecha','Estado'];
-    ws.columns = headers.map(h => ({ header: h, key: h, width: 20 })) as any;
-    // Map rows ensuring Fecha is a Date object and Creado is omitted
-    filteredExpenses.forEach(expense => {
-      ws.addRow([
-        expense.id,
-        expense.user_name || 'N/A',
-        expense.description,
-        Number(expense.amount || 0),
-        expense.currency,
-        expense.category,
-        new Date(expense.expense_date),
-        expense.status
-      ]);
-    });
-    // Header style
-    ws.getRow(1).eachCell((cell:any) => { cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '6D28D9' } }; cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; });
-    // Format columns: Monto, Fecha
-    const montoCol = ws.getColumn(headers.indexOf('Monto') + 1);
-    montoCol.numFmt = '#,##0.00'; montoCol.alignment = { horizontal: 'right' } as any;
-    const fechaCol = ws.getColumn(headers.indexOf('Fecha') + 1);
-    fechaCol.numFmt = 'dd/mm/yyyy'; fechaCol.alignment = { horizontal: 'center' } as any;
-    // Add borders to all rows
-    ws.eachRow((row:any) => { row.eachCell((cell:any) => { cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; }); });
-    ws.views = [{ state: 'frozen', ySplit: 1 }];
-    const buf = await wb.xlsx.writeBuffer();
-    saveAs(new Blob([buf]), `gastos_${new Date().toISOString().split('T')[0]}.xlsx`);
-    setShowExportPreview(false);
-  };
 
   // Funciones para manejar el rechazo
   const handleRejectClick = (expenseId: number) => {
@@ -132,14 +92,7 @@ export default function ExpensesTable({
 
   const handleRejectSubmit = async () => {
     if (!rejectionReason.trim()) {
-      // Non-blocking in-component notification instead of native alert
-      console.warn('⚠️ Debes proporcionar una razón para el rechazo');
-      setNotificationType('reject');
-      setCurrentEmoji(getRandomEmoji('reject'));
-      setParticleEmojis(getRandomEmojis('reject', 'particles', 6));
-      setParticleColors(getColorSet(6));
-      setShowNotification(true);
-      setTimeout(() => setShowNotification(false), 3500);
+      alert('⚠️ Debes proporcionar una razón para el rechazo');
       return;
     }
     
@@ -166,12 +119,7 @@ export default function ExpensesTable({
         setTimeout(() => setShowNotification(false), 3500); // 3.5 segundos
       } catch (error) {
         console.error('Error al rechazar:', error);
-        setNotificationType('reject');
-        setCurrentEmoji(getRandomEmoji('reject'));
-        setParticleEmojis(getRandomEmojis('reject', 'particles', 6));
-        setParticleColors(getColorSet(6));
-        setShowNotification(true);
-        setTimeout(() => setShowNotification(false), 3500);
+        alert('❌ Error al rechazar el gasto');
       }
     }
   };
@@ -199,7 +147,7 @@ export default function ExpensesTable({
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 table-container-card">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/4"></div>
           <div className="space-y-2">
@@ -394,15 +342,7 @@ export default function ExpensesTable({
               </>
             )}
           </select>
-                {userRole === 'usuario' && (
-                  <button
-                    onClick={() => setShowExportPreview(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
-                  >
-                    <FileSpreadsheet className="w-5 h-5" />
-                    <span>Exportar Excel</span>
-                  </button>
-                )}
+          {/* Export button removed per request */}
           <button
             onClick={() => {
               setDateFilters({desde: '', hasta: ''});
@@ -475,13 +415,13 @@ export default function ExpensesTable({
                     )}
                   </div>
 
-                  <div className="flex items-center space-x-1">
-                    <button onClick={() => onEdit(expense)} className="p-1 w-8 h-8 flex items-center justify-center bg-indigo-600 text-white rounded-full text-xs hover:ring-2 hover:ring-indigo-500/30"> <Edit3 className="w-4 h-4" /> </button>
-                    <button onClick={() => onDelete(expense.id)} className="p-1 w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-full text-xs hover:ring-2 hover:ring-rose-400/30"> <Trash2 className="w-4 h-4" /> </button>
+                  <div className="flex items-center space-x-2">
+                    <button onClick={() => onEdit(expense)} className="p-2 bg-indigo-600 text-white rounded-md"> <Edit3 className="w-4 h-4" /> </button>
+                    <button onClick={() => onDelete(expense.id)} className="p-2 bg-red-500 text-white rounded-md"> <Trash2 className="w-4 h-4" /> </button>
                     {userRole !== 'usuario' && (
                       <>
-                        <button onClick={() => handleApproveClick(expense.id)} className="p-1 w-8 h-8 flex items-center justify-center bg-green-500 text-white rounded-full text-xs hover:ring-2 hover:ring-green-400/30"> <CheckCircle className="w-4 h-4" /> </button>
-                        <button onClick={() => handleRejectClick(expense.id)} className="p-1 w-8 h-8 flex items-center justify-center bg-orange-500 text-white rounded-full text-xs hover:ring-2 hover:ring-orange-400/30"> <XCircle className="w-4 h-4" /> </button>
+                        <button onClick={() => handleApproveClick(expense.id)} className="p-2 bg-green-500 text-white rounded-md"> <CheckCircle className="w-4 h-4" /> </button>
+                        <button onClick={() => handleRejectClick(expense.id)} className="p-2 bg-orange-500 text-white rounded-md"> <XCircle className="w-4 h-4" /> </button>
                       </>
                     )}
                   </div>
@@ -502,18 +442,18 @@ export default function ExpensesTable({
           {/* Desktop table (show from lg up) - hide entirely when forcing mobile view */}
           {!forceMobileView && (
             <div className="hidden lg:block overflow-x-auto w-full">
-            <table className="w-full table-fixed rounded-2xl border-2 border-black/20 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-card">
+            <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Fecha</th>
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Categoría</th>
-                  <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide w-[280px]">Descripción</th>
+                  <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Descripción</th>
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Cargado por</th>
                   <th className="px-1 py-1 text-right text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Monto</th>
                   <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Moneda</th>
                   <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Estado</th>
-                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide w-[120px]">Archivos</th>
-                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide w-[150px]">Acciones</th>
+                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Archivos</th>
+                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
@@ -732,31 +672,31 @@ export default function ExpensesTable({
                 <button
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                  className="px-3 py-1 bg-black hover:bg-gray-900 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg border border-gray-800"
                 >
                   « Primera
                 </button>
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                  className="px-3 py-1 bg-black hover:bg-gray-900 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg border border-gray-800"
                 >
                   ‹ Anterior
                 </button>
-                <span className="px-3 py-1 bg-black text-white rounded text-sm font-bold">
+                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm font-bold">
                   Página {currentPage} de {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                  className="px-3 py-1 bg-black hover:bg-gray-900 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg border border-gray-800"
                 >
                   Siguiente ›
                 </button>
                 <button
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                  className="px-3 py-1 bg-black hover:bg-gray-900 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg border border-gray-800"
                 >
                   Última »
                 </button>
@@ -766,88 +706,7 @@ export default function ExpensesTable({
         </>
       )}
 
-      {/* Modal de Preview de Excel */}
-      {showExportPreview && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
-            <div className="p-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <FileSpreadsheet className="w-7 h-7" />
-                  <div>
-                    <h2 className="text-2xl font-bold">Vista Previa - Exportar a Excel</h2>
-                    <p className="text-sm text-green-100 mt-1">
-                      {filteredExpenses.length} {filteredExpenses.length === 1 ? 'gasto seleccionado' : 'gastos seleccionados'}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowExportPreview(false)}
-                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 overflow-auto max-h-[60vh]">
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Mostrando los primeros 10 registros de {filteredExpenses.length}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm table-card">
-                  <thead className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-700">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">ID</th>
-                      <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Usuario</th>
-                      <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Descripción</th>
-                      <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Monto</th>
-                      <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Categoría</th>
-                      <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Fecha</th>
-                      <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {filteredExpenses.slice(0, 10).map((expense) => (
-                      <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 hover-lift">
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.id}</td>
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.user_name || 'N/A'}</td>
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.description}</td>
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{formatCurrency(expense.amount, expense.currency)}</td>
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.category}</td>
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{new Date(expense.expense_date).toLocaleDateString('es-AR')}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClasses(expense.status as any)}`}>
-                            {getStatusLabel(expense.status as any)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
-              <button
-                onClick={() => setShowExportPreview(false)}
-                className="px-6 py-3 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold transition-colors border border-gray-300 dark:border-gray-600"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={exportToExcel}
-                className="px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
-              >
-                <FileSpreadsheet className="w-5 h-5" />
-                <span>Descargar Excel</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Export preview modal removed */}
 
       {/* Modal de Razón de Rechazo */}
       {showRejectModal && (

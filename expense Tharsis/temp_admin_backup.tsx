@@ -31,8 +31,6 @@ export default function Admin() {
   const [sqlQuery, setSqlQuery] = useState('SELECT * FROM users LIMIT 10;');
   const [queryResult, setQueryResult] = useState<any[]>([]);
   const [queryError, setQueryError] = useState('');
-  const [dbaKeyValue, setDbaKeyValue] = useState('');
-  const [dbaTestResult, setDbaTestResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -62,12 +60,10 @@ export default function Admin() {
     }
   };
 
-  const fetchExpenses = async (page = 1, perPage = 100) => {
+  const fetchExpenses = async () => {
     try {
-      const offset = (page - 1) * perPage;
-      const response = await fetch(`/api/expenses?limit=${perPage}&offset=${offset}`);
-      const json = await response.json();
-      const data = (json && (json.data || json)) || [];
+      const response = await fetch("/api/expenses");
+      const data = await response.json();
       setExpenses(data);
     } catch (error) {
       console.error("Error cargando gastos:", error);
@@ -169,6 +165,7 @@ export default function Admin() {
   };
 
   const handleDeleteUser = async (userId: string) => {
+    if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
     
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -246,6 +243,7 @@ export default function Admin() {
   };
 
   const handleApprove = async (id: number) => {
+    if (!confirm("¿Aprobar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/approve`, {
@@ -260,6 +258,7 @@ export default function Admin() {
   };
 
   const handleReject = async (id: number) => {
+    if (!confirm("¿Rechazar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/reject`, {
@@ -285,7 +284,6 @@ export default function Admin() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(dbaKeyValue ? { 'x-dba-key': dbaKeyValue } : {}),
         },
         body: JSON.stringify({ query: sqlQuery }),
       });
@@ -302,29 +300,6 @@ export default function Admin() {
     } catch (error) {
       setQueryError('Error de conexión');
       setQueryResult([]);
-    }
-  };
-
-  // Test DBA Key with a simple safe query
-  const testDbaKey = async () => {
-    setDbaTestResult(null);
-    try {
-      const response = await fetch('/api/dba/execute', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(dbaKeyValue ? { 'x-dba-key': dbaKeyValue } : {}),
-        },
-        body: JSON.stringify({ query: 'SELECT 1 as ok;' }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        setDbaTestResult('OK: DBA key works (SELECT 1 returned)');
-      } else {
-        setDbaTestResult(`ERROR: ${data.error || 'Error desconocido'}`);
-      }
-    } catch (e: any) {
-      setDbaTestResult(`ERROR: ${e?.message || 'Error de conexión'}`);
     }
   };
 
@@ -581,20 +556,6 @@ export default function Admin() {
                   className="w-full h-32 p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white font-mono text-sm"
                   placeholder="SELECT * FROM users LIMIT 10;"
                 />
-                <div className="mt-3">
-                  <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">DBA Key (secreto)</label>
-                  <input
-                    type="password"
-                    value={dbaKeyValue}
-                    onChange={(e) => setDbaKeyValue(e.target.value)}
-                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-sm"
-                    placeholder="x-dba-key"
-                  />
-                  <div className="mt-2 flex items-center gap-2">
-                    <button onClick={testDbaKey} className="px-3 py-1 bg-black text-white rounded">Probar DBA Key</button>
-                    {dbaTestResult && <div className="text-sm text-gray-200">{dbaTestResult}</div>}
-                  </div>
-                </div>
                 <div className="flex gap-2 mt-4">
                   <button
                     onClick={executeQuery}
