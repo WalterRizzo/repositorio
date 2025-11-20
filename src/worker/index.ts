@@ -2,77 +2,12 @@ import { Hono } from "hono";
 import { setCookie, deleteCookie } from "hono/cookie";
 import { cors } from "hono/cors";
 import { authMiddleware, generateToken, verifyPassword, hashPassword, type User } from "./auth";
-import registerExpenseRoutes from './routes/expenses';
-import registerDbaRoutes from './routes/dba';
-import bcrypt from 'bcryptjs';
 
 type Variables = {
   user: User;
 }
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
-
-// -----------------------
-// BACKUP UTILITIES
-// -----------------------
-async function runBackupWithBindings(bindings: any) {
-  try {
-    const DB = bindings.DB;
-    const R2_BUCKET = bindings.R2_BUCKET;
-    const now = new Date();
-    const timestamp = now.toISOString().replace(/[:.]/g, '-');
-
-    // get list of tables
-    const { results: tablesRes } = await DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
-    const tableNames = (tablesRes || []).map((r: any) => r.name).filter(Boolean);
-
-    const backupData: any = { generated_at: now.toISOString(), tables: {} };
-    for (const name of tableNames) {
-      try {
-        const { results } = await DB.prepare(`SELECT * FROM \"${name}\"`).all();
-        backupData.tables[name] = results || [];
-      } catch (e) {
-        console.error(`Error dumping table ${name}:`, e);
-        backupData.tables[name] = { error: String(e) };
-      }
-    }
-
-    const content = JSON.stringify(backupData);
-    const filename = `backup-${timestamp}.json`;
-
-    if (R2_BUCKET && typeof R2_BUCKET.put === 'function') {
-      // Save full backup as a single JSON file in R2
-      console.log('Saving backup to R2:', filename);
-      await R2_BUCKET.put(`backups/${filename}`, content);
-      return { location: `r2://backups/${filename}` };
-    }
-
-    // Fallback: store in D1 backups table
-    console.log('Saving backup to D1 backups table:', filename);
-    await DB.prepare('INSERT INTO backups (name, content, size) VALUES (?, ?, ?)').bind(filename, content, content.length).run();
-    return { location: `d1:backups/${filename}` };
-  } catch (err) {
-    console.error('Error running backup:', err);
-    throw err;
-  }
-}
-
-// Manual backup endpoint for admin users (protected)
-app.post('/api/admin/backups/backup-now', authMiddleware(), async (c) => {
-  try {
-    const user = c.get('user')! as User;
-    // Only admins or supervisors allowed
-    if (!user || (user.role !== 'admin' && user.role !== 'supervisor')) {
-      return c.json({ error: 'Unauthorized' }, 403);
-    }
-
-    const result = await runBackupWithBindings(c.env as any);
-    return c.json({ success: true, result });
-  } catch (e) {
-    console.error('Manual backup failed:', e);
-    return c.json({ error: String(e) }, 500);
-  }
-});
 
 // ============================================================
 // RATE LIMITING - Protección contra DDoS
@@ -246,30 +181,8 @@ app.post("/api/auth/login", loginRateLimit, async (c) => {
     }
   }
   
-  // Verificar contraseña (soportar hashes legacy SHA-256 y migrar a bcrypt)
-  let isValidPassword = false;
-  try {
-    // Si el hash parece ser bcrypt (empieza con $2a$ o $2b$ o $2y$)
-    if (typeof user.password_hash === 'string' && /^\$2[aby]\$/.test(user.password_hash)) {
-      isValidPassword = await bcrypt.compare(body.password, user.password_hash);
-    } else {
-      // Legacy: SHA-256
-      const encoder = new TextEncoder();
-      const data = encoder.encode(body.password);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const shaHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      if (shaHex === user.password_hash) {
-        isValidPassword = true;
-        // Migrar a bcrypt
-        const newHash = await bcrypt.hash(body.password, 12);
-        await c.env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(newHash, user.id).run();
-      }
-    }
-  } catch (err) {
-    console.error('Error verificando password:', err);
-    isValidPassword = false;
-  }
+  // Verificar contraseña
+  const isValidPassword = await verifyPassword(body.password, user.password_hash);
   
   if (!isValidPassword) {
     // Incrementar intentos fallidos
@@ -521,55 +434,22 @@ app.get('/api/expenses', authMiddleware(), async (c) => {
     const userRole = userResults[0].role;
     let query = '';
     let params: any[] = [];
-    // Parse optional query params for filtering
-    const url = new URL(c.req.url);
-    const paramsQs = url.searchParams;
-    const from = paramsQs.get('from');
-    const to = paramsQs.get('to');
-    const qUserId = paramsQs.get('userId');
-    const category = paramsQs.get('category');
-    const currency = paramsQs.get('currency');
-    const status = paramsQs.get('status');
-    const minAmount = paramsQs.get('minAmount');
-    const maxAmount = paramsQs.get('maxAmount');
-    const hasReceipt = paramsQs.get('hasReceipt');
 
     // If user is admin or supervisor, show all expenses with user info
     // If regular user, show only their expenses with user info
-    // Build WHERE clause with filters
-    const whereClauses: string[] = [];
-    const bindParams: any[] = [];
-    // If non-admin, always limit to own user
-    if (userRole !== 'admin' && userRole !== 'supervisor') {
-      whereClauses.push('e.user_id = ?');
-      bindParams.push(user.id);
-    } else if (qUserId) {
-      whereClauses.push('e.user_id = ?');
-      bindParams.push(qUserId);
+    if (userRole === 'admin' || userRole === 'supervisor') {
+      query = `SELECT e.*, u.name as user_name, u.email as user_email 
+               FROM expenses e 
+               LEFT JOIN users u ON e.user_id = u.id 
+               ORDER BY e.expense_date DESC, e.created_at DESC`;
+    } else {
+      query = `SELECT e.*, u.name as user_name, u.email as user_email 
+               FROM expenses e 
+               LEFT JOIN users u ON e.user_id = u.id 
+               WHERE e.user_id = ? 
+               ORDER BY e.expense_date DESC, e.created_at DESC`;
+      params = [user.id];
     }
-    if (from) { whereClauses.push('e.expense_date >= ?'); bindParams.push(from); }
-    if (to) { whereClauses.push('e.expense_date <= ?'); bindParams.push(to); }
-    if (category) { whereClauses.push('e.category = ?'); bindParams.push(category); }
-    if (currency) { whereClauses.push('e.currency = ?'); bindParams.push(currency); }
-    if (status) { whereClauses.push('e.status = ?'); bindParams.push(status); }
-    if (minAmount) { whereClauses.push('e.amount >= ?'); bindParams.push(Number(minAmount)); }
-    if (maxAmount) { whereClauses.push('e.amount <= ?'); bindParams.push(Number(maxAmount)); }
-    if (hasReceipt === 'true') {
-      whereClauses.push('EXISTS (SELECT 1 FROM expense_attachments a WHERE a.expense_id = e.id)');
-    } else if (hasReceipt === 'false') {
-      whereClauses.push('NOT EXISTS (SELECT 1 FROM expense_attachments a WHERE a.expense_id = e.id)');
-    }
-
-    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-    // Pagination params (limit + offset)
-    const limitParam = Number(paramsQs.get('limit') || paramsQs.get('per_page') || 50);
-    const pageParam = Number(paramsQs.get('page') || 0);
-    const offsetParam = Number(paramsQs.get('offset') || (pageParam > 0 ? (pageParam - 1) * limitParam : 0));
-    const limit = Math.min(Math.max(limitParam, 1), 500);
-    const offset = Math.max(offsetParam, 0);
-
-    query = `SELECT e.*, u.name as user_name, u.email as user_email FROM expenses e LEFT JOIN users u ON e.user_id = u.id ${whereSql} ORDER BY e.expense_date DESC, e.created_at DESC LIMIT ? OFFSET ?`;
-    params = [...bindParams, limit, offset];
 
     const { results } = await c.env.DB.prepare(query).bind(...params).all();
     
@@ -592,12 +472,7 @@ app.get('/api/expenses', authMiddleware(), async (c) => {
       })
     );
     
-    // Also return pagination info: total count
-    const countQuery = `SELECT COUNT(1) as total FROM expenses e ${whereSql}`;
-    const { results: countRes } = await c.env.DB.prepare(countQuery).bind(...bindParams).all();
-    const total = countRes?.[0]?.total ?? (expensesWithAttachments?.length || 0);
-
-    return c.json({ data: expensesWithAttachments, total, limit, offset });
+    return c.json(expensesWithAttachments);
   } catch (error) {
     return c.json({ error: String(error) }, 500);
   }
@@ -1404,45 +1279,25 @@ app.get('/api/balance/movements', authMiddleware(), async (c) => {
       return c.json({ error: 'No tienes permisos para ver el historial' }, 403);
     }
 
-    // Supervisors should see transactions for all users
-    const query = userResults[0].role === 'supervisor' 
-      ? `SELECT 
-          st.id,
-          st.user_id,
-          u.name as user_name,
-          st.currency,
-          st.tipo as type,
-          st.monto as amount,
-          st.saldo_anterior as balance_before,
-          st.saldo_nuevo as balance_after,
-          st.descripcion as description,
-          st.realizado_por as created_by,
-          st.fecha_transaccion as created_at
-        FROM saldo_transacciones st
-        LEFT JOIN users u ON st.user_id = u.id
-        ORDER BY st.fecha_transaccion DESC
-        LIMIT 100`
-      : `SELECT 
-          st.id,
-          st.user_id,
-          u.name as user_name,
-          st.currency,
-          st.tipo as type,
-          st.monto as amount,
-          st.saldo_anterior as balance_before,
-          st.saldo_nuevo as balance_after,
-          st.descripcion as description,
-          st.realizado_por as created_by,
-          st.fecha_transaccion as created_at
-        FROM saldo_transacciones st
-        LEFT JOIN users u ON st.user_id = u.id
-        WHERE st.user_id = ?
-        ORDER BY st.fecha_transaccion DESC
-        LIMIT 100`;
-
-    const bindParams = userResults[0].role === 'supervisor' ? [] : [user.id];
-
-    const { results } = await c.env.DB.prepare(query).bind(...bindParams).all();
+    // Obtener todos los movimientos con información del usuario
+    const { results } = await c.env.DB.prepare(`
+      SELECT 
+        st.id,
+        st.user_id,
+        u.name as user_name,
+        st.currency,
+        st.tipo as type,
+        st.monto as amount,
+        st.saldo_anterior as balance_before,
+        st.saldo_nuevo as balance_after,
+        st.descripcion as description,
+        st.realizado_por as created_by,
+        st.fecha_transaccion as created_at
+      FROM saldo_transacciones st
+      LEFT JOIN users u ON st.user_id = u.id
+      ORDER BY st.fecha_transaccion DESC
+      LIMIT 100
+    `).all();
 
     return c.json({
       success: true,
@@ -1457,69 +1312,13 @@ app.get('/api/balance/movements', authMiddleware(), async (c) => {
 // Get expense reports - SIN AUTH PARA QUE FUNCIONE
 app.get('/api/expenses/reports/summary', async (c) => {
   try {
-    // Extract query params for filtering
-    const url = new URL(c.req.url);
-    const params = url.searchParams;
-    const from = params.get('from');
-    const to = params.get('to');
-    const userId = params.get('userId');
-    const category = params.get('category');
-    const currency = params.get('currency');
-    const status = params.get('status');
-    const minAmount = params.get('minAmount');
-    const maxAmount = params.get('maxAmount');
-    const hasReceipt = params.get('hasReceipt');
-
-    const whereClauses: string[] = [];
-    const bindParams: any[] = [];
-
-    if (from) {
-      whereClauses.push('expense_date >= ?');
-      bindParams.push(from);
-    }
-    if (to) {
-      whereClauses.push('expense_date <= ?');
-      bindParams.push(to);
-    }
-    if (userId) {
-      whereClauses.push('user_id = ?');
-      bindParams.push(userId);
-    }
-    if (category) {
-      whereClauses.push('category = ?');
-      bindParams.push(category);
-    }
-    if (currency) {
-      whereClauses.push('currency = ?');
-      bindParams.push(currency);
-    }
-    if (status) {
-      whereClauses.push('status = ?');
-      bindParams.push(status);
-    }
-    if (minAmount) {
-      whereClauses.push('amount >= ?');
-      bindParams.push(Number(minAmount));
-    }
-    if (maxAmount) {
-      whereClauses.push('amount <= ?');
-      bindParams.push(Number(maxAmount));
-    }
-    if (hasReceipt === 'true') {
-      whereClauses.push("EXISTS (SELECT 1 FROM expense_attachments a WHERE a.expense_id = expenses.id)");
-    } else if (hasReceipt === 'false') {
-      whereClauses.push("NOT EXISTS (SELECT 1 FROM expense_attachments a WHERE a.expense_id = expenses.id)");
-    }
-
-    const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     // Total by category
     const { results: byCategory } = await c.env.DB.prepare(
       `SELECT category, SUM(amount) as total, COUNT(*) as count
-       FROM expenses
-       ${whereSQL}
+       FROM expenses 
        GROUP BY category
        ORDER BY total DESC`
-    ).bind(...bindParams).all();
+    ).all();
 
     // Total by month (last 12 months)
     const { results: byMonth } = await c.env.DB.prepare(
@@ -1528,20 +1327,18 @@ app.get('/api/expenses/reports/summary', async (c) => {
          SUM(amount) as total,
          COUNT(*) as count
        FROM expenses 
-       ${whereSQL}
        GROUP BY month
        ORDER BY month DESC
        LIMIT 12`
-    ).bind(...bindParams).all();
+    ).all();
 
     // Overall totals
     const { results: totals } = await c.env.DB.prepare(
       `SELECT 
          SUM(amount) as total_amount,
          COUNT(*) as total_count
-       FROM expenses
-       ${whereSQL}`
-    ).bind(...bindParams).all();
+       FROM expenses`
+    ).all();
 
     return c.json({
       byCategory,
@@ -2452,6 +2249,10 @@ async function performGoogleVisionOCR(_arrayBuffer: ArrayBuffer, _contentType: s
   return null;
 }
 
+
+
+
+
 // Función para generar montos aleatorios realistas (legacy - mantenida para compatibilidad)
 function generateRandomAmount(): number {
   const ranges = [
@@ -2582,7 +2383,76 @@ function extractAmountFromText(text: string): number | null {
   return null;
 }
 
-// DBA endpoint is handled in src/worker/routes/dba.ts (modularized). Keep logic there, and avoid duplicate handlers here.
+// DBA endpoint - Solo para administradores
+app.post('/api/dba/execute', authMiddleware(), async (c) => {
+  const user = c.get('user');
+  
+  // Verificar que el usuario es admin
+  if (user.role !== 'admin') {
+    return c.json({ error: 'Acceso denegado. Solo administradores.' }, 403);
+  }
+
+  try {
+    const body = await c.req.json();
+    const { query } = body;
+
+    if (!query || typeof query !== 'string') {
+      return c.json({ error: 'Query SQL es requerido' }, 400);
+    }
+
+    const sqlQuery = query.trim();
+    
+    // DBA tiene permisos COMPLETOS - Solo bloqueamos operaciones extremadamente peligrosas
+    const extremelyDangerousPatterns = [
+      /DROP\s+DATABASE/i,
+      /DROP\s+SCHEMA/i,
+      /PRAGMA\s+/i  // Evitar cambios de configuración de SQLite
+    ];
+
+    for (const pattern of extremelyDangerousPatterns) {
+      if (pattern.test(sqlQuery)) {
+        return c.json({ 
+          error: 'Operación extremadamente peligrosa bloqueada. Contacte al administrador del sistema.' 
+        }, 400);
+      }
+    }
+
+    console.log(`DBA Query ejecutado por ${user.email}: ${sqlQuery}`);
+
+    let result;
+    
+    // Determinar si es una consulta que retorna resultados o no
+    const isSelectQuery = /^\s*SELECT/i.test(sqlQuery);
+    
+    if (isSelectQuery) {
+      result = await c.env.DB.prepare(sqlQuery).all();
+      
+      return c.json({
+        success: true,
+        results: result.results || [],
+        count: result.results?.length || 0,
+        message: `Query ejecutado exitosamente. ${result.results?.length || 0} filas retornadas.`
+      });
+    } else {
+      // Para INSERT, UPDATE, DELETE, etc.
+      result = await c.env.DB.prepare(sqlQuery).run();
+      
+      return c.json({
+        success: true,
+        results: [],
+        changes: result.meta?.changes || 0,
+        message: `Query ejecutado exitosamente. ${result.meta?.changes || 0} filas afectadas.`
+      });
+    }
+
+  } catch (error: any) {
+    console.error('Error ejecutando query DBA:', error);
+    
+    return c.json({ 
+      error: `Error SQL: ${error.message || 'Error desconocido'}` 
+    }, 500);
+  }
+});
 
 // ========== MÚLTIPLES ARCHIVOS ADJUNTOS ==========
 
@@ -2725,16 +2595,11 @@ app.delete('/api/expenses/:expenseId/attachments/:attachmentId', authMiddleware(
 
     // Verificar que el gasto pertenece al usuario
     const { results: expenseResults } = await c.env.DB.prepare(
-      'SELECT * FROM expenses WHERE id = ?'
-    ).bind(expenseId).all();
+      'SELECT * FROM expenses WHERE id = ? AND user_id = ?'
+    ).bind(expenseId, user.id).all();
 
     if (expenseResults.length === 0) {
-      return c.json({ error: 'Gasto no encontrado' }, 404);
-    }
-
-    const expense = expenseResults[0] as any;
-    if (expense.user_id !== user.id) {
-      return c.json({ error: 'No tienes permisos para eliminar este archivo' }, 403);
+      return c.json({ error: 'Gasto no encontrado o no autorizado' }, 404);
     }
 
     // Obtener información del archivo antes de eliminarlo
@@ -2775,17 +2640,6 @@ app.get('/api/transacciones-saldo', authMiddleware(), async (c) => {
     const user = c.get('user')! as User;
     
     // Solo admins pueden ver todas las transacciones
-    const url = new URL(c.req.url);
-    const params = url.searchParams;
-    const from = params.get('from');
-    const to = params.get('to');
-    const userId = params.get('userId');
-    const type = params.get('type');
-    const currency = params.get('currency');
-    const minAmount = params.get('minAmount');
-    const maxAmount = params.get('maxAmount');
-    const search = params.get('search');
-
     let query = `
       SELECT 
         st.id,
@@ -2793,150 +2647,37 @@ app.get('/api/transacciones-saldo', authMiddleware(), async (c) => {
         u.name as user_name,
         u.email as user_email,
         st.currency,
-        st.tipo as type,
-        st.monto as amount,
-        st.saldo_anterior as balance_before,
-        st.saldo_nuevo as balance_after,
-        st.descripcion as description,
-        st.realizado_por as created_by,
-        st.fecha_transaccion as created_at,
-        st.created_at as inserted_at
+        st.tipo,
+        st.monto,
+        st.saldo_anterior,
+        st.saldo_nuevo,
+        st.descripcion,
+        st.realizado_por,
+        st.fecha_transaccion,
+        st.created_at
       FROM saldo_transacciones st
       LEFT JOIN users u ON st.user_id = u.id
     `;
     
-    const whereClauses: string[] = [];
-    const bindParams: any[] = [];
+    const params = [];
     
-    if (!['admin', 'supervisor'].includes(user.role)) {
+    if (user.role !== 'admin') {
       // Los usuarios normales solo ven sus propias transacciones
-      whereClauses.push('st.user_id = ?');
-      bindParams.push(user.id);
-    } else if (userId && userId !== 'all') {
-      whereClauses.push('st.user_id = ?');
-      bindParams.push(userId);
-    }
-
-    if (from) {
-      whereClauses.push('st.fecha_transaccion >= ?');
-      bindParams.push(from);
-    }
-    if (to) {
-      whereClauses.push('st.fecha_transaccion <= ?');
-      bindParams.push(to);
-    }
-    if (type) {
-      whereClauses.push('st.tipo = ?');
-      bindParams.push(type);
-    }
-    if (currency) {
-      whereClauses.push('st.currency = ?');
-      bindParams.push(currency);
-    }
-    if (minAmount) {
-      whereClauses.push('st.monto >= ?');
-      bindParams.push(Number(minAmount));
-    }
-    if (maxAmount) {
-      whereClauses.push('st.monto <= ?');
-      bindParams.push(Number(maxAmount));
-    }
-    if (search) {
-      whereClauses.push("(st.descripcion LIKE ? OR u.name LIKE ? OR u.email LIKE ?)");
-      bindParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
-    }
-
-    if (whereClauses.length > 0) {
-      query += ' WHERE ' + whereClauses.join(' AND ');
+      query += ' WHERE st.user_id = ?';
+      params.push(user.id);
     }
     
-    const limitParam = params.get('limit');
-    const offsetParam = params.get('offset');
-    const limit = limitParam ? Math.max(0, Math.min(10000, Number(limitParam))) : 100;
-    const offset = offsetParam ? Math.max(0, Number(offsetParam)) : 0;
-
-    // Build total count using same filters (no limit/offset)
-    const countQuery = `SELECT COUNT(*) as total_count FROM (${query})`;
-    const { results: countRes } = await c.env.DB.prepare(countQuery).bind(...bindParams).all();
-    const totalCount = (countRes && countRes[0] && Number(countRes[0].total_count)) || 0;
-
-    if (limit > 0) {
-      query += ' ORDER BY st.fecha_transaccion DESC LIMIT ? OFFSET ?';
-      bindParams.push(limit, offset);
-    } else {
-      query += ' ORDER BY st.fecha_transaccion DESC';
-    }
-
-    const { results } = await c.env.DB.prepare(query).bind(...bindParams).all();
-
+    query += ' ORDER BY st.fecha_transaccion DESC LIMIT 50';
+    
+    const { results } = await c.env.DB.prepare(query).bind(...params).all();
+    
     return c.json({
       transacciones: results,
-      total: totalCount,
-      limit,
-      offset
+      total: results.length
     });
     
   } catch (error) {
     console.error('Error fetching transactions:', error);
-    return c.json({ error: String(error) }, 500);
-  }
-});
-
-// Get reports summary for transacciones de saldo
-app.get('/api/transacciones-saldo/reports/summary', authMiddleware(), async (c) => {
-  try {
-    const user = c.get('user')! as User;
-    const url = new URL(c.req.url);
-    const params = url.searchParams;
-    const from = params.get('from');
-    const to = params.get('to');
-    const userId = params.get('userId');
-    const type = params.get('type');
-    const currency = params.get('currency');
-    const minAmount = params.get('minAmount');
-    const maxAmount = params.get('maxAmount');
-
-    const whereClauses: string[] = [];
-    const bindParams: any[] = [];
-
-    if (user.role !== 'admin') {
-      whereClauses.push('st.user_id = ?');
-      bindParams.push(user.id);
-    } else if (userId) {
-      whereClauses.push('st.user_id = ?');
-      bindParams.push(userId);
-    }
-    if (from) { whereClauses.push('st.fecha_transaccion >= ?'); bindParams.push(from); }
-    if (to) { whereClauses.push('st.fecha_transaccion <= ?'); bindParams.push(to); }
-    if (type) { whereClauses.push('st.tipo = ?'); bindParams.push(type); }
-    if (currency) { whereClauses.push('st.currency = ?'); bindParams.push(currency); }
-    if (minAmount) { whereClauses.push('st.monto >= ?'); bindParams.push(Number(minAmount)); }
-    if (maxAmount) { whereClauses.push('st.monto <= ?'); bindParams.push(Number(maxAmount)); }
-
-    const whereSQL = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
-
-    // By type
-    const { results: byType } = await c.env.DB.prepare(
-      `SELECT tipo as type, SUM(monto) as total, COUNT(*) as count FROM saldo_transacciones st ${whereSQL} GROUP BY tipo ORDER BY total DESC`
-    ).bind(...bindParams).all();
-
-    // By month
-    const { results: byMonth } = await c.env.DB.prepare(
-      `SELECT strftime('%Y-%m', fecha_transaccion) as month, SUM(monto) as total, COUNT(*) as count FROM saldo_transacciones st ${whereSQL} GROUP BY month ORDER BY month DESC LIMIT 12`
-    ).bind(...bindParams).all();
-
-    const { results: totals } = await c.env.DB.prepare(
-      `SELECT SUM(monto) as total_amount, COUNT(*) as total_count FROM saldo_transacciones st ${whereSQL}`
-    ).bind(...bindParams).all();
-
-    // By currency (for transactional totals per currency)
-    const { results: byCurrency } = await c.env.DB.prepare(
-      `SELECT currency, SUM(monto) as total, COUNT(*) as count FROM saldo_transacciones st ${whereSQL} GROUP BY currency ORDER BY total DESC`
-    ).bind(...bindParams).all();
-
-    return c.json({ byType, byMonth, totals: totals[0] || { total_amount: 0, total_count: 0 }, byCurrency });
-  } catch (error) {
-    console.error('Error fetching transaction summary:', error);
     return c.json({ error: String(error) }, 500);
   }
 });
@@ -2951,45 +2692,52 @@ app.get('/api/users/:userId/transacciones-saldo', authMiddleware(), async (c) =>
       return c.json({ error: 'Solo administradores pueden consultar transacciones de otros usuarios' }, 403);
     }
     
-    // Build query with pagination for user transactions
-    const url = new URL(c.req.url);
-    const params = url.searchParams;
-    const limitParam = params.get('limit');
-    const offsetParam = params.get('offset');
-    const limit = limitParam ? Math.max(0, Math.min(10000, Number(limitParam))) : 100;
-    const offset = offsetParam ? Math.max(0, Number(offsetParam)) : 0;
-
-    const baseQuery = `
-      SELECT
+    const { results } = await c.env.DB.prepare(`
+      SELECT 
         st.id,
         st.user_id,
         u.name as user_name,
         u.email as user_email,
         st.currency,
-        st.tipo as type,
-        st.monto as amount,
-        st.saldo_anterior as balance_before,
-        st.saldo_nuevo as balance_after,
-        st.descripcion as description,
-        st.realizado_por as created_by,
-        st.fecha_transaccion as created_at,
-        st.created_at as inserted_at
+        st.tipo,
+        st.monto,
+        st.saldo_anterior,
+        st.saldo_nuevo,
+        st.descripcion,
+        st.realizado_por,
+        st.fecha_transaccion,
+        st.created_at
       FROM saldo_transacciones st
-      LEFT JOIN users u ON st.user_id = u.id
+      LEFT JOIN users u ON st.      "emeraldwalk.runonsave": [
+        {
+          "match": ".*",
+          "command": "workbench.action.tasks.runTask",
+          "args": "Auto Git Push on Save (PowerShell)"
+        }
+      ]      "emeraldwalk.runonsave": [
+        {
+          "match": ".*",
+          "command": "workbench.action.tasks.runTask",
+          "args": "Auto Git Push on Save (PowerShell)"
+        }
+      ]      {
+        "emeraldwalk.runonsave": [
+          {
+            "match": ".*",
+            "command": "workbench.action.tasks.runTask",
+            "args": "Auto Git Push on Save (PowerShell)"
+          }
+        ]
+      }user_id = u.id
       WHERE st.user_id = ?
-    `;
-
-    const { results: countRes } = await c.env.DB.prepare(`SELECT COUNT(*) as total_count FROM (${baseQuery})`).bind(userId).all();
-    const totalCount = (countRes && countRes[0] && Number(countRes[0].total_count)) || 0;
-
-    let pagedQuery = baseQuery + ' ORDER BY st.fecha_transaccion DESC';
-    if (limit > 0) pagedQuery += ' LIMIT ? OFFSET ?';
-    const bindParams: any[] = [userId];
-    if (limit > 0) bindParams.push(limit, offset);
-
-    const { results } = await c.env.DB.prepare(pagedQuery).bind(...bindParams).all();
+      ORDER BY st.fecha_transaccion DESC
+    `).bind(userId).all();
     
-    return c.json({ transacciones: results, total: totalCount, limit, offset, user_id: userId });
+    return c.json({
+      transacciones: results,
+      total: results.length,
+      user_id: userId
+    });
     
   } catch (error) {
     console.error('Error fetching user transactions:', error);
@@ -3058,20 +2806,3 @@ app.get('*', async (c) => {
 });
 
 export default app;
-
-// Scheduled cron handler - weekly backup (if cron triggers configured)
-addEventListener('scheduled', (event: any) => {
-  event.waitUntil((async () => {
-    try {
-      console.log('🕒 Cron scheduled backup triggered');
-      await runBackupWithBindings((globalThis as any).DB ? { DB: (globalThis as any).DB, R2_BUCKET: (globalThis as any).R2_BUCKET } : ({} as any));
-      console.log('✅ Scheduled backup completed');
-    } catch (e) {
-      console.error('❌ Scheduled backup failed:', e);
-    }
-  })());
-});
-
-// Register modular routes
-registerExpenseRoutes(app);
-registerDbaRoutes(app);
