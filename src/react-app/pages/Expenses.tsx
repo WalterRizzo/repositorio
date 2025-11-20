@@ -101,7 +101,8 @@ export default function Expenses() {
   // Balance movements state
   const [balanceMovements, setBalanceMovements] = useState<any[]>([]);
   const [isLoadingMovements, setIsLoadingMovements] = useState(false);
-  const [movementsFilter, setMovementsFilter] = useState<string>('all'); // 'all', 'carga', 'descuento', 'ajuste'
+  // Only show 'carga' movements per requested UX (remove select)
+  const [movementsFilter, setMovementsFilter] = useState<string>('carga'); // fixed to 'carga'
   const [userFilter, setUserFilter] = useState<string>('all'); // Filtro por usuario
 
   // Multi-currency balances state
@@ -1342,16 +1343,7 @@ export default function Expenses() {
                     <option key={u.user_id} value={u.user_id} className="bg-gray-800">{u.name}</option>
                   ))}
                 </select>
-                <select
-                  value={movementsFilter}
-                  onChange={(e) => setMovementsFilter(e.target.value)}
-                  className="px-4 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all"
-                >
-                  <option value="all" className="bg-gray-800">Todos los movimientos</option>
-                  <option value="carga" className="bg-gray-800">Cargas</option>
-                  <option value="descuento" className="bg-gray-800">Descontados</option>
-                  <option value="ajuste" className="bg-gray-800">Ajustes</option>
-                </select>
+                {/* Movement type is fixed to 'CARGAS' per UI request, combo removed */}
                 <button
                   onClick={() => setShowExportPreview(true)}
                   className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"

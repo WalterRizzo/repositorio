@@ -94,6 +94,7 @@ export default function Reports() {
           if (userFilter && userFilter !== 'all') params.set('userId', userFilter);
       if (dateFrom) params.set('from', dateFrom);
       if (dateTo) params.set('to', dateTo);
+      console.debug('fetchReports: params', { userFilter, dateFrom, dateTo, params: params.toString() });
       const response = await fetch(`/api/expenses/reports/summary?${params.toString()}`);
       const data = await response.json();
       setReportData(data);
@@ -127,7 +128,26 @@ export default function Reports() {
       const res = await fetch(`/api/expenses?${params.toString()}`);
       if (!res.ok) throw new Error('Error fetching filtered expenses');
       const json = await res.json();
-      const rows = json.data || json || [];
+      let rows = json.data || json || [];
+      // enforce client-side filter for user in case backend ignores it due to auth restrictions
+      if (filters.userId && filters.userId !== 'all') {
+        const matchedUser = (usersList || []).find(u => String(u.user_id || u.id) === String(filters.userId));
+        // Keep flexible matching: compare user_name, user_email, user_id (string or numeric)
+        rows = rows.filter((r: any) => {
+          const rUserId = String(r.user_id || r.userId || (r.user && r.user.user_id) || '').toLowerCase();
+          const rUserName = String(r.user_name || r.name || r.usuario || '').toLowerCase();
+          const rUserEmail = String(r.user_email || r.email || '').toLowerCase();
+          const filterId = String(filters.userId).toLowerCase();
+          if (matchedUser) {
+            const muId = String(matchedUser.user_id || matchedUser.id || '').toLowerCase();
+            const muName = String(matchedUser.name || matchedUser.usuario || '').toLowerCase();
+            const muEmail = String(matchedUser.email || '').toLowerCase();
+            return rUserId === muId || rUserName === muName || rUserEmail === muEmail;
+          }
+          return rUserId === filterId || rUserName === filterId || rUserEmail === filterId;
+        });
+      }
+      console.debug('Filtered expenses (server) -> after user filter count:', rows.length);
       setFilteredExpenses(rows);
       return rows;
     } catch (err) {
@@ -174,11 +194,18 @@ export default function Reports() {
         const response = await fetch(`/api/expenses?${params.toString()}`);
         const json = await response.json();
         expenses = json.data || json || [];
+        // In addition, enforce user filter client-side in case of auth differences
+        if (userFilter && userFilter !== 'all') {
+          const matchedUser = usersList.find(u => String(u.user_id || u.id) === String(userFilter));
+          expenses = expenses.filter((e:any) => {
+            if (matchedUser && e.user_name) return String(e.user_name) === String(matchedUser.name) || String(e.user_id) === String(matchedUser.user_id || matchedUser.id);
+            return String(e.user_id) === String(userFilter);
+          });
+        }
       }
 
       // Prepare data for Excel
       const excelData = expenses.map((expense: any) => ({
-        'Fecha': new Date(expense.expense_date).toLocaleDateString('es-ES'),
         'Usuario': expense.user_name || expense.user_email || expense.user_id,
         'Descripción': expense.description,
         'Categoría': expense.category,
@@ -224,6 +251,8 @@ export default function Reports() {
       const filename = fileName && fileName.trim() !== ''
         ? `${fileName}.xlsx`
         : `ExpenseFlow_Reporte_${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}.xlsx`;
+
+      console.debug('Export: params', { userFilter, dateFrom, dateTo, exportOnlyVisible, expensesCount: expenses.length });
 
       // Download file
       XLSX.writeFile(wb, filename);
