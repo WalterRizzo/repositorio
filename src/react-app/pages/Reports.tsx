@@ -24,8 +24,11 @@ export default function Reports() {
   const [movementSummary, setMovementSummary] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
-  // Removed balance min/max filters — kept only simple type filter for 'carga' export
-  const [typeFilter, setTypeFilter] = useState<string>('carga');
+  // Filters: by user and date range
+  const [userFilter, setUserFilter] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
+  const [usersList, setUsersList] = useState<any[]>([]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -43,16 +46,17 @@ export default function Reports() {
     if (userProfile) {
       // Fetch reports for everyone (no auth restriction)
       fetchReports();
-      // Also fetch transactions movements summary and re-run when typeFilter changes
-      fetchMovementSummary(typeFilter);
+      // Also fetch transactions movements summary and available users
+      fetchMovementSummary({ userId: userFilter, from: dateFrom, to: dateTo });
+      fetchUsersList();
     }
   }, [userProfile]);
 
   useEffect(() => {
     if (userProfile) {
-      fetchMovementSummary(typeFilter);
+      fetchMovementSummary({ userId: userFilter, from: dateFrom, to: dateTo });
     }
-  }, [typeFilter, userProfile]);
+  }, [userFilter, dateFrom, dateTo, userProfile]);
 
   const fetchUserProfile = async () => {
     try {
@@ -76,10 +80,24 @@ export default function Reports() {
     }
   };
 
-  const fetchMovementSummary = async (type?: string) => {
+  const fetchUsersList = async () => {
+    try {
+      const res = await fetch('/api/users');
+      if (!res.ok) throw new Error('Error fetching users');
+      const data = await res.json();
+      setUsersList(data || []);
+    } catch (err) {
+      console.error('Error fetching users for filters:', err);
+      setUsersList([]);
+    }
+  }
+
+  const fetchMovementSummary = async (filters: { userId?: string; from?: string; to?: string } = {}) => {
     try {
       const params = new URLSearchParams();
-      if (type) params.set('type', type);
+      if (filters.userId && filters.userId !== 'all') params.set('user_id', filters.userId);
+      if (filters.from) params.set('from', filters.from);
+      if (filters.to) params.set('to', filters.to);
       
       const response = await fetch(`/api/transacciones-saldo/reports/summary?${params.toString()}`);
       if (!response.ok) throw new Error('Error fetching movement summary');
@@ -155,76 +173,7 @@ export default function Reports() {
     }
   };
 
-  const exportMovementsToExcel = async (filters: any = {}) => {
-    setIsExporting(true);
-    try {
-      const params = new URLSearchParams();
-      if (filters.type) params.set('type', String(filters.type));
-      // Fetch up to 5000 transactions for export (pagination fallback)
-      const limit = 5000;
-      let offset = 0;
-      const allTransactions: any[] = [];
-      while (true) {
-        params.set('limit', String(limit));
-        params.set('offset', String(offset));
-        if (filters.type) params.set('type', filters.type);
-        const res = await fetch(`/api/transacciones-saldo?${params.toString()}`);
-        if (!res.ok) {
-          const err = await res.json();
-          console.error('Error fetching movements for export', err);
-          break;
-        }
-        const data = await res.json();
-        const txs = data.transacciones || data.movements || [];
-        allTransactions.push(...txs);
-        offset += limit;
-        if (txs.length < limit || allTransactions.length >= 20000) break; // safety cap
-      }
-
-      // Create workbook
-      const wb = XLSX.utils.book_new();
-      const excelData = (allTransactions || []).map((tx: any) => ({
-        'Fecha': new Date(tx.fecha_transaccion).toLocaleString('es-ES'),
-        'Usuario': tx.user_name || tx.user_email || tx.user_id,
-        'Tipo': tx.tipo,
-        'Monto': tx.monto,
-        'Moneda': tx.currency,
-        'Saldo anterior': tx.saldo_anterior,
-        'Saldo nuevo': tx.saldo_nuevo,
-        'Descripción': tx.descripcion,
-        'Realizado por': tx.realizado_por,
-      }));
-      const ws = XLSX.utils.json_to_sheet(excelData);
-      XLSX.utils.book_append_sheet(wb, ws, 'Movimientos');
-
-      // Also fetch a summary and attach
-      const summaryRes = await fetch(`/api/transacciones-saldo/reports/summary?${params.toString()}`);
-      if (summaryRes.ok) {
-        const summary = await summaryRes.json();
-        if (summary.byType) {
-          const wsType = XLSX.utils.json_to_sheet(summary.byType.map((t:any) => ({ Tipo: t.type, Total: t.total, Cantidad: t.count })));
-          XLSX.utils.book_append_sheet(wb, wsType, 'Por Tipo');
-        }
-        if (summary.byCurrency) {
-          const wsCurrency = XLSX.utils.json_to_sheet(summary.byCurrency.map((c:any) => ({ Moneda: c.currency, Total: c.total, Cantidad: c.count })));
-          XLSX.utils.book_append_sheet(wb, wsCurrency, 'Por Moneda');
-        }
-        if (summary.byMonth) {
-          const wsMonth = XLSX.utils.json_to_sheet(summary.byMonth.map((m:any) => ({ Mes: m.month, Total: m.total, Cantidad: m.count })));
-          XLSX.utils.book_append_sheet(wb, wsMonth, 'Por Mes');
-        }
-      }
-
-      const now = new Date();
-      const filename = `ExpenseFlow_Movimientos_${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')}.xlsx`;
-      XLSX.writeFile(wb, filename);
-    } catch (error) {
-      console.error('Error exportando movimientos:', error);
-      alert('Error al exportar movimientos');
-    } finally {
-      setIsExporting(false);
-    }
-  };
+  // Removed 'Export Movements' helper; reports export focuses on summary & expenses
 
   if (authLoading || !user || !userProfile) {
     return (
@@ -252,35 +201,32 @@ export default function Reports() {
             <p className="text-gray-600 dark:text-gray-300">Análisis detallado de los gastos</p>
           </div>
           
-          <button
-            onClick={exportToExcel}
-            disabled={isExporting || !reportData}
-            className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Download className="w-4 h-4" />
-            <span className="font-medium">
-              {isExporting ? "Exportando..." : "Exportar a Excel"}
-            </span>
-          </button>
-          {/* Export Cargas only - replace generic Movements export with a 'Exportar Cargas' action */}
-          <button
-            onClick={async () => await exportMovementsToExcel({ type: typeFilter })}
-            disabled={isExporting}
-            className="ml-3 flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-lg hover:from-indigo-700 hover:to-violet-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Download className="w-4 h-4" />
-            <span className="font-medium">{isExporting ? 'Exportando cargas...' : 'Exportar Cargas'}</span>
-          </button>
+              <button
+                onClick={exportToExcel}
+                disabled={isExporting || !reportData}
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download className="w-4 h-4" />
+                <span className="font-medium">
+                  {isExporting ? "Exportando..." : "Exportar a Excel"}
+                </span>
+              </button>
         </div>
         <div className="mb-4 flex items-center space-x-3">
           <div className="flex items-center space-x-2">
-            <label className="text-xs text-gray-600 dark:text-gray-300">Tipo</label>
-            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-2 py-1 rounded bg-white/5 text-sm">
+            <label className="text-xs text-gray-600 dark:text-gray-300">Usuario</label>
+            <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="px-2 py-1 rounded bg-white/5 text-sm">
               <option value="all">Todos</option>
-              <option value="carga">Carga</option>
-              <option value="descuento">Gasto</option>
-              <option value="ajuste">Ajuste</option>
+              {usersList.map(u => (
+                <option key={u.user_id || u.id} value={u.user_id || u.id}>{u.name || u.email}</option>
+              ))}
             </select>
+          </div>
+          <div className="flex items-center space-x-2">
+            <label className="text-xs text-gray-600 dark:text-gray-300">Fecha desde:</label>
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="px-2 py-1 rounded bg-white/5 text-sm" />
+            <label className="text-xs text-gray-600 dark:text-gray-300">hasta:</label>
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="px-2 py-1 rounded bg-white/5 text-sm" />
           </div>
           {movementSummary && (
             <div className="ml-4 text-sm text-gray-700 dark:text-gray-300 bg-white/5 px-3 py-2 rounded-lg">
