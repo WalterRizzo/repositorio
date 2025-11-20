@@ -824,6 +824,47 @@
 /* Add shadow to table container */
 .table-container-card { border-radius: 12px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.45); }
 
+/* Specific styling for the balance movements table (magic-movements-table) */
+.magic-movements-table {
+  border-radius: 0.75rem;
+  border: 2px solid rgba(255,255,255,0.03);
+  transition: box-shadow 0.25s ease, transform 0.15s ease;
+}
+.magic-movements-table thead th {
+  background: linear-gradient(90deg, rgba(17,24,39,0.9), rgba(15,23,42,0.95));
+  color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.magic-movements-table tbody tr td { background: rgba(255,255,255,0.02); }
+.magic-movements-table tbody tr:hover td { transform: translateY(-6px); box-shadow: 0 18px 60px rgba(0,0,0,0.6); }
+
+/* Add vertical accent to rows depending on type */
+.magic-movements-table tbody tr[data-type="carga"] td:first-child::before,
+.magic-movements-table tbody tr[data-type="carga"] td:first-child::after {
+  content: '';
+}
+.magic-movements-table tbody tr td:first-child{ 
+  position: relative; padding-left: 20px; 
+}
+.magic-movements-table tbody tr[data-type="carga"] td:first-child::before { 
+  position: absolute; left: 6px; top: 12px; bottom: 12px; width: 6px; border-radius: 6px; background: linear-gradient(180deg,#10b981,#059669); content: '';
+}
+.magic-movements-table tbody tr[data-type="carga"] td:first-child { border-left: 6px solid #10b981; padding-left: 14px; }
+.magic-movements-table tbody tr[data-type="descuento"] td:first-child::before{
+  position:absolute;left:6px;top:12px;bottom:12px;width:6px;border-radius:6px;background:linear-gradient(180deg,#ef4444,#b91c1c);content:"";
+}
+.magic-movements-table tbody tr[data-type="descuento"] td:first-child { border-left: 6px solid #ef4444; padding-left: 14px; }
+.magic-movements-table tbody tr[data-type="ajuste"] td:first-child::before{
+  position:absolute;left:6px;top:12px;bottom:12px;width:6px;border-radius:6px;background:linear-gradient(180deg,#3b82f6,#1e40af);content:"";
+}
+.magic-movements-table tbody tr[data-type="ajuste"] td:first-child { border-left: 6px solid #3b82f6; padding-left: 14px; }
+
+/* Subtle highlight for selected rows */
+.magic-movements-table tbody tr.selected td { box-shadow: 0 16px 40px rgba(96,165,250,0.08); background: linear-gradient(90deg, rgba(96,165,250,0.03), rgba(0,0,0,0.02)); border-color: rgba(96,165,250,0.08); }
+
+/* Smaller padding for movements table to fit columns */
+.magic-movements-table tbody tr td { padding: 8px 10px; font-size: 12px; }
+
 /* Pulso de onda */
 @keyframes wave-pulse {
   0% {
