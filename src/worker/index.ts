@@ -1384,6 +1384,63 @@ app.get('/api/expenses/reports/summary', async (c) => {
   }
 });
 
+// 📊 TRANSACTION MOVEMENTS SUMMARY (with filters)
+app.get('/api/transacciones-saldo/reports/summary', authMiddleware(), async (c) => {
+  try {
+    const user = c.get('user')! as User;
+    const url = new URL(c.req.url);
+    const paramsQs = url.searchParams;
+    const qUserId = paramsQs.get('userId');
+    const qType = paramsQs.get('type');
+    const qCurrency = paramsQs.get('currency');
+    const qFrom = paramsQs.get('from');
+    const qTo = paramsQs.get('to');
+    // balance range filters removed per request — keep simpler list of filters
+
+    const whereClauses: string[] = [];
+    const bindParams: any[] = [];
+
+    // Allow admin/supervisor to query all users, otherwise limit to current user
+    if (user.role !== 'admin' && user.role !== 'supervisor') {
+      whereClauses.push('st.user_id = ?');
+      bindParams.push(user.id);
+    } else if (qUserId && qUserId !== 'all') {
+      whereClauses.push('st.user_id = ?');
+      bindParams.push(qUserId);
+    }
+
+    if (qType && qType !== 'all') { whereClauses.push('st.tipo = ?'); bindParams.push(qType); }
+    if (qCurrency && qCurrency !== 'all') { whereClauses.push('st.currency = ?'); bindParams.push(qCurrency); }
+    if (qFrom) { whereClauses.push('st.fecha_transaccion >= ?'); bindParams.push(qFrom); }
+    if (qTo) { whereClauses.push('st.fecha_transaccion <= ?'); bindParams.push(qTo); }
+    // Removed balance min/max WHERE clauses — keep only type/currency/date/user filters
+
+    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    // Total / totals
+    const totalQuery = `SELECT COALESCE(SUM(st.monto), 0) as total_amount, COUNT(1) as total_count FROM saldo_transacciones st LEFT JOIN users u ON st.user_id = u.id ${whereSql}`;
+    const { results: totalRes } = await c.env.DB.prepare(totalQuery).bind(...bindParams).all();
+    const totals = { total_amount: Number(totalRes?.[0]?.total_amount) || 0, total_count: Number(totalRes?.[0]?.total_count) || 0 };
+
+    // By type
+    const byTypeQuery = `SELECT st.tipo as type, COALESCE(SUM(st.monto), 0) as total, COUNT(1) as count FROM saldo_transacciones st LEFT JOIN users u ON st.user_id = u.id ${whereSql} GROUP BY st.tipo ORDER BY total DESC`;
+    const { results: byType } = await c.env.DB.prepare(byTypeQuery).bind(...bindParams).all();
+
+    // By month
+    const byMonthQuery = `SELECT strftime('%Y-%m', st.fecha_transaccion) as month, COALESCE(SUM(st.monto), 0) as total, COUNT(1) as count FROM saldo_transacciones st LEFT JOIN users u ON st.user_id = u.id ${whereSql} GROUP BY month ORDER BY month DESC LIMIT 12`;
+    const { results: byMonth } = await c.env.DB.prepare(byMonthQuery).bind(...bindParams).all();
+
+    // By currency
+    const byCurrencyQuery = `SELECT st.currency, COALESCE(SUM(st.monto), 0) as total, COUNT(1) as count FROM saldo_transacciones st LEFT JOIN users u ON st.user_id = u.id ${whereSql} GROUP BY st.currency ORDER BY total DESC`;
+    const { results: byCurrency } = await c.env.DB.prepare(byCurrencyQuery).bind(...bindParams).all();
+
+    return c.json({ totals, byType, byMonth, byCurrency });
+  } catch (error) {
+    console.error('Error generating transactions summary:', error);
+    return c.json({ error: String(error) }, 500);
+  }
+});
+
 // Upload receipt photo (R2 disabled for now)
 app.post('/api/expenses/:id/receipt', authMiddleware(), async (c) => {
   try {

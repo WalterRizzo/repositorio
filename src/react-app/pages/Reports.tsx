@@ -23,11 +23,8 @@ export default function Reports() {
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
-  const [minBalanceBefore, setMinBalanceBefore] = useState<string>('');
-  const [maxBalanceBefore, setMaxBalanceBefore] = useState<string>('');
-  const [minBalanceAfter, setMinBalanceAfter] = useState<string>('');
-  const [maxBalanceAfter, setMaxBalanceAfter] = useState<string>('');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
+  // Removed balance min/max filters — kept only simple type filter for 'carga' export
+  const [typeFilter, setTypeFilter] = useState<string>('carga');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -138,10 +135,6 @@ export default function Reports() {
     setIsExporting(true);
     try {
       const params = new URLSearchParams();
-      if (filters.minBalanceBefore) params.set('minBalanceBefore', String(filters.minBalanceBefore));
-      if (filters.maxBalanceBefore) params.set('maxBalanceBefore', String(filters.maxBalanceBefore));
-      if (filters.minBalanceAfter) params.set('minBalanceAfter', String(filters.minBalanceAfter));
-      if (filters.maxBalanceAfter) params.set('maxBalanceAfter', String(filters.maxBalanceAfter));
       if (filters.type) params.set('type', String(filters.type));
       // Fetch up to 5000 transactions for export (pagination fallback)
       const limit = 5000;
@@ -247,7 +240,7 @@ export default function Reports() {
           </button>
           {/* Export Cargas only - replace generic Movements export with a 'Exportar Cargas' action */}
           <button
-            onClick={async () => await exportMovementsToExcel({ minBalanceBefore, maxBalanceBefore, minBalanceAfter, maxBalanceAfter, type: 'carga' })}
+            onClick={async () => await exportMovementsToExcel({ type: typeFilter })}
             disabled={isExporting}
             className="ml-3 flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-lg hover:from-indigo-700 hover:to-violet-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -257,14 +250,6 @@ export default function Reports() {
         </div>
         <div className="mb-4 flex items-center space-x-3">
           <div className="flex items-center space-x-2">
-            <label className="text-xs text-gray-600 dark:text-gray-300">Saldo anterior min</label>
-            <input type="number" value={minBalanceBefore} onChange={(e) => setMinBalanceBefore(e.target.value)} className="px-2 py-1 rounded bg-white/5 text-sm" />
-          </div>
-          <div className="flex items-center space-x-2">
-            <label className="text-xs text-gray-600 dark:text-gray-300">Saldo anterior max</label>
-            <input type="number" value={maxBalanceBefore} onChange={(e) => setMaxBalanceBefore(e.target.value)} className="px-2 py-1 rounded bg-white/5 text-sm" />
-          </div>
-          <div className="flex items-center space-x-2">
             <label className="text-xs text-gray-600 dark:text-gray-300">Tipo</label>
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-2 py-1 rounded bg-white/5 text-sm">
               <option value="all">Todos</option>
@@ -273,14 +258,7 @@ export default function Reports() {
               <option value="ajuste">Ajuste</option>
             </select>
           </div>
-          <div className="flex items-center space-x-2">
-            <label className="text-xs text-gray-600 dark:text-gray-300">Saldo nuevo min</label>
-            <input type="number" value={minBalanceAfter} onChange={(e) => setMinBalanceAfter(e.target.value)} className="px-2 py-1 rounded bg-white/5 text-sm" />
-          </div>
-          <div className="flex items-center space-x-2">
-            <label className="text-xs text-gray-600 dark:text-gray-300">Saldo nuevo max</label>
-            <input type="number" value={maxBalanceAfter} onChange={(e) => setMaxBalanceAfter(e.target.value)} className="px-2 py-1 rounded bg-white/5 text-sm" />
-          </div>
+          
         </div>
 
         {isLoading ? (
