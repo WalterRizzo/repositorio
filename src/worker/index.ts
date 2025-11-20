@@ -2661,7 +2661,7 @@ app.get('/api/transacciones-saldo', authMiddleware(), async (c) => {
     
     const params = [];
     
-    if (user.role !== 'admin') {
+    if (user.role !== 'admin' && user.role !== 'supervisor') {
       // Los usuarios normales solo ven sus propias transacciones
       query += ' WHERE st.user_id = ?';
       params.push(user.id);
@@ -2688,8 +2688,8 @@ app.get('/api/users/:userId/transacciones-saldo', authMiddleware(), async (c) =>
     const user = c.get('user')! as User;
     const userId = c.req.param('userId');
     
-    if (user.role !== 'admin') {
-      return c.json({ error: 'Solo administradores pueden consultar transacciones de otros usuarios' }, 403);
+    if (!['admin', 'supervisor'].includes(user.role)) {
+      return c.json({ error: 'Solo administradores o supervisores pueden consultar transacciones de otros usuarios' }, 403);
     }
     
     const { results } = await c.env.DB.prepare(`
@@ -2708,27 +2708,7 @@ app.get('/api/users/:userId/transacciones-saldo', authMiddleware(), async (c) =>
         st.fecha_transaccion,
         st.created_at
       FROM saldo_transacciones st
-      LEFT JOIN users u ON st.      "emeraldwalk.runonsave": [
-        {
-          "match": ".*",
-          "command": "workbench.action.tasks.runTask",
-          "args": "Auto Git Push on Save (PowerShell)"
-        }
-      ]      "emeraldwalk.runonsave": [
-        {
-          "match": ".*",
-          "command": "workbench.action.tasks.runTask",
-          "args": "Auto Git Push on Save (PowerShell)"
-        }
-      ]      {
-        "emeraldwalk.runonsave": [
-          {
-            "match": ".*",
-            "command": "workbench.action.tasks.runTask",
-            "args": "Auto Git Push on Save (PowerShell)"
-          }
-        ]
-      }user_id = u.id
+      LEFT JOIN users u ON st.user_id = u.id
       WHERE st.user_id = ?
       ORDER BY st.fecha_transaccion DESC
     `).bind(userId).all();
