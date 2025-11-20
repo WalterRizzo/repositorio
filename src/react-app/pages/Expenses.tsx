@@ -1143,8 +1143,8 @@ export default function Expenses() {
                   {users
                     .slice((usersPage - 1) * recordsPerPage, usersPage * recordsPerPage)
                     .map((user) => (
-                    <tr key={user.user_id} className="hover:bg-black/10 dark:hover:bg-gray-700/50 transition-all">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    <tr key={user.user_id} className="hover:bg-black/10 dark:hover:bg-gray-700/50 transition-all border-b border-white/5 group hover:shadow-lg">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white border-l-4 border-transparent group-hover:border-indigo-500/40 transition-all">
                         <div>
                           <div className="font-bold">{user.name}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
@@ -1280,7 +1280,7 @@ export default function Expenses() {
                         .filter(m => userFilter === 'all' || m.user_id === userFilter)
                         .map((movement) => (
                           <React.Fragment key={movement.id}>
-                          <tr className="hover-lift text-white table-row-card">
+                          <tr className="hover-lift text-white table-row-card" data-type={movement.type} title={movement.type}>
                             <td className="px-2 py-2 sm:hidden text-sm">
                               <button onClick={() => setExpandedMovements(prev => ({...prev, [String(movement.id)]: !prev[String(movement.id)]}))} className="px-2 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700">
                                 {expandedMovements[String(movement.id)] ? '−' : '+'}

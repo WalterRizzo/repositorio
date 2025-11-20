@@ -298,9 +298,9 @@ export default function UserManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {users.map((userItem) => (
-                      <tr key={userItem.user_id} className="hover:bg-white/5 transition-all duration-200 group hover-lift">
-                      <td className="px-4 py-3">
+                    {users.map((userItem) => (
+                      <tr key={userItem.user_id} className="hover:bg-white/5 transition-all duration-200 group hover-lift border-b border-white/5">
+                      <td className="px-4 py-3 border-l-4 border-transparent group-hover:border-indigo-500/40 transition-all">
                         <div className="flex items-center space-x-3">
                           <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-xs shadow-lg">
                             {userItem.user_id.charAt(0).toUpperCase()}
@@ -377,7 +377,7 @@ export default function UserManagement() {
                             <>
                               <button
                                 onClick={() => startEdit(userItem)}
-                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-violet-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 border-2 border-violet-300"
+                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-violet-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 border-2 border-violet-300 hover:ring-2 hover:ring-violet-500/40"
                                 title="Editar"
                               >
                                 <Edit2 className="w-4 h-4" />
@@ -385,7 +385,7 @@ export default function UserManagement() {
                               </button>
                               <button
                                 onClick={() => deleteUser(userItem.user_id)}
-                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 border-2 border-rose-300"
+                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 border-2 border-rose-300 hover:ring-2 hover:ring-rose-400/30"
                                 title="Eliminar"
                               >
                                 <Trash2 className="w-4 h-4" />

@@ -476,12 +476,12 @@ export default function ExpensesTable({
                   </div>
 
                   <div className="flex items-center space-x-1">
-                    <button onClick={() => onEdit(expense)} className="p-1 w-8 h-8 flex items-center justify-center bg-indigo-600 text-white rounded-full text-xs"> <Edit3 className="w-4 h-4" /> </button>
-                    <button onClick={() => onDelete(expense.id)} className="p-1 w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-full text-xs"> <Trash2 className="w-4 h-4" /> </button>
+                    <button onClick={() => onEdit(expense)} className="p-1 w-8 h-8 flex items-center justify-center bg-indigo-600 text-white rounded-full text-xs hover:ring-2 hover:ring-indigo-500/30"> <Edit3 className="w-4 h-4" /> </button>
+                    <button onClick={() => onDelete(expense.id)} className="p-1 w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-full text-xs hover:ring-2 hover:ring-rose-400/30"> <Trash2 className="w-4 h-4" /> </button>
                     {userRole !== 'usuario' && (
                       <>
-                        <button onClick={() => handleApproveClick(expense.id)} className="p-1 w-8 h-8 flex items-center justify-center bg-green-500 text-white rounded-full text-xs"> <CheckCircle className="w-4 h-4" /> </button>
-                        <button onClick={() => handleRejectClick(expense.id)} className="p-1 w-8 h-8 flex items-center justify-center bg-orange-500 text-white rounded-full text-xs"> <XCircle className="w-4 h-4" /> </button>
+                        <button onClick={() => handleApproveClick(expense.id)} className="p-1 w-8 h-8 flex items-center justify-center bg-green-500 text-white rounded-full text-xs hover:ring-2 hover:ring-green-400/30"> <CheckCircle className="w-4 h-4" /> </button>
+                        <button onClick={() => handleRejectClick(expense.id)} className="p-1 w-8 h-8 flex items-center justify-center bg-orange-500 text-white rounded-full text-xs hover:ring-2 hover:ring-orange-400/30"> <XCircle className="w-4 h-4" /> </button>
                       </>
                     )}
                   </div>

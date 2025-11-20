@@ -38,6 +38,10 @@ export default function Reports() {
     status: 'all',
     minAmount: '',
     maxAmount: '',
+    minBalanceBefore: '',
+    maxBalanceBefore: '',
+    minBalanceAfter: '',
+    maxBalanceAfter: '',
     hasReceipt: 'all',
     search: ''
   });
@@ -163,6 +167,10 @@ export default function Reports() {
       if (filtersToApply.status && filtersToApply.status !== 'all') params.set('status', filtersToApply.status);
       if (filtersToApply.minAmount) params.set('minAmount', String(filtersToApply.minAmount));
       if (filtersToApply.maxAmount) params.set('maxAmount', String(filtersToApply.maxAmount));
+      if (filtersToApply.minBalanceBefore) params.set('minBalanceBefore', String(filtersToApply.minBalanceBefore));
+      if (filtersToApply.maxBalanceBefore) params.set('maxBalanceBefore', String(filtersToApply.maxBalanceBefore));
+      if (filtersToApply.minBalanceAfter) params.set('minBalanceAfter', String(filtersToApply.minBalanceAfter));
+      if (filtersToApply.maxBalanceAfter) params.set('maxBalanceAfter', String(filtersToApply.maxBalanceAfter));
       if (filtersToApply.hasReceipt && filtersToApply.hasReceipt !== 'all') params.set('hasReceipt', filtersToApply.hasReceipt);
       if (filtersToApply.search) params.set('search', filtersToApply.search);
 
@@ -192,6 +200,10 @@ export default function Reports() {
       if (filtersToApply.status && filtersToApply.status !== 'all') params.set('status', filtersToApply.status);
       if (filtersToApply.minAmount) params.set('minAmount', String(filtersToApply.minAmount));
       if (filtersToApply.maxAmount) params.set('maxAmount', String(filtersToApply.maxAmount));
+      if (filtersToApply.minBalanceBefore) params.set('minBalanceBefore', String(filtersToApply.minBalanceBefore));
+      if (filtersToApply.maxBalanceBefore) params.set('maxBalanceBefore', String(filtersToApply.maxBalanceBefore));
+      if (filtersToApply.minBalanceAfter) params.set('minBalanceAfter', String(filtersToApply.minBalanceAfter));
+      if (filtersToApply.maxBalanceAfter) params.set('maxBalanceAfter', String(filtersToApply.maxBalanceAfter));
       if (filtersToApply.hasReceipt && filtersToApply.hasReceipt !== 'all') params.set('hasReceipt', filtersToApply.hasReceipt);
       if (filtersToApply.search) params.set('search', filtersToApply.search);
 
@@ -343,6 +355,10 @@ export default function Reports() {
           if (appliedFilters.status && appliedFilters.status !== 'all') filterRows.push(['Estado', appliedFilters.status]);
           if (appliedFilters.minAmount) filterRows.push(['Monto Min', appliedFilters.minAmount]);
           if (appliedFilters.maxAmount) filterRows.push(['Monto Max', appliedFilters.maxAmount]);
+          if ((appliedFilters as any).minBalanceBefore) filterRows.push(['Saldo Anterior Min', (appliedFilters as any).minBalanceBefore]);
+          if ((appliedFilters as any).maxBalanceBefore) filterRows.push(['Saldo Anterior Max', (appliedFilters as any).maxBalanceBefore]);
+          if ((appliedFilters as any).minBalanceAfter) filterRows.push(['Saldo Nuevo Min', (appliedFilters as any).minBalanceAfter]);
+          if ((appliedFilters as any).maxBalanceAfter) filterRows.push(['Saldo Nuevo Max', (appliedFilters as any).maxBalanceAfter]);
           if (appliedFilters.hasReceipt && appliedFilters.hasReceipt !== 'all') filterRows.push(['Tiene Recibo', appliedFilters.hasReceipt]);
           if (appliedFilters.search) filterRows.push(['Busqueda', appliedFilters.search]);
         }
@@ -517,6 +533,10 @@ export default function Reports() {
           if (appliedFilters.currency && appliedFilters.currency !== 'all') filterRowsTx.push(['Moneda', appliedFilters.currency]);
           if (appliedFilters.minAmount) filterRowsTx.push(['Monto Min', appliedFilters.minAmount]);
           if (appliedFilters.maxAmount) filterRowsTx.push(['Monto Max', appliedFilters.maxAmount]);
+          if ((appliedFilters as any).minBalanceBefore) filterRowsTx.push(['Saldo Anterior Min', (appliedFilters as any).minBalanceBefore]);
+          if ((appliedFilters as any).maxBalanceBefore) filterRowsTx.push(['Saldo Anterior Max', (appliedFilters as any).maxBalanceBefore]);
+          if ((appliedFilters as any).minBalanceAfter) filterRowsTx.push(['Saldo Nuevo Min', (appliedFilters as any).minBalanceAfter]);
+          if ((appliedFilters as any).maxBalanceAfter) filterRowsTx.push(['Saldo Nuevo Max', (appliedFilters as any).maxBalanceAfter]);
           if (appliedFilters.search) filterRowsTx.push(['Busqueda', appliedFilters.search]);
         }
         // filters handled via ExcelJS
@@ -845,7 +865,7 @@ export default function Reports() {
                       setAppliedFilters(null);
                       setFilteredReportDataBackend(reportData);
                       setFilteredExpenses([]);
-                      setStagedFilters({from:'', to:'', userId:'all', category:'all', currency:'all', status:'all', minAmount: '', maxAmount: '', hasReceipt: 'all', search:''});
+                      setStagedFilters({from:'', to:'', userId:'all', category:'all', currency:'all', status:'all', minAmount: '', maxAmount: '', minBalanceBefore: '', maxBalanceBefore: '', minBalanceAfter: '', maxBalanceAfter: '', hasReceipt: 'all', search:''});
                     } else {
                       setAppliedFilters(newFilters);
                       fetchFilteredSummaryFromBackend(newFilters);
@@ -859,7 +879,7 @@ export default function Reports() {
                 </div>
               );
             })}
-            <button onClick={() => { setAppliedFilters(null); setFilteredReportDataBackend(reportData); setFilteredExpenses([]); setStagedFilters({from:'', to:'', userId:'all', category:'all', currency:'all', status:'all', minAmount: '', maxAmount: '', hasReceipt: 'all', search:''}); }} className="ml-2 px-3 py-1 rounded bg-indigo-700 hover:bg-indigo-600 text-white text-sm">Limpiar todo</button>
+            <button onClick={() => { setAppliedFilters(null); setFilteredReportDataBackend(reportData); setFilteredExpenses([]); setStagedFilters({from:'', to:'', userId:'all', category:'all', currency:'all', status:'all', minAmount: '', maxAmount: '', minBalanceBefore: '', maxBalanceBefore: '', minBalanceAfter: '', maxBalanceAfter: '', hasReceipt: 'all', search:''}); }} className="ml-2 px-3 py-1 rounded bg-indigo-700 hover:bg-indigo-600 text-white text-sm">Limpiar todo</button>
           </div>
         )}
 
@@ -954,7 +974,7 @@ export default function Reports() {
                 </div>
                 <div className="flex items-center space-x-2 md:col-span-3 mt-3">
                   <input type="text" placeholder="Buscar por descripción o usuario..." value={stagedFilters.search} onChange={(e) => setStagedFilters(prev => ({...prev, search: e.target.value}))} className="flex-1 px-3 py-2 rounded bg-gray-800 text-white" />
-                  <button onClick={() => setStagedFilters({from:'', to:'', userId:'all', category:'all', currency:'all', status:'all', minAmount: '', maxAmount: '', hasReceipt: 'all', search:''})} className="px-4 py-2 rounded bg-gray-700 text-white">Reset</button>
+                  <button onClick={() => setStagedFilters({from:'', to:'', userId:'all', category:'all', currency:'all', status:'all', minAmount: '', maxAmount: '', minBalanceBefore: '', maxBalanceBefore: '', minBalanceAfter: '', maxBalanceAfter: '', hasReceipt: 'all', search:''})} className="px-4 py-2 rounded bg-gray-700 text-white">Reset</button>
                 </div>
                 {/* Additional filters row */}
                 <div className="flex flex-col mt-3">
@@ -964,6 +984,22 @@ export default function Reports() {
                 <div className="flex flex-col mt-3">
                   <label className="text-xs text-gray-300 mb-1">Monto Max</label>
                   <input type="number" value={stagedFilters.maxAmount || ''} onChange={(e) => setStagedFilters(prev => ({...prev, maxAmount: e.target.value}))} className="px-3 py-2 rounded bg-gray-800 text-white" />
+                </div>
+                <div className="flex flex-col mt-3">
+                  <label className="text-xs text-gray-300 mb-1">Saldo Anterior Min</label>
+                  <input type="number" value={(stagedFilters as any).minBalanceBefore || ''} onChange={(e) => setStagedFilters(prev => ({...prev, minBalanceBefore: e.target.value}))} className="px-3 py-2 rounded bg-gray-800 text-white" />
+                </div>
+                <div className="flex flex-col mt-3">
+                  <label className="text-xs text-gray-300 mb-1">Saldo Anterior Max</label>
+                  <input type="number" value={(stagedFilters as any).maxBalanceBefore || ''} onChange={(e) => setStagedFilters(prev => ({...prev, maxBalanceBefore: e.target.value}))} className="px-3 py-2 rounded bg-gray-800 text-white" />
+                </div>
+                <div className="flex flex-col mt-3">
+                  <label className="text-xs text-gray-300 mb-1">Saldo Nuevo Min</label>
+                  <input type="number" value={(stagedFilters as any).minBalanceAfter || ''} onChange={(e) => setStagedFilters(prev => ({...prev, minBalanceAfter: e.target.value}))} className="px-3 py-2 rounded bg-gray-800 text-white" />
+                </div>
+                <div className="flex flex-col mt-3">
+                  <label className="text-xs text-gray-300 mb-1">Saldo Nuevo Max</label>
+                  <input type="number" value={(stagedFilters as any).maxBalanceAfter || ''} onChange={(e) => setStagedFilters(prev => ({...prev, maxBalanceAfter: e.target.value}))} className="px-3 py-2 rounded bg-gray-800 text-white" />
                 </div>
                 <div className="flex flex-col mt-3">
                   <label className="text-xs text-gray-300 mb-1">Tiene Recibo</label>
@@ -992,7 +1028,7 @@ export default function Reports() {
                     }
                     setShowFiltersPanel(false);
                   }} className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-white">Aplicar</button>
-                  <button onClick={() => { setStagedFilters({from:'', to:'', userId:'all', category:'all', currency:'all', status:'all', minAmount: '', maxAmount: '', hasReceipt: 'all', search:''}); setShowFiltersPanel(false); }} className="px-4 py-2 rounded bg-gray-700 text-white">Limpiar</button>
+                  <button onClick={() => { setStagedFilters({from:'', to:'', userId:'all', category:'all', currency:'all', status:'all', minAmount: '', maxAmount: '', minBalanceBefore: '', maxBalanceBefore: '', minBalanceAfter: '', maxBalanceAfter: '', hasReceipt: 'all', search:''}); setShowFiltersPanel(false); }} className="px-4 py-2 rounded bg-gray-700 text-white">Limpiar</button>
                   <label className="flex items-center space-x-2 ml-4">
                     <input type="checkbox" checked={exportOnlyVisible} onChange={(e) => setExportOnlyVisible(e.target.checked)} />
                     <span className="text-xs text-gray-300">Exportar solo visible</span>
