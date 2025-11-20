@@ -1174,7 +1174,7 @@ export default function Expenses() {
                         <div className="flex items-center space-x-3">
                           <button
                             onClick={() => openUserModal(user)}
-                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all hover:from-blue-600 hover:to-indigo-700 hover:scale-110"
+                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all hover:from-blue-600 hover:to-indigo-700"
                             title="Editar saldo"
                           >
                             <Edit3 className="w-4 h-4" />
@@ -1182,7 +1182,7 @@ export default function Expenses() {
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user.user_id)}
-                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all hover:from-red-600 hover:to-pink-700 hover:scale-110"
+                            className="group relative inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow hover:shadow-md transform transition-all hover:from-red-600 hover:to-pink-700"
                             title="Eliminar usuario"
                           >
                             <Trash2 className="w-4 h-4" />
