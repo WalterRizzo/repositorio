@@ -1238,7 +1238,7 @@ export default function Expenses() {
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400 font-semibold">
                               ${Number(movement.balance_before).toFixed(2)}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-sm font-black text-green-400">
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-black ${Number(movement.balance_after) < 0 ? 'text-red-400' : 'text-green-400'}`}>
                               ${Number(movement.balance_after).toFixed(2)}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-300">
@@ -1289,7 +1289,7 @@ export default function Expenses() {
                         <button
                           onClick={() => setMovementsPage(Math.max(1, movementsPage - 1))}
                           disabled={movementsPage === 1}
-                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm"
+                          className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm"
                         >
                           ← Anterior
                         </button>
@@ -1308,7 +1308,7 @@ export default function Expenses() {
                             .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
                             .filter(m => userFilter === 'all' || m.user_id === userFilter)
                             .length / recordsPerPage)}
-                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm"
+                          className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm"
                         >
                           Siguiente →
                         </button>
@@ -1427,10 +1427,10 @@ export default function Expenses() {
                               {movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}
                             </span>
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-400 font-semibold">
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${Number(movement.balance_before) < 0 ? 'text-red-400' : 'text-gray-400'}`}>
                             ${Number(movement.balance_before).toFixed(2)}
                           </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm font-black text-green-400">
+                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-black ${Number(movement.balance_after) < 0 ? 'text-red-400' : 'text-green-400'}`}>
                             ${Number(movement.balance_after).toFixed(2)}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-300">
@@ -2243,10 +2243,10 @@ export default function Expenses() {
                               <td className="px-3 py-2 whitespace-nowrap text-white">
                                 {movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}
                               </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-gray-400">
+                              <td className={`px-3 py-2 whitespace-nowrap ${Number(movement.balance_before) < 0 ? 'text-red-400' : 'text-gray-400'}`}>
                                 ${Number(movement.balance_before).toFixed(2)}
                               </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-green-400 font-bold">
+                              <td className={`px-3 py-2 whitespace-nowrap font-bold ${Number(movement.balance_after) < 0 ? 'text-red-400' : 'text-green-400'}`}>
                                 ${Number(movement.balance_after).toFixed(2)}
                               </td>
                               <td className="px-3 py-2 text-gray-300 truncate max-w-xs">{movement.description}</td>
