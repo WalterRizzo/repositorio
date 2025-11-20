@@ -9,6 +9,7 @@ import ReportsSummary from "@/react-app/components/ReportsSummary";
 import CategoryChart from "@/react-app/components/CategoryChart";
 import MonthlyChart from "@/react-app/components/MonthlyChart";
 import TrendAIChart from "../components/TrendAIChart";
+import ExportModal from "@/react-app/components/ExportModal";
 
 interface ReportData {
   byCategory: Array<{ category: string; total: number; count: number }>;
@@ -24,11 +25,28 @@ export default function Reports() {
   const [movementSummary, setMovementSummary] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFileName, setExportFileName] = useState('');
+  const [exportOnlyVisible, setExportOnlyVisible] = useState(true);
   // Filters: by user and date range
   const [userFilter, setUserFilter] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [usersList, setUsersList] = useState<any[]>([]);
+  const [filteredExpenses, setFilteredExpenses] = useState<any[]>([]);
+
+  useEffect(() => {
+    // default file name when filters change
+    const userLabel = usersList.find(u => (u.user_id || u.id) === userFilter)?.name;
+    const short = userFilter && userFilter !== 'all' ? `_${userLabel || userFilter}` : '';
+    if (dateFrom || dateTo) {
+      const from = dateFrom ? dateFrom : 'start';
+      const to = dateTo ? dateTo : 'end';
+      setExportFileName(`Reportes${short}_${from}_to_${to}`);
+    } else {
+      setExportFileName(`Reportes${short}`);
+    }
+  }, [userFilter, dateFrom, dateTo, usersList]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -44,9 +62,6 @@ export default function Reports() {
 
   useEffect(() => {
     if (userProfile) {
-      // Fetch reports for everyone (no auth restriction)
-      fetchReports();
-      // Also fetch transactions movements summary and available users
       fetchMovementSummary({ userId: userFilter, from: dateFrom, to: dateTo });
       fetchUsersList();
     }
@@ -55,6 +70,9 @@ export default function Reports() {
   useEffect(() => {
     if (userProfile) {
       fetchMovementSummary({ userId: userFilter, from: dateFrom, to: dateTo });
+      // Keep filtered expenses in sync with selected filters
+      fetchFilteredExpensesFromBackend({ userId: userFilter, from: dateFrom, to: dateTo });
+      fetchReports();
     }
   }, [userFilter, dateFrom, dateTo, userProfile]);
 
@@ -69,8 +87,14 @@ export default function Reports() {
   };
 
   const fetchReports = async () => {
+    setIsLoading(true);
+    setReportData(null);
     try {
-      const response = await fetch("/api/expenses/reports/summary");
+      const params = new URLSearchParams();
+          if (userFilter && userFilter !== 'all') params.set('userId', userFilter);
+      if (dateFrom) params.set('from', dateFrom);
+      if (dateTo) params.set('to', dateTo);
+      const response = await fetch(`/api/expenses/reports/summary?${params.toString()}`);
       const data = await response.json();
       setReportData(data);
     } catch (error) {
@@ -92,10 +116,31 @@ export default function Reports() {
     }
   }
 
+  const fetchFilteredExpensesFromBackend = async (filters: { userId?: string; from?: string; to?: string } = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.userId && filters.userId !== 'all') params.set('userId', String(filters.userId));
+      if (filters.from) params.set('from', filters.from);
+      if (filters.to) params.set('to', filters.to);
+      // request large limit for export and preview
+      params.set('limit', '1000');
+      const res = await fetch(`/api/expenses?${params.toString()}`);
+      if (!res.ok) throw new Error('Error fetching filtered expenses');
+      const json = await res.json();
+      const rows = json.data || json || [];
+      setFilteredExpenses(rows);
+      return rows;
+    } catch (err) {
+      console.error('Error fetching filtered expenses for export:', err);
+      setFilteredExpenses([]);
+      return [];
+    }
+  };
+
   const fetchMovementSummary = async (filters: { userId?: string; from?: string; to?: string } = {}) => {
     try {
       const params = new URLSearchParams();
-      if (filters.userId && filters.userId !== 'all') params.set('user_id', filters.userId);
+          if (filters.userId && filters.userId !== 'all') params.set('userId', filters.userId);
       if (filters.from) params.set('from', filters.from);
       if (filters.to) params.set('to', filters.to);
       
@@ -109,12 +154,27 @@ export default function Reports() {
     }
   };
 
-  const exportToExcel = async () => {
+  const exportToExcel = async (fileName?: string) => {
     setIsExporting(true);
     try {
-      // Fetch all expenses for export
-      const response = await fetch("/api/expenses");
-      const expenses = await response.json();
+      // Fetch filtered expenses for export (use current filters)
+      const params = new URLSearchParams();
+      if (userFilter && userFilter !== 'all') params.set('userId', userFilter);
+      if (dateFrom) params.set('from', dateFrom);
+      if (dateTo) params.set('to', dateTo);
+      // request plenty of rows for export
+      params.set('limit', '1000');
+      let expenses = [];
+      if (exportOnlyVisible) {
+        // If user wants only visible, use already-fetched filteredExpenses (or fetch if empty)
+        expenses = (filteredExpenses && filteredExpenses.length > 0)
+          ? filteredExpenses
+          : (await fetchFilteredExpensesFromBackend({ userId: userFilter, from: dateFrom, to: dateTo }));
+      } else {
+        const response = await fetch(`/api/expenses?${params.toString()}`);
+        const json = await response.json();
+        expenses = json.data || json || [];
+      }
 
       // Prepare data for Excel
       const excelData = expenses.map((expense: any) => ({
@@ -159,9 +219,11 @@ export default function Reports() {
         XLSX.utils.book_append_sheet(wb, wsMonth, 'Por Mes');
       }
 
-      // Generate filename with current date
+      // Generate filename with current date if not provided
       const now = new Date();
-      const filename = `ExpenseFlow_Reporte_${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}.xlsx`;
+      const filename = fileName && fileName.trim() !== ''
+        ? `${fileName}.xlsx`
+        : `ExpenseFlow_Reporte_${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}.xlsx`;
 
       // Download file
       XLSX.writeFile(wb, filename);
@@ -202,7 +264,7 @@ export default function Reports() {
           </div>
           
               <button
-                onClick={exportToExcel}
+                onClick={() => setShowExportModal(true)}
                 disabled={isExporting || !reportData}
                 className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -211,6 +273,18 @@ export default function Reports() {
                   {isExporting ? "Exportando..." : "Exportar a Excel"}
                 </span>
               </button>
+              <ExportModal
+                open={showExportModal}
+                filename={exportFileName}
+                onClose={() => setShowExportModal(false)}
+                onChangeFilename={(f) => setExportFileName(f)}
+                onConfirm={() => { setShowExportModal(false); exportToExcel(exportFileName); }}
+                exportOnlyVisible={exportOnlyVisible}
+                setExportOnlyVisible={setExportOnlyVisible}
+              />
+              <div className="ml-4 text-sm text-gray-500">
+                {exportOnlyVisible ? `Vista: ${filteredExpenses.length} gastos` : `Vista: todos los gastos`}
+              </div>
         </div>
         <div className="mb-4 flex items-center space-x-3">
           <div className="flex items-center space-x-2">
