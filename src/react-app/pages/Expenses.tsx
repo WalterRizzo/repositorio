@@ -1,4 +1,4 @@
-  // ...existing code...
+// ...existing code...
 
   // ...existing code...
 
@@ -1048,7 +1048,8 @@ export default function Expenses() {
                       </span>
                     </div>
                   ))
-                )}
+                )
+                }
               </div>
             </div>
           </div>
@@ -1173,7 +1174,7 @@ export default function Expenses() {
                         <div className="flex items-center space-x-3">
                           <button
                             onClick={() => openUserModal(user)}
-                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 hover:scale-110"
+                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all hover:from-blue-600 hover:to-indigo-700 hover:scale-110"
                             title="Editar saldo"
                           >
                             <Edit3 className="w-4 h-4" />
@@ -1181,7 +1182,7 @@ export default function Expenses() {
                           </button>
                           <button
                             onClick={() => handleDeleteUser(user.user_id)}
-                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 hover:from-red-600 hover:to-pink-700 hover:scale-110"
+                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all hover:from-red-600 hover:to-pink-700 hover:scale-110"
                             title="Eliminar usuario"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -1491,6 +1492,7 @@ export default function Expenses() {
                               movement.type === 'carga' 
                                 ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
                                 : movement.type === 'descuento'
+                               
                                 ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white'
                                 : 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
                             }`}>
@@ -1644,8 +1646,6 @@ export default function Expenses() {
                 ⚠️ ¡Cuidado! Estas consultas se ejecutan directamente en la base de datos.
               </p>
             </div>
-
-            {/* ...eliminado script de paginación, lógica ya está en useEffect... */}
 
             {/* Controles de paginación modernos para audit_logs */}
             {selectedTable === 'audit_logs' && (

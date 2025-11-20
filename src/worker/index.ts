@@ -2808,11 +2808,11 @@ app.get('/api/transacciones-saldo', authMiddleware(), async (c) => {
     const whereClauses: string[] = [];
     const bindParams: any[] = [];
     
-    if (user.role !== 'admin') {
+    if (!['admin', 'supervisor'].includes(user.role)) {
       // Los usuarios normales solo ven sus propias transacciones
       whereClauses.push('st.user_id = ?');
       bindParams.push(user.id);
-    } else if (userId) {
+    } else if (userId && userId !== 'all') {
       whereClauses.push('st.user_id = ?');
       bindParams.push(userId);
     }
