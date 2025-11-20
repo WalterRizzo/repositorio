@@ -267,7 +267,7 @@ app.post("/api/auth/login", loginRateLimit, async (c) => {
     role: user.role
   };
   
-  const token = await generateToken(userData, c.env.JWT_SECRET);
+  const token = generateToken(userData, c.env.JWT_SECRET);
 
   // Establecer cookie
   setCookie(c, 'auth_token', token, {
@@ -333,7 +333,7 @@ app.post("/api/auth/register", async (c) => {
     role: 'usuario'
   };
 
-  const token = await generateToken(userData, c.env.JWT_SECRET);
+  const token = generateToken(userData, c.env.JWT_SECRET);
 
   setCookie(c, 'auth_token', token, {
     httpOnly: true,
@@ -1263,6 +1263,40 @@ app.put('/api/users/:userId/profile', authMiddleware(), async (c) => {
   ).bind(body.role as string, userId as string).run();
 
   return c.json({ success: true });
+});
+
+// ADMIN: Unlock all users (reset failed_login_attempts and locked_until)
+app.post('/api/admin/users/unlock-all', authMiddleware(), async (c) => {
+  try {
+    const user = c.get('user')! as User;
+
+    // Only admin allowed
+    const { results: userResults } = await c.env.DB.prepare('SELECT role, email FROM users WHERE id = ?').bind(user.id).all();
+    if (userResults.length === 0 || userResults[0].role !== 'admin') {
+      return c.json({ error: 'No tienes permisos para realizar esta acción' }, 403);
+    }
+
+    // Count locked users
+    const { results: lockedBefore } = await c.env.DB.prepare('SELECT COUNT(1) as lockedCount FROM users WHERE locked_until IS NOT NULL OR failed_login_attempts > 0').all();
+    const lockedCount = lockedBefore?.[0]?.lockedCount || 0;
+
+    // Reset fields
+    await c.env.DB.prepare('UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_failed_login = NULL, updated_at = CURRENT_TIMESTAMP WHERE locked_until IS NOT NULL OR failed_login_attempts > 0').run();
+
+    // Insert audit log
+    try {
+      await c.env.DB.prepare('INSERT INTO audit_logs (user_id, user_email, action, module, description) VALUES (?, ?, ?, ?, ?)').bind(
+        user.id, userResults[0].email || user.id, 'unlock_all_users', 'admin', `Admin ${user.id} unlocked ${lockedCount} users`
+      ).run();
+    } catch (e) {
+      console.error('Failed to insert audit log for unlock all users', e);
+    }
+
+    return c.json({ success: true, unlocked: Number(lockedCount) });
+  } catch (error) {
+    console.error('Error unlocking all users: ', error);
+    return c.json({ error: String(error) }, 500);
+  }
 });
 
 // Get balance movement history (admin/supervisor only)
@@ -2661,7 +2695,7 @@ app.get('/api/transacciones-saldo', authMiddleware(), async (c) => {
     
     const params = [];
     
-    if (user.role !== 'admin' && user.role !== 'supervisor') {
+    if (user.role !== 'admin') {
       // Los usuarios normales solo ven sus propias transacciones
       query += ' WHERE st.user_id = ?';
       params.push(user.id);
@@ -2688,8 +2722,8 @@ app.get('/api/users/:userId/transacciones-saldo', authMiddleware(), async (c) =>
     const user = c.get('user')! as User;
     const userId = c.req.param('userId');
     
-    if (!['admin', 'supervisor'].includes(user.role)) {
-      return c.json({ error: 'Solo administradores o supervisores pueden consultar transacciones de otros usuarios' }, 403);
+    if (user.role !== 'admin') {
+      return c.json({ error: 'Solo administradores pueden consultar transacciones de otros usuarios' }, 403);
     }
     
     const { results } = await c.env.DB.prepare(`
@@ -2708,7 +2742,27 @@ app.get('/api/users/:userId/transacciones-saldo', authMiddleware(), async (c) =>
         st.fecha_transaccion,
         st.created_at
       FROM saldo_transacciones st
-      LEFT JOIN users u ON st.user_id = u.id
+      LEFT JOIN users u ON st.      "emeraldwalk.runonsave": [
+        {
+          "match": ".*",
+          "command": "workbench.action.tasks.runTask",
+          "args": "Auto Git Push on Save (PowerShell)"
+        }
+      ]      "emeraldwalk.runonsave": [
+        {
+          "match": ".*",
+          "command": "workbench.action.tasks.runTask",
+          "args": "Auto Git Push on Save (PowerShell)"
+        }
+      ]      {
+        "emeraldwalk.runonsave": [
+          {
+            "match": ".*",
+            "command": "workbench.action.tasks.runTask",
+            "args": "Auto Git Push on Save (PowerShell)"
+          }
+        ]
+      }user_id = u.id
       WHERE st.user_id = ?
       ORDER BY st.fecha_transaccion DESC
     `).bind(userId).all();
