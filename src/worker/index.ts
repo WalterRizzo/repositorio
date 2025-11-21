@@ -267,7 +267,7 @@ app.post("/api/auth/login", loginRateLimit, async (c) => {
     role: user.role
   };
   
-  const token = await generateToken(userData, c.env.JWT_SECRET);
+  const token = generateToken(userData, c.env.JWT_SECRET);
 
   // Establecer cookie
   setCookie(c, 'auth_token', token, {
@@ -333,7 +333,7 @@ app.post("/api/auth/register", async (c) => {
     role: 'usuario'
   };
 
-  const token = await generateToken(userData, c.env.JWT_SECRET);
+  const token = generateToken(userData, c.env.JWT_SECRET);
 
   setCookie(c, 'auth_token', token, {
     httpOnly: true,
@@ -1053,8 +1053,24 @@ app.post('/api/users', authMiddleware(), async (c) => {
     const userPassword = password || 'password123';
     const hashedPassword = await hashPassword(userPassword);
     
-    // Generate unique user ID
-    const userId = 'user_' + Date.now();
+    // Generate user ID from first letter of name + lastname (fallback to timestamp)
+    const nameParts = String(name).trim().split(/\s+/);
+    const firstLetter = (nameParts[0] || 'u')[0] || 'u';
+    const lastName = ((body.lastname as string) || (nameParts.length > 1 ? nameParts[nameParts.length - 1] : '')) || '';
+    let userIdBase = (firstLetter + lastName).toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!userIdBase || userIdBase.length === 0) {
+      userIdBase = 'user_' + Date.now();
+    }
+
+    // Ensure uniqueness - if already exists, add suffix
+    let userId = userIdBase;
+    let collisionIndex = 1;
+    while (true) {
+      const { results: existing } = await c.env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(userId).all();
+      if (!existing || existing.length === 0) break;
+      userId = `${userIdBase}_${collisionIndex++}`;
+      if (collisionIndex > 100) { userId = userIdBase + '_' + Date.now(); break; }
+    }
     
     // Insert into users table - asegurar que no hay valores undefined
     await c.env.DB.prepare(
@@ -1312,13 +1328,28 @@ app.get('/api/balance/movements', authMiddleware(), async (c) => {
 // Get expense reports - SIN AUTH PARA QUE FUNCIONE
 app.get('/api/expenses/reports/summary', async (c) => {
   try {
+    const url = new URL(c.req.url);
+    const params = url.searchParams;
+    const qUserId = params.get('userId');
+    const qCurrency = params.get('currency');
+    const from = params.get('from');
+    const to = params.get('to');
+
+    const whereClauses: string[] = [];
+    const bindParams: any[] = [];
+    if (qUserId) { whereClauses.push('user_id = ?'); bindParams.push(qUserId); }
+    if (qCurrency) { whereClauses.push('UPPER(currency) = UPPER(?)'); bindParams.push(qCurrency); }
+    if (from) { whereClauses.push('expense_date >= ?'); bindParams.push(from); }
+    if (to) { whereClauses.push('expense_date <= ?'); bindParams.push(to); }
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
     // Total by category
-    const { results: byCategory } = await c.env.DB.prepare(
+     const { results: byCategory } = await c.env.DB.prepare(
       `SELECT category, SUM(amount) as total, COUNT(*) as count
        FROM expenses 
+       ${whereSql}
        GROUP BY category
        ORDER BY total DESC`
-    ).all();
+     ).bind(...bindParams).all();
 
     // Total by month (last 12 months)
     const { results: byMonth } = await c.env.DB.prepare(
@@ -1327,24 +1358,39 @@ app.get('/api/expenses/reports/summary', async (c) => {
          SUM(amount) as total,
          COUNT(*) as count
        FROM expenses 
+       ${whereSql}
        GROUP BY month
        ORDER BY month DESC
        LIMIT 12`
-    ).all();
+    ).bind(...bindParams).all();
 
     // Overall totals
-    const { results: totals } = await c.env.DB.prepare(
+     const { results: totals } = await c.env.DB.prepare(
       `SELECT 
          SUM(amount) as total_amount,
          COUNT(*) as total_count
-       FROM expenses`
-    ).all();
+       FROM expenses
+       ${whereSql}`
+     ).bind(...bindParams).all();
 
     return c.json({
       byCategory,
       byMonth,
       totals: totals[0] || { total_amount: 0, total_count: 0 }
     });
+  } catch (error) {
+    return c.json({ error: String(error) }, 500);
+  }
+});
+
+// Get distinct currencies used in expenses
+app.get('/api/expenses/currencies', async (c) => {
+  try {
+    const { results } = await c.env.DB.prepare(
+      `SELECT DISTINCT currency FROM expenses WHERE currency IS NOT NULL ORDER BY currency`
+    ).all();
+    const currencies = results.map((r: any) => r.currency).filter(Boolean);
+    return c.json(currencies);
   } catch (error) {
     return c.json({ error: String(error) }, 500);
   }
@@ -2661,7 +2707,7 @@ app.get('/api/transacciones-saldo', authMiddleware(), async (c) => {
     
     const params = [];
     
-    if (user.role !== 'admin' && user.role !== 'supervisor') {
+    if (user.role !== 'admin') {
       // Los usuarios normales solo ven sus propias transacciones
       query += ' WHERE st.user_id = ?';
       params.push(user.id);
@@ -2688,8 +2734,8 @@ app.get('/api/users/:userId/transacciones-saldo', authMiddleware(), async (c) =>
     const user = c.get('user')! as User;
     const userId = c.req.param('userId');
     
-    if (!['admin', 'supervisor'].includes(user.role)) {
-      return c.json({ error: 'Solo administradores o supervisores pueden consultar transacciones de otros usuarios' }, 403);
+    if (user.role !== 'admin') {
+      return c.json({ error: 'Solo administradores pueden consultar transacciones de otros usuarios' }, 403);
     }
     
     const { results } = await c.env.DB.prepare(`
@@ -2708,7 +2754,27 @@ app.get('/api/users/:userId/transacciones-saldo', authMiddleware(), async (c) =>
         st.fecha_transaccion,
         st.created_at
       FROM saldo_transacciones st
-      LEFT JOIN users u ON st.user_id = u.id
+      LEFT JOIN users u ON st.      "emeraldwalk.runonsave": [
+        {
+          "match": ".*",
+          "command": "workbench.action.tasks.runTask",
+          "args": "Auto Git Push on Save (PowerShell)"
+        }
+      ]      "emeraldwalk.runonsave": [
+        {
+          "match": ".*",
+          "command": "workbench.action.tasks.runTask",
+          "args": "Auto Git Push on Save (PowerShell)"
+        }
+      ]      {
+        "emeraldwalk.runonsave": [
+          {
+            "match": ".*",
+            "command": "workbench.action.tasks.runTask",
+            "args": "Auto Git Push on Save (PowerShell)"
+          }
+        ]
+      }user_id = u.id
       WHERE st.user_id = ?
       ORDER BY st.fecha_transaccion DESC
     `).bind(userId).all();

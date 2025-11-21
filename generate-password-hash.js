@@ -1,7 +1,7 @@
 // Script para generar hash de contraseñas
 // Uso: node generate-password-hash.js "miNuevaPassword"
 
-import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 if (process.argv.length < 3) {
     console.log('❌ Uso: node generate-password-hash.js "contraseña"');
@@ -10,12 +10,12 @@ if (process.argv.length < 3) {
 }
 
 const password = process.argv[2];
-const saltRounds = 12;
-const hash = bcrypt.hashSync(password, saltRounds);
+const hash = crypto.createHash('sha256').update(password).digest('hex');
 
 console.log('🔐 Generador de Hash de Contraseñas');
 console.log('==================================');
-console.log(`🔑 Hash bcrypt: ${hash}`);
+console.log(`📝 Contraseña: ${password}`);
+console.log(`🔑 Hash SHA256: ${hash}`);
 console.log('');
 console.log('💡 Para actualizar en la base de datos, usa:');
 console.log(`npx wrangler d1 execute expense-app-db --remote --command="UPDATE users SET password_hash = '${hash}' WHERE email = 'usuario@email.com';"`);

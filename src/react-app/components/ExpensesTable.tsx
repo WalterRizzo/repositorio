@@ -3,9 +3,7 @@ import { useState, useRef } from "react";
 import BubbleTooltipPortal from "./BubbleTooltipPortal";
 import { getStatusBadgeClasses, getStatusLabel } from '@/react-app/utils/status';
 import type { Expense } from "@/shared/types";
-// ExcelJS loaded dynamically in exportToExcel
-// @ts-ignore - file-saver typing not installed in repo
-import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
@@ -77,6 +75,7 @@ export default function ExpensesTable({
       USD: "en-US", 
       EUR: "de-DE",
       BRL: "pt-BR",
+      UYU: "es-UY",
     };
     
     const locale = currencyMap[currency] || "es-AR";
@@ -87,39 +86,87 @@ export default function ExpensesTable({
   };
 
   // Función exportar Excel
-  const exportToExcel = async () => {
-    // Use ExcelJS to build a richer, styled workbook
-    const ExcelJSModule = (await import('exceljs'));
-    const ExcelJS = ExcelJSModule.default || ExcelJSModule;
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('Gastos');
-    const headers = ['ID','Usuario','Descripción','Monto','Moneda','Categoría','Fecha','Estado'];
-    ws.columns = headers.map(h => ({ header: h, key: h, width: 20 })) as any;
-    // Map rows ensuring Fecha is a Date object and Creado is omitted
-    filteredExpenses.forEach(expense => {
-      ws.addRow([
-        expense.id,
-        expense.user_name || 'N/A',
-        expense.description,
-        Number(expense.amount || 0),
-        expense.currency,
-        expense.category,
-        new Date(expense.expense_date),
-        expense.status
-      ]);
-    });
-    // Header style
-    ws.getRow(1).eachCell((cell:any) => { cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '6D28D9' } }; cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; });
-    // Format columns: Monto, Fecha
-    const montoCol = ws.getColumn(headers.indexOf('Monto') + 1);
-    montoCol.numFmt = '#,##0.00'; montoCol.alignment = { horizontal: 'right' } as any;
-    const fechaCol = ws.getColumn(headers.indexOf('Fecha') + 1);
-    fechaCol.numFmt = 'dd/mm/yyyy'; fechaCol.alignment = { horizontal: 'center' } as any;
-    // Add borders to all rows
-    ws.eachRow((row:any) => { row.eachCell((cell:any) => { cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; }); });
-    ws.views = [{ state: 'frozen', ySplit: 1 }];
-    const buf = await wb.xlsx.writeBuffer();
-    saveAs(new Blob([buf]), `gastos_${new Date().toISOString().split('T')[0]}.xlsx`);
+  const exportToExcel = () => {
+    // Group expenses by currency and create a sheet per currency
+    const grouped: Record<string, any[]> = {};
+    for (const exp of filteredExpenses) {
+      const key = (exp.currency || 'ARS').toUpperCase();
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(exp);
+    }
+
+    const workbook = XLSX.utils.book_new();
+    const currencyFormatMap: Record<string, string> = {
+      ARS: '[$ARS] #,##0.00',
+      USD: '[$USD] #,##0.00',
+      EUR: '[$EUR] #,##0.00',
+      BRL: '[$BRL] #,##0.00',
+      UYU: '[$UYU] #,##0.00'
+    };
+
+    const summary: Array<{Moneda: string; Total: number; Count: number}> = [];
+
+    for (const currency of Object.keys(grouped)) {
+      const rows = grouped[currency].map(exp => ({
+        'ID': exp.id,
+        'Usuario': exp.user_name || 'N/A',
+        'Descripción': exp.description,
+        'Monto': Number(exp.amount),
+        'Moneda': exp.currency,
+        'Categoría': exp.category,
+        'Fecha': new Date(exp.expense_date).toLocaleDateString('es-AR'),
+        'Estado': exp.status,
+        'Creado': new Date(exp.created_at).toLocaleDateString('es-AR'),
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 8 }, { wch: 25 }, { wch: 40 }, { wch: 15 }, { wch: 10 },
+        { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 15 },
+      ];
+
+      // Apply currency formatting to 'Monto' column
+      const header = Object.keys(rows[0] || {});
+      const mIdx = header.indexOf('Monto');
+      if (mIdx >= 0) {
+        const toCol = (n: number) => {
+          let s = '';
+          while (n >= 0) {
+            s = String.fromCharCode((n % 26) + 65) + s;
+            n = Math.floor(n / 26) - 1;
+          }
+          return s;
+        };
+        const col = toCol(mIdx);
+        for (let i = 0; i < rows.length; i++) {
+          const addr = `${col}${i+2}`;
+          const cell = ws[addr];
+          if (cell && typeof cell.v === 'number') {
+            cell.z = currencyFormatMap[currency] || currencyFormatMap['ARS'];
+          }
+        }
+      }
+
+      XLSX.utils.book_append_sheet(workbook, ws, currency);
+
+      const total = grouped[currency].reduce((s, e) => s + Number(e.amount || 0), 0);
+      summary.push({Moneda: currency, Total: total, Count: grouped[currency].length});
+    }
+
+    // Add summary sheet
+    if (summary.length > 0) {
+      const wsSum = XLSX.utils.json_to_sheet(summary);
+      XLSX.utils.book_append_sheet(workbook, wsSum, 'Resumen por Moneda');
+    }
+
+    // Ask for filename
+    const date = new Date().toLocaleDateString('es-AR').replace(/\//g, '-');
+    let filename = window.prompt('Nombre de archivo para exportar (sin extensión):', `gastos_${date}`) || `gastos_${date}`;
+    if (!filename.toLowerCase().endsWith('.xlsx')) filename = `${filename}.xlsx`;
+
+    // Currency formatting has been applied per-currency when creating their respective sheets.
+
+    XLSX.writeFile(workbook, filename);
     setShowExportPreview(false);
   };
 
@@ -132,14 +179,7 @@ export default function ExpensesTable({
 
   const handleRejectSubmit = async () => {
     if (!rejectionReason.trim()) {
-      // Non-blocking in-component notification instead of native alert
-      console.warn('⚠️ Debes proporcionar una razón para el rechazo');
-      setNotificationType('reject');
-      setCurrentEmoji(getRandomEmoji('reject'));
-      setParticleEmojis(getRandomEmojis('reject', 'particles', 6));
-      setParticleColors(getColorSet(6));
-      setShowNotification(true);
-      setTimeout(() => setShowNotification(false), 3500);
+      alert('⚠️ Debes proporcionar una razón para el rechazo');
       return;
     }
     
@@ -166,12 +206,7 @@ export default function ExpensesTable({
         setTimeout(() => setShowNotification(false), 3500); // 3.5 segundos
       } catch (error) {
         console.error('Error al rechazar:', error);
-        setNotificationType('reject');
-        setCurrentEmoji(getRandomEmoji('reject'));
-        setParticleEmojis(getRandomEmojis('reject', 'particles', 6));
-        setParticleColors(getColorSet(6));
-        setShowNotification(true);
-        setTimeout(() => setShowNotification(false), 3500);
+        alert('❌ Error al rechazar el gasto');
       }
     }
   };
@@ -199,7 +234,7 @@ export default function ExpensesTable({
 
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 table-container-card">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-4 bg-gray-200 dark:bg-gray-600 rounded w-1/4"></div>
           <div className="space-y-2">
@@ -250,9 +285,9 @@ export default function ExpensesTable({
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Lista de Gastos</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Total: {expenses.length} {expenses.length === 1 ? "gasto" : "gastos"}
-            {expenses.length > 10 && (
+            {expenses.length > 5 && (
               <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">
-                Mostrando solo los primeros 10
+                Mostrando solo los primeros 5
               </span>
             )}
           </p>
@@ -394,15 +429,13 @@ export default function ExpensesTable({
               </>
             )}
           </select>
-                {userRole === 'usuario' && (
-                  <button
-                    onClick={() => setShowExportPreview(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
-                  >
-                    <FileSpreadsheet className="w-5 h-5" />
-                    <span>Exportar Excel</span>
-                  </button>
-                )}
+          <button
+            onClick={() => setShowExportPreview(true)}
+            className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
+          >
+            <FileSpreadsheet className="w-5 h-5" />
+            <span>Exportar Excel</span>
+          </button>
           <button
             onClick={() => {
               setDateFilters({desde: '', hasta: ''});
@@ -475,13 +508,13 @@ export default function ExpensesTable({
                     )}
                   </div>
 
-                  <div className="flex items-center space-x-1">
-                    <button onClick={() => onEdit(expense)} className="p-1 w-8 h-8 flex items-center justify-center bg-indigo-600 text-white rounded-full text-xs hover:ring-2 hover:ring-indigo-500/30"> <Edit3 className="w-4 h-4" /> </button>
-                    <button onClick={() => onDelete(expense.id)} className="p-1 w-8 h-8 flex items-center justify-center bg-red-500 text-white rounded-full text-xs hover:ring-2 hover:ring-rose-400/30"> <Trash2 className="w-4 h-4" /> </button>
+                  <div className="flex items-center space-x-2">
+                    <button onClick={() => onEdit(expense)} className="p-2 bg-indigo-600 text-white rounded-md"> <Edit3 className="w-4 h-4" /> </button>
+                    <button onClick={() => onDelete(expense.id)} className="p-2 bg-red-500 text-white rounded-md"> <Trash2 className="w-4 h-4" /> </button>
                     {userRole !== 'usuario' && (
                       <>
-                        <button onClick={() => handleApproveClick(expense.id)} className="p-1 w-8 h-8 flex items-center justify-center bg-green-500 text-white rounded-full text-xs hover:ring-2 hover:ring-green-400/30"> <CheckCircle className="w-4 h-4" /> </button>
-                        <button onClick={() => handleRejectClick(expense.id)} className="p-1 w-8 h-8 flex items-center justify-center bg-orange-500 text-white rounded-full text-xs hover:ring-2 hover:ring-orange-400/30"> <XCircle className="w-4 h-4" /> </button>
+                        <button onClick={() => handleApproveClick(expense.id)} className="p-2 bg-green-500 text-white rounded-md"> <CheckCircle className="w-4 h-4" /> </button>
+                        <button onClick={() => handleRejectClick(expense.id)} className="p-2 bg-orange-500 text-white rounded-md"> <XCircle className="w-4 h-4" /> </button>
                       </>
                     )}
                   </div>
@@ -502,18 +535,18 @@ export default function ExpensesTable({
           {/* Desktop table (show from lg up) - hide entirely when forcing mobile view */}
           {!forceMobileView && (
             <div className="hidden lg:block overflow-x-auto w-full">
-            <table className="w-full table-fixed rounded-2xl border-2 border-black/20 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-card">
+            <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Fecha</th>
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Categoría</th>
-                  <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide w-[280px]">Descripción</th>
+                  <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Descripción</th>
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Cargado por</th>
                   <th className="px-1 py-1 text-right text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Monto</th>
                   <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Moneda</th>
                   <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Estado</th>
-                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide w-[120px]">Archivos</th>
-                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide w-[150px]">Acciones</th>
+                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Archivos</th>
+                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
@@ -724,7 +757,7 @@ export default function ExpensesTable({
           
           {/* Controles de paginación */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black border-t gap-y-2 rounded-xl shadow-lg mb-2">
+            <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black text-white border-t gap-y-2 rounded-xl shadow-lg mb-2">
               <div className="text-xs sm:text-sm text-white font-semibold">
                 Mostrando {startIndex + 1} - {Math.min(startIndex + recordsPerPage, filteredExpenses.length)} de {filteredExpenses.length} gastos
               </div>
@@ -732,31 +765,31 @@ export default function ExpensesTable({
                 <button
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                  className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                 >
                   « Primera
                 </button>
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                  className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                 >
                   ‹ Anterior
                 </button>
-                <span className="px-3 py-1 bg-black text-white rounded text-sm font-bold">
+                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm font-bold">
                   Página {currentPage} de {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                  className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                 >
                   Siguiente ›
                 </button>
                 <button
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                  className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                 >
                   Última »
                 </button>
@@ -794,10 +827,10 @@ export default function ExpensesTable({
 
             <div className="p-6 overflow-auto max-h-[60vh]">
               <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Mostrando los primeros 10 registros de {filteredExpenses.length}
+                Mostrando los primeros 5 registros de {filteredExpenses.length}
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm table-card">
+                <table className="w-full text-sm">
                   <thead className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-700">
                     <tr>
                       <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">ID</th>
@@ -811,7 +844,7 @@ export default function ExpensesTable({
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredExpenses.slice(0, 10).map((expense) => (
-                      <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 hover-lift">
+                      <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.id}</td>
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.user_name || 'N/A'}</td>
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.description}</td>

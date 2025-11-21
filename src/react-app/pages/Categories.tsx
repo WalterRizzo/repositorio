@@ -71,8 +71,6 @@ export default function CategoriesPage() {
       if (response.ok) {
         fetchCategories();
         resetForm();
-      } else {
-        console.warn('Por favor ingresa una consulta SQL');
       }
     } catch (error) {
       console.error('Error saving category:', error);
@@ -90,6 +88,7 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = async (id: number) => {
+    if (confirm('Eliminar categoría?')) {
       try {
         const response = await fetch(`/api/categories/${id}`, {
           method: 'DELETE'
@@ -100,7 +99,7 @@ export default function CategoriesPage() {
       } catch (error) {
         console.error('Error deleting category:', error);
       }
-    
+    }
   };
 
   const resetForm = () => {

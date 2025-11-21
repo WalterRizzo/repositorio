@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, Tag, FileText, Key, Save, X, Loader2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Tag, FileText, Key, Save, X, Loader2, DollarSign } from "lucide-react";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import Header from "@/react-app/components/Header";
 import Sidebar from "@/react-app/components/Sidebar";
@@ -25,7 +25,7 @@ interface TipoComprobante {
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'categories' | 'comprobantes' | 'users'>('categories');
+  const [activeTab, setActiveTab] = useState<'categories' | 'comprobantes' | 'users' | 'currencies'>('categories');
   const [categories, setCategories] = useState<Category[]>([]);
   const [tiposComprobantes, setTiposComprobantes] = useState<TipoComprobante[]>([]);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -55,6 +55,12 @@ export default function SettingsPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   
+  // Monedas
+  const [showCurrencyForm, setShowCurrencyForm] = useState(false);
+  const [editingCurrency, setEditingCurrency] = useState<any | null>(null);
+  const [currencyForm, setCurrencyForm] = useState({ code: '', name: '', symbol: '' });
+    const [currencies, setCurrencies] = useState<any[]>([]);
+  
   const [categoryForm, setCategoryForm] = useState({
     name: "",
     description: "",
@@ -62,11 +68,11 @@ export default function SettingsPage() {
     icon: "🏷️"
   });
   const [comprobanteForm, setComprobanteForm] = useState({
-  nombre: "",
-  descripcion: "",
-  codigo: "",
-  activo: true,
-  descuenta_saldo: 1
+    nombre: "",
+    descripcion: "",
+    codigo: "",
+    activo: true,
+    descuenta_saldo: 1
   });
   const [userProfile, setUserProfile] = useState<any>(null);
 
@@ -74,6 +80,7 @@ export default function SettingsPage() {
     fetchUserProfile();
     fetchCategories();
     fetchTiposComprobantes();
+    fetchCurrencies();
     fetchUsers();
   }, []);
 
@@ -113,6 +120,18 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchCurrencies = async () => {
+    try {
+      const response = await fetch('/api/currencies');
+      if (response.ok) {
+        const data = await response.json();
+        setCurrencies(data);
+      }
+    } catch (error) {
+      console.error('Error fetching currencies:', error);
+    }
+  };
+
   const fetchUsers = async () => {
     try {
       const response = await fetch('/api/users');
@@ -146,15 +165,15 @@ export default function SettingsPage() {
         console.log('✅ Categoría guardada:', result);
         fetchCategories();
         resetCategoryForm();
-        console.log('✅ Categoría guardada exitosamente');
+        alert('✅ Categoría guardada exitosamente');
       } else {
         const error = await response.json();
         console.error('❌ Error del servidor:', error);
-        console.warn('❌ Error: ' + (error.error || 'Error desconocido'));
+        alert('❌ Error: ' + (error.error || 'Error desconocido'));
       }
     } catch (error) {
       console.error('❌ Error saving category:', error);
-      console.warn('❌ Error al guardar la categoría: ' + error);
+      alert('❌ Error al guardar la categoría: ' + error);
     }
   };
 
@@ -173,11 +192,69 @@ export default function SettingsPage() {
       if (response.ok) {
         fetchTiposComprobantes();
         resetComprobanteForm();
-        console.log('Tipo de comprobante guardado exitosamente');
+        alert('Tipo de comprobante guardado exitosamente');
       }
     } catch (error) {
       console.error('Error saving tipo comprobante:', error);
-      console.warn('Error al guardar el tipo de comprobante');
+      alert('Error al guardar el tipo de comprobante');
+    }
+  };
+
+  const handleCurrencySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      if (!currencyForm.code || !currencyForm.name || !currencyForm.symbol) {
+        alert('Código, nombre y símbolo son requeridos');
+        return;
+      }
+
+      const url = editingCurrency ? `/api/currencies/${editingCurrency.id}` : '/api/currencies';
+      const method = editingCurrency ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: currencyForm.code, name: currencyForm.name, symbol: currencyForm.symbol })
+      });
+
+      if (response.ok) {
+        fetchCurrencies();
+        setShowCurrencyForm(false);
+        setEditingCurrency(null);
+        setCurrencyForm({ code: '', name: '', symbol: '' });
+        alert('Moneda guardada exitosamente');
+      } else {
+        const err = await response.json();
+        alert('Error: ' + (err.error || 'Error al guardar la moneda'));
+      }
+    } catch (error) {
+      console.error('Error saving currency:', error);
+      alert('Error al guardar la moneda');
+    }
+  };
+
+  const handleEditCurrency = (currency: any) => {
+    setEditingCurrency(currency);
+    setCurrencyForm({ code: currency.code, name: currency.name, symbol: currency.symbol });
+    setShowCurrencyForm(true);
+  };
+
+  const handleDeleteCurrency = async (id: number) => {
+    if (!confirm('¿Eliminar esta moneda? Esto puede afectar registros existentes.')) return;
+
+    try {
+      const response = await fetch(`/api/currencies/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        alert('Moneda eliminada');
+        fetchCurrencies();
+      } else {
+        const err = await response.json();
+        alert('Error: ' + (err.error || 'No se pudo eliminar la moneda'));
+      }
+    } catch (error) {
+      console.error('Error deleting currency:', error);
+      alert('Error al eliminar moneda');
     }
   };
 
@@ -185,12 +262,12 @@ export default function SettingsPage() {
     e.preventDefault();
     
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
 
     if (passwordForm.newPassword.length < 6) {
-      console.warn('La contraseña debe tener al menos 6 caracteres');
+      alert('La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
@@ -206,15 +283,15 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        console.log('✅ Contraseña cambiada exitosamente');
+        alert('✅ Contraseña cambiada exitosamente');
         setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       } else {
         const error = await response.json();
-        console.warn('❌ ' + (error.error || 'Error al cambiar la contraseña'));
+        alert('❌ ' + (error.error || 'Error al cambiar la contraseña'));
       }
     } catch (error) {
       console.error('Error changing password:', error);
-      console.warn('❌ Error al cambiar la contraseña');
+      alert('❌ Error al cambiar la contraseña');
     } finally {
       setIsChangingPassword(false);
     }
@@ -224,11 +301,13 @@ export default function SettingsPage() {
     e.preventDefault();
     
     if (userPasswordForm.newPassword !== userPasswordForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
 
-    // Removing confirmation prompt per user request - proceed immediately
+    if (!confirm('¿Estás seguro de cambiar la contraseña de este usuario?')) {
+      return;
+    }
 
     setIsChangingPassword(true);
     try {
@@ -241,15 +320,15 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        console.log('✅ Contraseña del usuario cambiada exitosamente');
+        alert('✅ Contraseña del usuario cambiada exitosamente');
         setUserPasswordForm({ userId: '', newPassword: '', confirmPassword: '' });
       } else {
         const error = await response.json();
-        console.warn('❌ ' + (error.error || 'Error al cambiar la contraseña'));
+        alert('❌ ' + (error.error || 'Error al cambiar la contraseña'));
       }
     } catch (error) {
       console.error('Error changing user password:', error);
-      console.warn('❌ Error al cambiar la contraseña del usuario');
+      alert('❌ Error al cambiar la contraseña del usuario');
     } finally {
       setIsChangingPassword(false);
     }
@@ -259,7 +338,7 @@ export default function SettingsPage() {
     e.preventDefault();
     
     if (createUserForm.password !== createUserForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
 
@@ -277,16 +356,16 @@ export default function SettingsPage() {
       });
 
       if (response.ok) {
-        console.log('✅ Usuario creado exitosamente');
+        alert('✅ Usuario creado exitosamente');
         setCreateUserForm({ name: '', email: '', role: 'usuario', password: '', confirmPassword: '' });
         fetchUsers(); // Refresh users list
       } else {
         const error = await response.json();
-        console.warn('❌ ' + (error.error || 'Error al crear el usuario'));
+        alert('❌ ' + (error.error || 'Error al crear el usuario'));
       }
     } catch (error) {
       console.error('Error creating user:', error);
-      console.warn('❌ Error al crear el usuario');
+      alert('❌ Error al crear el usuario');
     } finally {
       setIsChangingPassword(false);
     }
@@ -316,6 +395,7 @@ export default function SettingsPage() {
   };
 
   const handleDeleteCategory = async (id: number) => {
+    if (!confirm('¿Eliminar esta categoría?')) return;
     
     try {
       const response = await fetch(`/api/categories/${id}`, {
@@ -323,15 +403,16 @@ export default function SettingsPage() {
       });
       if (response.ok) {
         fetchCategories();
-        console.log('Categoría eliminada');
+        alert('Categoría eliminada');
       }
     } catch (error) {
       console.error('Error deleting category:', error);
-      console.warn('Error al eliminar la categoría');
+      alert('Error al eliminar la categoría');
     }
   };
 
   const handleDeleteComprobante = async (id: number) => {
+    if (!confirm('¿Eliminar este tipo de comprobante?')) return;
     
     try {
       const response = await fetch(`/api/tipo-comprobantes/${id}`, {
@@ -339,11 +420,11 @@ export default function SettingsPage() {
       });
       if (response.ok) {
         fetchTiposComprobantes();
-        console.log('Tipo de comprobante eliminado');
+        alert('Tipo de comprobante eliminado');
       }
     } catch (error) {
       console.error('Error deleting tipo comprobante:', error);
-      console.warn('Error al eliminar el tipo de comprobante');
+      alert('Error al eliminar el tipo de comprobante');
     }
   };
 
@@ -438,6 +519,22 @@ export default function SettingsPage() {
               </div>
               {activeTab === 'users' && (
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-orange-600 to-red-600 opacity-50 blur-xl animate-pulse"></div>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('currencies')}
+              className={`group relative px-6 py-3.5 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 ${
+                activeTab === 'currencies'
+                  ? 'bg-gradient-to-r from-yellow-600 via-amber-600 to-yellow-600 text-white shadow-lg shadow-yellow-500/50 scale-105'
+                  : 'text-gray-400 hover:text-white hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <DollarSign className={`w-5 h-5 transition-transform duration-300 ${activeTab === 'currencies' ? 'rotate-12' : 'group-hover:rotate-12'}`} />
+                <span>Monedas</span>
+              </div>
+              {activeTab === 'currencies' && (
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-yellow-600 to-amber-600 opacity-50 blur-xl animate-pulse"></div>
               )}
             </button>
           </div>
@@ -577,6 +674,78 @@ export default function SettingsPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* MONEDAS */}
+        {activeTab === 'currencies' && (
+          <div className="space-y-6">
+            <div className="flex justify-end">
+              <button
+                onClick={() => { setShowCurrencyForm(true); setEditingCurrency(null); setCurrencyForm({ code: '', name: '', symbol: '' }) }}
+                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl flex items-center space-x-2 shadow-lg"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Nueva Moneda</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {currencies.map((cur) => (
+                <div key={cur.id} className="group bg-gray-800 border border-gray-700 rounded-2xl p-6 hover:shadow-xl transition-all">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold shadow-md">{cur.code}</div>
+                      <div>
+                        <h3 className="font-bold text-xl text-white">{cur.name}</h3>
+                        <p className="text-sm text-gray-400 mt-1">Símbolo: {cur.symbol}</p>
+                      </div>
+                    </div>
+
+                    {user?.role === 'admin' && (
+                      <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => handleEditCurrency(cur)} className="p-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg shadow">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteCurrency(cur.id)} className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="text-xs text-gray-500 mt-4 pt-4 border-t border-gray-700">Creada: {new Date(cur.created_at).toLocaleDateString('es-ES')}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Modal de formulario para Monedas */}
+            {showCurrencyForm && (
+              <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                  <div className="bg-gray-900 text-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+                  <h2 className="text-xl font-bold mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded px-3 py-2 inline-block">{editingCurrency ? 'Editar Moneda' : 'Nueva Moneda'}</h2>
+                  <form onSubmit={handleCurrencySubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium">Código (ISO)</label>
+                      <input type="text" value={currencyForm.code} onChange={(e) => setCurrencyForm({...currencyForm, code: e.target.value.toUpperCase()})} className="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-white" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">Nombre</label>
+                      <input type="text" value={currencyForm.name} onChange={(e) => setCurrencyForm({...currencyForm, name: e.target.value})} className="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-white" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium">Símbolo</label>
+                      <input type="text" value={currencyForm.symbol} onChange={(e) => setCurrencyForm({...currencyForm, symbol: e.target.value})} className="w-full px-3 py-2 rounded bg-gray-800 border border-gray-700 text-white" required />
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <button type="button" onClick={() => setShowCurrencyForm(false)} className="px-4 py-2 rounded bg-gray-200">Cancelar</button>
+                      <button type="submit" className="px-4 py-2 rounded bg-gradient-to-r from-indigo-600 to-purple-600 text-white">Guardar</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

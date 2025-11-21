@@ -1,3 +1,10 @@
+// Utilidad para obtener la clase de color según el valor
+function getColorClass(value: any) {
+  const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/[^\d.-]/g, ''));
+  if (num < 0) return 'text-red-600';
+  if (num > 0) return 'text-green-600';
+  return 'text-gray-300';
+}
 import { useState, useEffect } from "react";
 
 interface UsersTabProps {
@@ -8,25 +15,19 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
-  const [transactionsPage, setTransactionsPage] = useState(1);
   const [selectedUserFilter, setSelectedUserFilter] = useState('');
 
   useEffect(() => {
     if (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') {
-      fetchTransactions(transactionsPage);
+      fetchTransactions();
       fetchUsers();
     }
   }, [userProfile?.role]);
 
-  const fetchTransactions = async (page = transactionsPage) => {
+  const fetchTransactions = async () => {
     try {
       setTransactionsLoading(true);
-      const offset = (page - 1) * 25; // Default perPage value
-      const url = new URL('/api/transacciones-saldo', location.origin);
-      url.searchParams.set('limit', '25');
-      url.searchParams.set('offset', String(offset));
-      if (selectedUserFilter) url.searchParams.set('userId', String(selectedUserFilter));
-      const response = await fetch(url.toString());
+      const response = await fetch("/api/transacciones-saldo");
       if (response.ok) {
         const data = await response.json();
         setTransactions(data.transacciones || []);
@@ -41,10 +42,6 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
       setTransactionsLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchTransactions(transactionsPage);
-  }, [transactionsPage, selectedUserFilter]);
 
   const fetchUsers = async () => {
     try {
@@ -67,9 +64,9 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
       {/* FILTRO DE USUARIO */}
       <div className="mb-6 bg-gray-700 p-4 rounded">
         <label className="block text-sm font-semibold mb-2">Filtrar por usuario:</label>
-          <select
-        value={selectedUserFilter}
-        onChange={(e) => { setSelectedUserFilter(e.target.value); setTransactionsPage(1); }}
+        <select
+          value={selectedUserFilter}
+          onChange={(e) => setSelectedUserFilter(e.target.value)}
           className="w-full md:w-64 px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white"
         >
           <option value="">Todos los usuarios</option>
@@ -90,22 +87,34 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
           <div className="text-center py-4">Cargando transacciones...</div>
         ) : filteredTransactions.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full rounded-xl border-2 border-indigo-500 shadow-lg">
-              <thead className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 dark:from-gray-700 dark:via-gray-700 dark:to-gray-700">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Usuario</th>
-                  <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Rol</th>
-                  <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Saldo</th>
-                  <th className="px-4 py-2 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="px-4 py-2 text-left">FECHA</th>
+                  <th className="px-4 py-2 text-left">USUARIO</th>
+                  <th className="px-4 py-2 text-left">TIPO</th>
+                  <th className="px-4 py-2 text-left">MONTO</th>
+                  <th className="px-4 py-2 text-left">SALDO ANTERIOR</th>
+                  <th className="px-4 py-2 text-left">SALDO NUEVO</th>
+                  <th className="px-4 py-2 text-left">DESCRIPCIÓN</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {users.map((user) => (
-                  <tr key={user.user_id} className="hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
-                    <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{user.name}</td>
-                    <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{user.role}</td>
-                    <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">{user.balance}</td>
-                    <td className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300">Acciones</td>
+              <tbody>
+                {filteredTransactions.map((tx: any, idx: number) => (
+                  <tr key={idx} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="px-4 py-2">{new Date(tx.fecha).toLocaleDateString()}</td>
+                    <td className="px-4 py-2">{tx.usuario || 'N/A'}</td>
+                    <td className="px-4 py-2">
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${
+                        tx.tipo === 'carga' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                      }`}>
+                        {tx.tipo}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2">{tx.moneda} {Number(tx.monto).toFixed(2)}</td>
+                    <td className={`px-4 py-2 font-semibold ${getColorClass(tx.saldo_anterior)}`}>{tx.moneda} {parseFloat(String(tx.saldo_anterior).replace(/[^\d.-]/g, '')).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                    <td className={`px-4 py-2 font-semibold ${getColorClass(tx.saldo_nuevo)}`}>{tx.moneda} {parseFloat(String(tx.saldo_nuevo).replace(/[^\d.-]/g, '')).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                    <td className="px-4 py-2 text-xs">{tx.descripcion || '-'}</td>
                   </tr>
                 ))}
               </tbody>

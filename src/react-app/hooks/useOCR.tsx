@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-// NOTE: tesseract is dynamically imported in processImage to reduce bundle size
+import { createWorker } from 'tesseract.js';
 
 interface OCRResult {
   text: string;
@@ -15,8 +15,6 @@ export function useOCR() {
     setProgress(0);
 
     try {
-      const tesseractModule = await import('tesseract.js');
-      const createWorker = tesseractModule.createWorker || tesseractModule.default?.createWorker;
       const worker = await createWorker('spa', 1, {
         logger: m => setProgress(Math.round((m.progress || 0) * 100))
       });
