@@ -429,13 +429,7 @@ export default function ExpensesTable({
               </>
             )}
           </select>
-          <button
-            onClick={() => setShowExportPreview(true)}
-            className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
-          >
-            <FileSpreadsheet className="w-5 h-5" />
-            <span>Exportar Excel</span>
-          </button>
+          {/* Export button removed from Lista de Gastos (hidden per request) */}
           <button
             onClick={() => {
               setDateFilters({desde: '', hasta: ''});
