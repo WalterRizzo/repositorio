@@ -19,13 +19,15 @@ interface TipoComprobante {
   descripcion?: string;
   codigo?: string;
   activo: boolean;
-  descuenta_saldo?: number;
   created_at: string;
 }
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'categories' | 'comprobantes' | 'users' | 'currencies'>('categories');
+  // Default to users for plain users, otherwise default to categories
+  const [activeTab, setActiveTab] = useState<'categories' | 'comprobantes' | 'users' | 'currencies'>(() => {
+    try { const u = JSON.parse(localStorage.getItem('userProfile') || 'null'); return u?.role === 'usuario' ? 'users' : 'categories'; } catch { return 'categories'; }
+  });
   const [categories, setCategories] = useState<Category[]>([]);
   const [tiposComprobantes, setTiposComprobantes] = useState<TipoComprobante[]>([]);
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -72,7 +74,6 @@ export default function SettingsPage() {
     descripcion: "",
     codigo: "",
     activo: true,
-    descuenta_saldo: 1
   });
   const [userProfile, setUserProfile] = useState<any>(null);
 
@@ -84,12 +85,20 @@ export default function SettingsPage() {
     fetchUsers();
   }, []);
 
+  // Ensure plain users always see the 'users' tab (do not allow categories/comprobantes/currencies)
+  useEffect(() => {
+    if (user?.role === 'usuario') {
+      setActiveTab('users');
+    }
+  }, [user]);
+
   const fetchUserProfile = async () => {
     try {
       const response = await fetch('/api/users/me');
       if (response.ok) {
         const data = await response.json();
         setUserProfile(data);
+        if (data?.role === 'usuario') setActiveTab('users');
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -154,6 +163,7 @@ export default function SettingsPage() {
       
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(categoryForm)
       });
@@ -166,6 +176,7 @@ export default function SettingsPage() {
         fetchCategories();
         resetCategoryForm();
         alert('✅ Categoría guardada exitosamente');
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'categories.upsert', categoryId: result?.id || null } })); } catch(e){}
       } else {
         const error = await response.json();
         console.error('❌ Error del servidor:', error);
@@ -185,6 +196,7 @@ export default function SettingsPage() {
       
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(comprobanteForm)
       });
@@ -193,6 +205,7 @@ export default function SettingsPage() {
         fetchTiposComprobantes();
         resetComprobanteForm();
         alert('Tipo de comprobante guardado exitosamente');
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'tipo_comprobantes.upsert' } })); } catch(e){}
       }
     } catch (error) {
       console.error('Error saving tipo comprobante:', error);
@@ -224,6 +237,7 @@ export default function SettingsPage() {
         setEditingCurrency(null);
         setCurrencyForm({ code: '', name: '', symbol: '' });
         alert('Moneda guardada exitosamente');
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'currencies.upsert' } })); } catch(e){}
       } else {
         const err = await response.json();
         alert('Error: ' + (err.error || 'Error al guardar la moneda'));
@@ -248,6 +262,7 @@ export default function SettingsPage() {
       if (response.ok) {
         alert('Moneda eliminada');
         fetchCurrencies();
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'currencies.delete', currencyId: id } })); } catch(e){}
       } else {
         const err = await response.json();
         alert('Error: ' + (err.error || 'No se pudo eliminar la moneda'));
@@ -389,7 +404,6 @@ export default function SettingsPage() {
       descripcion: comprobante.descripcion || "",
       codigo: comprobante.codigo || "",
       activo: comprobante.activo,
-      descuenta_saldo: comprobante.descuenta_saldo ?? 1
     });
     setShowComprobanteForm(true);
   };
@@ -401,9 +415,14 @@ export default function SettingsPage() {
       const response = await fetch(`/api/categories/${id}`, {
         method: 'DELETE'
       });
+      // Try with credentials if the first call fails (some auth setups use cookies)
+      if (!response.ok && !response.headers.get('content-type')) {
+        try { await fetch(`/api/categories/${id}?_same`, { method: 'DELETE', credentials: 'include' }); } catch (e) {}
+      }
       if (response.ok) {
         fetchCategories();
         alert('Categoría eliminada');
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'categories.delete', categoryId: id } })); } catch(e){}
       }
     } catch (error) {
       console.error('Error deleting category:', error);
@@ -418,9 +437,21 @@ export default function SettingsPage() {
       const response = await fetch(`/api/tipo-comprobantes/${id}`, {
         method: 'DELETE'
       });
+      if (!response.ok && !response.headers.get('content-type')) {
+        try { await fetch(`/api/tipo-comprobantes/${id}?_same`, { method: 'DELETE', credentials: 'include' }); } catch (e) {}
+      }
       if (response.ok) {
         fetchTiposComprobantes();
         alert('Tipo de comprobante eliminado');
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'tipo_comprobantes.delete', tipoId: id } })); } catch(e){}
+      } else {
+        // Try to parse server-provided JSON message (e.g. FK constraint)
+        let errMsg = 'No se pudo eliminar el tipo de comprobante';
+        try {
+          const data = await response.json();
+          if (data && data.error) errMsg = data.error;
+        } catch (e) { /* ignore parse errors */ }
+        alert('❌ Error: ' + errMsg);
       }
     } catch (error) {
       console.error('Error deleting tipo comprobante:', error);
@@ -435,7 +466,7 @@ export default function SettingsPage() {
   };
 
   const resetComprobanteForm = () => {
-  setComprobanteForm({ nombre: "", descripcion: "", codigo: "", activo: true, descuenta_saldo: 1 });
+  setComprobanteForm({ nombre: "", descripcion: "", codigo: "", activo: true });
     setEditingComprobante(null);
     setShowComprobanteForm(false);
   };
@@ -473,6 +504,7 @@ export default function SettingsPage() {
         {/* Tabs */}
         <div className="mb-8">
           <div className="bg-gradient-to-r from-gray-800 via-gray-800 to-gray-800 border-2 border-gray-700 rounded-2xl p-2 inline-flex space-x-3 shadow-2xl backdrop-blur-sm">
+            {user?.role !== 'usuario' && (
             <button
               onClick={() => setActiveTab('categories')}
               className={`group relative px-6 py-3.5 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 ${
@@ -489,6 +521,8 @@ export default function SettingsPage() {
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 opacity-50 blur-xl animate-pulse"></div>
               )}
             </button>
+            )}
+            {user?.role !== 'usuario' && (
             <button
               onClick={() => setActiveTab('comprobantes')}
               className={`group relative px-6 py-3.5 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 ${
@@ -505,6 +539,7 @@ export default function SettingsPage() {
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 opacity-50 blur-xl animate-pulse"></div>
               )}
             </button>
+            )}
             <button
               onClick={() => setActiveTab('users')}
               className={`group relative px-6 py-3.5 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 ${
@@ -521,6 +556,7 @@ export default function SettingsPage() {
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-orange-600 to-red-600 opacity-50 blur-xl animate-pulse"></div>
               )}
             </button>
+            {user?.role !== 'usuario' && (
             <button
               onClick={() => setActiveTab('currencies')}
               className={`group relative px-6 py-3.5 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 ${
@@ -537,21 +573,24 @@ export default function SettingsPage() {
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-yellow-600 to-amber-600 opacity-50 blur-xl animate-pulse"></div>
               )}
             </button>
+            )}
           </div>
         </div>
 
         {/* CATEGORÍAS */}
         {activeTab === 'categories' && (
           <div className="space-y-6">
-            <div className="flex justify-end">
-              <button
-                onClick={() => setShowCategoryForm(true)}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center space-x-2"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Nueva Categoría</span>
-              </button>
-            </div>
+            {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowCategoryForm(true)}
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center space-x-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Nueva Categoría</span>
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {categories.map((category) => (
@@ -575,7 +614,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     
-                    {userProfile?.role === 'admin' && (
+                    {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
                       <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleEditCategory(category)}
@@ -605,15 +644,17 @@ export default function SettingsPage() {
         {/* TIPOS DE COMPROBANTES */}
         {activeTab === 'comprobantes' && (
           <div className="space-y-6">
-            <div className="flex justify-end">
-              <button
-                onClick={() => setShowComprobanteForm(true)}
-                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center space-x-2"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Nuevo Tipo de Comprobante</span>
-              </button>
-            </div>
+            {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowComprobanteForm(true)}
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center space-x-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Nuevo Tipo de Comprobante</span>
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {tiposComprobantes.map((comprobante) => (
@@ -650,7 +691,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     
-                    {userProfile?.role === 'admin' && (
+                    {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
                       <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => handleEditComprobante(comprobante)}
@@ -1230,17 +1271,7 @@ export default function SettingsPage() {
                   />
                 </div>
                 
-                <div>
-                  <label className="flex items-center space-x-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={!!comprobanteForm.descuenta_saldo}
-                      onChange={e => setComprobanteForm({ ...comprobanteForm, descuenta_saldo: e.target.checked ? 1 : 0 })}
-                      className="w-5 h-5"
-                    />
-                    <span className="text-gray-400 font-bold">Descuenta saldo</span>
-                  </label>
-                </div>
+                {/* 'Descuenta saldo' removed from the ABM - managed by formapago now */}
                 <div>
                   <label className="flex items-center space-x-3 cursor-pointer">
                     <input

@@ -64,6 +64,7 @@ export default function CategoriesPage() {
       
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
@@ -93,6 +94,9 @@ export default function CategoriesPage() {
         const response = await fetch(`/api/categories/${id}`, {
           method: 'DELETE'
         });
+        if (!response.ok && !response.headers.get('content-type')) {
+          try { await fetch(`/api/categories/${id}`, { method: 'DELETE', credentials: 'include' }); } catch(e){}
+        }
         if (response.ok) {
           fetchCategories();
         }
@@ -140,13 +144,15 @@ export default function CategoriesPage() {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Categorías</h1>
             <p className="text-gray-600 dark:text-gray-400">Gestiona las categorías de gastos</p>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
+          {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
             <Plus className="w-4 h-4" />
             <span>Nueva Categoría</span>
-          </button>
+            </button>
+          )}
         </div>
 
         {showForm && (
@@ -228,7 +234,7 @@ export default function CategoriesPage() {
                     )}
                   </div>
                 </div>
-                {userProfile?.role === 'admin' && (
+                {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
                   <div className="flex space-x-2">
                     <button
                       onClick={() => handleEdit(category)}

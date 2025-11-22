@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { setCookie, deleteCookie } from "hono/cookie";
 import { cors } from "hono/cors";
 import { authMiddleware, generateToken, verifyPassword, hashPassword, type User } from "./auth";
+import registerExpenseRoutes from './routes/expenses';
 
 type Variables = {
   user: User;
@@ -487,14 +488,13 @@ app.post('/api/expenses', authMiddleware(), async (c) => {
     console.log('Creating expense for user:', user.id, 'Data:', expense);
 
     // Si use_balance es true y el tipo de comprobante descuenta saldo, descontar del saldo en la tabla saldos
+    // Determine whether this expense should deduct from balance.
+    // We no longer consult tipo_comprobantes.descuenta_saldo to avoid runtime schema mismatches.
+    // Instead, use the formapago.sigla -> afectaSaldo flag when provided; default to 1.
     let descuentaSaldo = 1;
-    if (expense.tipo_comprobante_id) {
-      const { results: comprobanteResults } = await c.env.DB.prepare(
-        'SELECT descuenta_saldo FROM tipo_comprobantes WHERE id = ?'
-      ).bind(expense.tipo_comprobante_id).all();
-      if (comprobanteResults.length > 0) {
-  descuentaSaldo = Number(comprobanteResults[0].descuenta_saldo ?? 1);
-      }
+    if (expense.sigla) {
+      const { results: fp } = await c.env.DB.prepare('SELECT afectaSaldo FROM formapago WHERE sigla = ?').bind(expense.sigla).all();
+      if (fp.length > 0) descuentaSaldo = Number(fp[0].afectaSaldo ?? 1);
     }
     if (expense.use_balance && descuentaSaldo !== 0) {
       const expenseAmount = parseFloat(expense.amount);
@@ -543,7 +543,7 @@ app.post('/api/expenses', authMiddleware(), async (c) => {
     }
     
     const { results } = await c.env.DB.prepare(
-      'INSERT INTO expenses (user_id, category, description, amount, expense_date, status, currency, use_balance, tipo_comprobante_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
+      'INSERT INTO expenses (user_id, category, description, amount, expense_date, status, currency, use_balance, tipo_comprobante_id, sigla) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *'
     ).bind(
       user.id, // usar el usuario autenticado
       expense.category,
@@ -553,7 +553,8 @@ app.post('/api/expenses', authMiddleware(), async (c) => {
       'pendiente',
       expense.currency || 'ARS',
       (expense.use_balance && descuentaSaldo !== 0) ? 1 : 0,
-      expense.tipo_comprobante_id || null
+      expense.tipo_comprobante_id || null,
+      expense.sigla || null
     ).all();
     
     console.log('Expense created:', results[0]);
@@ -593,51 +594,19 @@ app.put('/api/expenses/:id', authMiddleware(), async (c) => {
     // Si el gasto está rechazado, solo el usuario puede modificarlo y el estado pasa a 'pendiente'
     let newStatus = currentExpense[0].status === 'rechazado' ? 'pendiente' : 'pendiente';
 
-    // Si el gasto estaba rechazado y usa saldo, descontar el saldo nuevamente
-    if (currentExpense[0].status === 'rechazado' && expenseData.use_balance) {
-      const descuentoAmount = Number(expenseData.amount) || 0;
-      const currency = expenseData.currency || 'ARS';
-      // Obtener saldo anterior para registro transaccional
-      const { results: saldoAnteriorResults } = await c.env.DB.prepare(
-        'SELECT balance FROM saldos WHERE user_id = ? AND currency = ?'
-      ).bind(user.id, currency).all();
-      const saldoAnterior = saldoAnteriorResults.length > 0 ? Number(saldoAnteriorResults[0].balance) || 0 : 0;
-      // Descontar en tablas legacy (compatibilidad)
-      await c.env.DB.prepare(
-        'UPDATE users SET balance = balance - ? WHERE id = ?'
-      ).bind(descuentoAmount, user.id).run();
-      await c.env.DB.prepare(
-        'UPDATE user_profiles SET balance = balance - ? WHERE user_id = ?'
-      ).bind(descuentoAmount, user.id).run();
-      // Descontar en tabla saldos (multimoneda)
-      await c.env.DB.prepare(`
-        INSERT OR REPLACE INTO saldos (user_id, currency, balance, created_at, updated_at)
-        VALUES (?, ?, COALESCE((SELECT balance FROM saldos WHERE user_id = ? AND currency = ?), 0) - ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      `).bind(user.id, currency, user.id, currency, descuentoAmount).run();
-      // Registrar transacción de descuento
-      const saldoNuevo = saldoAnterior - descuentoAmount;
-      await registrarTransaccionSaldo(
-        c.env.DB,
-        user.id,
-        currency,
-        'descuento',
-        descuentoAmount,
-        saldoAnterior,
-        saldoNuevo,
-        `Descuento por gasto modificado tras rechazo: ${expenseData.description}`,
-        user.email || 'USUARIO'
-      );
+    // Validate edits: only allow changing 'category' and 'description'
+    const allowedFields = new Set(['category', 'description']);
+    const providedFields = Object.keys(expenseData || {});
+    const forbidden = providedFields.filter(k => !allowedFields.has(k));
+    if (forbidden.length > 0) {
+      return c.json({ error: 'Solo se puede modificar la categoría y la descripción de un gasto existente' }, 400);
     }
 
     const { results } = await c.env.DB.prepare(
-      'UPDATE expenses SET category = ?, description = ?, amount = ?, expense_date = ?, currency = ?, tipo_comprobante_id = ?, status = ? WHERE id = ? RETURNING *'
+      'UPDATE expenses SET category = ?, description = ?, status = ? WHERE id = ? RETURNING *'
     ).bind(
       expenseData.category,
       expenseData.description,
-      expenseData.amount,
-      expenseData.expense_date,
-      expenseData.currency || 'ARS',
-      expenseData.tipo_comprobante_id || null,
       newStatus,
       expenseId
     ).all();
@@ -1913,10 +1882,17 @@ app.get('/api/categories', async (c) => {
   }
 });
 
-app.post('/api/categories', async (c) => {
+app.post('/api/categories', authMiddleware(), async (c) => {
   try {
     const { name, description, color, icon } = await c.req.json();
     
+    // Check role: only admin or supervisor may create categories
+    const currentUser = c.get('user');
+    const { results: userResults } = await c.env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(currentUser.id).all();
+    if (userResults.length === 0 || !['admin', 'supervisor'].includes(userResults[0].role as string)) {
+      return c.json({ error: 'No autorizado' }, 403);
+    }
+
     const { results } = await c.env.DB.prepare(
       'INSERT INTO categories (name, description, color, icon) VALUES (?, ?, ?, ?) RETURNING *'
     ).bind(name, description, color || '#6B7280', icon || '🏷️').all();
@@ -1927,11 +1903,18 @@ app.post('/api/categories', async (c) => {
   }
 });
 
-app.put('/api/categories/:id', async (c) => {
+app.put('/api/categories/:id', authMiddleware(), async (c) => {
   try {
     const id = c.req.param('id');
     const { name, description, color, icon } = await c.req.json();
     
+    // Only admin or supervisor can update categories
+    const currentUser = c.get('user');
+    const { results: userResults } = await c.env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(currentUser.id).all();
+    if (userResults.length === 0 || !['admin', 'supervisor'].includes(userResults[0].role as string)) {
+      return c.json({ error: 'No autorizado' }, 403);
+    }
+
     const { results } = await c.env.DB.prepare(
       'UPDATE categories SET name = ?, description = ?, color = ?, icon = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING *'
     ).bind(name, description, color, icon, id).all();
@@ -1946,10 +1929,17 @@ app.put('/api/categories/:id', async (c) => {
   }
 });
 
-app.delete('/api/categories/:id', async (c) => {
+app.delete('/api/categories/:id', authMiddleware(), async (c) => {
   try {
     const id = c.req.param('id');
     
+    // Only admin or supervisor can delete categories
+    const currentUser = c.get('user');
+    const { results: userResults } = await c.env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(currentUser.id).all();
+    if (userResults.length === 0 || !['admin', 'supervisor'].includes(userResults[0].role as string)) {
+      return c.json({ error: 'No autorizado' }, 403);
+    }
+
     const { results } = await c.env.DB.prepare(
       'DELETE FROM categories WHERE id = ? RETURNING *'
     ).bind(id).all();
@@ -1978,13 +1968,24 @@ app.get('/api/tipo-comprobantes', async (c) => {
   }
 });
 
-app.post('/api/tipo-comprobantes', async (c) => {
+app.post('/api/tipo-comprobantes', authMiddleware(), async (c) => {
   try {
-    const { nombre, descripcion, codigo, activo, descuenta_saldo } = await c.req.json();
+    const { nombre, descripcion, codigo, activo } = await c.req.json();
     
+    
+
+    
+
+    // Only admin or supervisor can create tipos de comprobantes
+    const currentUser = c.get('user');
+    const { results: userResults } = await c.env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(currentUser.id).all();
+    if (userResults.length === 0 || !['admin', 'supervisor'].includes(userResults[0].role as string)) {
+      return c.json({ error: 'No autorizado' }, 403);
+    }
+
     const { results } = await c.env.DB.prepare(
-      'INSERT INTO tipo_comprobantes (nombre, descripcion, codigo, activo, descuenta_saldo) VALUES (?, ?, ?, ?, ?) RETURNING *'
-    ).bind(nombre, descripcion || null, codigo || null, activo !== false ? 1 : 0, descuenta_saldo ?? 1).all();
+      'INSERT INTO tipo_comprobantes (nombre, descripcion, codigo, activo) VALUES (?, ?, ?, ?) RETURNING *'
+    ).bind(nombre, descripcion || null, codigo || null, activo !== false ? 1 : 0).all();
     
     return c.json(results[0]);
   } catch (error) {
@@ -1993,14 +1994,25 @@ app.post('/api/tipo-comprobantes', async (c) => {
   }
 });
 
-app.put('/api/tipo-comprobantes/:id', async (c) => {
+app.put('/api/tipo-comprobantes/:id', authMiddleware(), async (c) => {
   try {
     const id = c.req.param('id');
-    const { nombre, descripcion, codigo, activo, descuenta_saldo } = await c.req.json();
+    const { nombre, descripcion, codigo, activo } = await c.req.json();
     
+    
+
+    
+
+    // Only admin or supervisor can update tipos de comprobantes
+    const currentUser = c.get('user');
+    const { results: userResults } = await c.env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(currentUser.id).all();
+    if (userResults.length === 0 || !['admin', 'supervisor'].includes(userResults[0].role as string)) {
+      return c.json({ error: 'No autorizado' }, 403);
+    }
+
     const { results } = await c.env.DB.prepare(
-      'UPDATE tipo_comprobantes SET nombre = ?, descripcion = ?, codigo = ?, activo = ?, descuenta_saldo = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING *'
-    ).bind(nombre, descripcion, codigo, activo !== false ? 1 : 0, descuenta_saldo ?? 1, id).all();
+      'UPDATE tipo_comprobantes SET nombre = ?, descripcion = ?, codigo = ?, activo = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING *'
+    ).bind(nombre, descripcion, codigo, activo !== false ? 1 : 0, id).all();
     
     if (results.length === 0) {
       return c.json({ error: 'Tipo de comprobante no encontrado' }, 404);
@@ -2013,10 +2025,47 @@ app.put('/api/tipo-comprobantes/:id', async (c) => {
   }
 });
 
-app.delete('/api/tipo-comprobantes/:id', async (c) => {
+app.delete('/api/tipo-comprobantes/:id', authMiddleware(), async (c) => {
   try {
     const id = c.req.param('id');
-    
+    // Prevent deletion when this tipo_comprobante is referenced by expenses
+    // Only admin or supervisor can delete tipos de comprobantes
+    const currentUser = c.get('user');
+    const { results: userResults } = await c.env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(currentUser.id).all();
+    if (userResults.length === 0 || !['admin', 'supervisor'].includes(userResults[0].role as string)) {
+      return c.json({ error: 'No autorizado' }, 403);
+    }
+
+    const { results: expensesCheck } = await c.env.DB.prepare(
+      'SELECT COUNT(*) as count FROM expenses WHERE tipo_comprobante_id = ?'
+    ).bind(id).all();
+
+    const referencedCount = Number((expensesCheck[0] as any)?.count || 0);
+
+    // Detect a force flag either in JSON body or ?force query param
+    let force = false;
+    try {
+      const body = await c.req.json();
+      if (body && (body.force === true || String(body.force).toLowerCase() === 'true')) force = true;
+    } catch (e) {
+      // no body present or invalid JSON - ignore
+    }
+    try {
+      const qs = new URL(c.req.url).searchParams.get('force');
+      if (qs && ['1','true','yes'].includes(qs.toLowerCase())) force = true;
+    } catch (e) {
+      // ignore
+    }
+
+    if (referencedCount > 0 && !force) {
+      return c.json({ error: `No se puede eliminar: el tipo de comprobante está siendo usado en ${referencedCount} gasto(s). Usa ?force=true para forzar eliminación (los gastos quedarán con tipo_comprobante_id NULL).` }, 400);
+    }
+
+    // If force requested, clear references first so DELETE won't fail on FK constraints
+    if (referencedCount > 0 && force) {
+      await c.env.DB.prepare('UPDATE expenses SET tipo_comprobante_id = NULL WHERE tipo_comprobante_id = ?').bind(id).run();
+    }
+
     const { results } = await c.env.DB.prepare(
       'DELETE FROM tipo_comprobantes WHERE id = ? RETURNING *'
     ).bind(id).all();
@@ -2031,6 +2080,105 @@ app.delete('/api/tipo-comprobantes/:id', async (c) => {
     return c.json({ error: String(error) }, 500);
   }
 });
+
+  // Formas de Pago (formapago) - CRUD + safe delete
+  app.get('/api/formapagos', async (c) => {
+    try {
+      const { results } = await c.env.DB.prepare('SELECT sigla, descripcion, afectaSaldo FROM formapago ORDER BY sigla').all();
+      return c.json(results);
+    } catch (error) {
+      console.error('Error fetching formapagos:', error);
+      return c.json({ error: String(error) }, 500);
+    }
+  });
+
+  app.post('/api/formapagos', authMiddleware(), async (c) => {
+    try {
+      const body = await c.req.json();
+      const { sigla, descripcion, afectaSaldo } = body;
+      if (!sigla || !descripcion) return c.json({ error: 'sigla y descripcion son requeridos' }, 400);
+      const sig = String(sigla).toUpperCase().slice(0,2);
+
+      const { results } = await c.env.DB.prepare('INSERT INTO formapago (sigla, descripcion, afectaSaldo) VALUES (?, ?, ?) RETURNING *').bind(sig, descripcion, afectaSaldo ? 1 : 0).all();
+      return c.json(results[0], 201);
+    } catch (error) {
+      console.error('Error creating formapago:', error);
+      if (error instanceof Error && error.message.includes('UNIQUE')) return c.json({ error: 'La sigla ya existe' }, 400);
+      return c.json({ error: String(error) }, 500);
+    }
+  });
+
+  app.put('/api/formapagos/:sigla', authMiddleware(), async (c) => {
+    try {
+      const sigParam = String(c.req.param('sigla') || '').toUpperCase().slice(0,2);
+      const body = await c.req.json();
+      const { descripcion, afectaSaldo } = body;
+      const { results } = await c.env.DB.prepare('UPDATE formapago SET descripcion = ?, afectaSaldo = ? WHERE sigla = ? RETURNING *').bind(descripcion || null, afectaSaldo ? 1 : 0, sigParam).all();
+      if (results.length === 0) return c.json({ error: 'Forma de pago no encontrada' }, 404);
+      return c.json(results[0]);
+    } catch (error) {
+      console.error('Error updating formapago:', error);
+      return c.json({ error: String(error) }, 500);
+    }
+  });
+
+  app.delete('/api/formapagos/:sigla', authMiddleware(), async (c) => {
+    try {
+      const sigParam = String(c.req.param('sigla') || '').toUpperCase().slice(0,2);
+
+      // Check for referencing expenses
+      const { results: checkRes } = await c.env.DB.prepare('SELECT COUNT(*) as count FROM expenses WHERE sigla = ?').bind(sigParam).all();
+      const count = (checkRes[0] as any)?.count ?? 0;
+      const force = new URL(c.req.url).searchParams.get('force') === 'true';
+
+      if (count > 0 && !force) {
+        return c.json({ error: 'No se puede eliminar: existen gastos asociados a esta forma de pago. Usa ?force=true para forzar (se pondrán en NULL los registros).' }, 400);
+      }
+
+      if (force && count > 0) {
+        await c.env.DB.prepare('UPDATE expenses SET sigla = NULL WHERE sigla = ?').bind(sigParam).run();
+      }
+
+      const { results } = await c.env.DB.prepare('DELETE FROM formapago WHERE sigla = ? RETURNING *').bind(sigParam).all();
+      if (results.length === 0) return c.json({ error: 'Forma de pago no encontrada' }, 404);
+      return c.json({ success: true, deleted: results[0] });
+    } catch (error) {
+      console.error('Error deleting formapago:', error);
+      return c.json({ error: String(error) }, 500);
+    }
+  });
+
+  // DB sanity check endpoint - useful to detect accidentally dropped tables or missing columns
+  app.get('/api/db-check', authMiddleware(), async (c) => {
+    try {
+      const checks: { missingTables: string[]; missingColumns: string[] } = { missingTables: [], missingColumns: [] };
+
+      // Check for formapago table
+      try {
+        const { results: tbl } = await c.env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='formapago';").all();
+        if (!tbl || tbl.length === 0) checks.missingTables.push('formapago');
+      } catch (e) {
+        console.error('db-check: error checking formapago table', e);
+        checks.missingTables.push('formapago');
+      }
+
+      // Check for expenses.sigla column
+      try {
+        const { results: cols } = await c.env.DB.prepare('PRAGMA table_info(expenses);').all();
+        const hasSigla = Array.isArray(cols) && cols.some((c: any) => c.name === 'sigla');
+        if (!hasSigla) checks.missingColumns.push('expenses.sigla');
+      } catch (e) {
+        console.error('db-check: error checking expenses columns', e);
+        checks.missingColumns.push('expenses');
+      }
+
+      const ok = checks.missingTables.length === 0 && checks.missingColumns.length === 0;
+      return c.json({ ok, ...checks });
+    } catch (error) {
+      console.error('Error running db-check:', error);
+      return c.json({ error: String(error) }, 500);
+    }
+  });
 
 // Currencies endpoints - CRUD completo para monedas
 app.get('/api/currencies', async (c) => {
@@ -2171,6 +2319,13 @@ app.delete('/api/tipo-comprobantes/:id', authMiddleware(), async (c) => {
   try {
     const id = c.req.param('id');
     
+    // Only admin or supervisor can delete tipos de comprobantes
+    const currentUser = c.get('user');
+    const { results: userResults } = await c.env.DB.prepare('SELECT role FROM users WHERE id = ?').bind(currentUser.id).all();
+    if (userResults.length === 0 || !['admin', 'supervisor'].includes(userResults[0].role as string)) {
+      return c.json({ error: 'No autorizado' }, 403);
+    }
+
     // Verificar si el tipo está siendo usado en gastos
     const { results: expensesCheck } = await c.env.DB.prepare(
       'SELECT COUNT(*) as count FROM expenses WHERE tipo_comprobante_id = ?'
@@ -2200,9 +2355,9 @@ app.post('/api/test-expense', async (c) => {
   
   try {
     await c.env.DB.prepare(
-      'INSERT INTO expenses (user_id, description, amount, category, expense_date, status, use_balance) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO expenses (user_id, description, amount, category, expense_date, status, use_balance, sigla) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     )
-      .bind('admin-001', body.description, body.amount, body.category, new Date().toISOString().split('T')[0], 'pendiente', 0)
+      .bind('admin-001', body.description, body.amount, body.category, new Date().toISOString().split('T')[0], 'pendiente', 0, body.sigla || null)
       .run();
 
     return c.json({ 
@@ -2799,8 +2954,8 @@ app.get('/api/users/:userId/saldos', authMiddleware(), async (c) => {
     
     console.log(`🔍 CONSULTA SALDOS: Usuario ${user.id} consultando saldos de ${userId}`);
     
-    // Solo admins pueden consultar saldos de otros usuarios
-    if (user.role !== 'admin' && user.id !== userId) {
+    // Allow admins and supervisors to consult other user's balances (supervisors need visibility for reviews)
+    if (!['admin', 'supervisor'].includes(user.role) && user.id !== userId) {
       console.log(`❌ PERMISO DENEGADO: Usuario ${user.id} no puede consultar saldos de ${userId}`);
       return c.json({ error: 'Solo administradores pueden consultar saldos de otros usuarios' }, 403);
     }
@@ -2827,6 +2982,15 @@ app.get('/api/users/:userId/saldos', authMiddleware(), async (c) => {
 });
 
 // Middleware para servir archivos estáticos y SPA
+// Register modular routes from the routes/ directory (if any)
+try {
+  // registerExpenseRoutes will add /api/expenses/export and related endpoints
+  registerExpenseRoutes(app);
+} catch (err) {
+  console.warn('No modular routes registered or error while registering:', err);
+}
+
+// Catch-all: serve static files and SPA
 app.get('*', async (c) => {
   const url = new URL(c.req.url);
   

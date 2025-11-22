@@ -119,10 +119,13 @@ export function registerExpenseRoutes(app: any) {
     try {
       const user = c.get('user');
       const expense = await c.req.json();
+      // Determine whether this expense should deduct from balance.
+      // We no longer consult tipo_comprobantes.descuenta_saldo to avoid runtime schema mismatches.
+      // Instead, use the formapago.sigla -> afectaSaldo flag when provided; default to 1.
       let descuentaSaldo = 1;
-      if (expense.tipo_comprobante_id) {
-        const { results: comprobanteResults } = await c.env.DB.prepare('SELECT descuenta_saldo FROM tipo_comprobantes WHERE id = ?').bind(expense.tipo_comprobante_id).all();
-        if (comprobanteResults.length > 0) descuentaSaldo = Number(comprobanteResults[0].descuenta_saldo ?? 1);
+      if (expense.sigla) {
+        const { results: fp } = await c.env.DB.prepare('SELECT afectaSaldo FROM formapago WHERE sigla = ?').bind(expense.sigla).all();
+        if (fp.length > 0) descuentaSaldo = Number(fp[0].afectaSaldo ?? 1);
       }
       if (expense.use_balance && descuentaSaldo !== 0) {
         const expenseAmount = parseFloat(expense.amount);
@@ -139,7 +142,7 @@ export function registerExpenseRoutes(app: any) {
         const saldoNuevo = saldoAnterior - expenseAmount;
         await registrarTransaccionSaldo(c.env.DB, user.id, currency, 'descuento', expenseAmount, saldoAnterior, saldoNuevo, `Descuento por gasto: ${expense.description}`, user.email || 'USUARIO');
       }
-      const { results } = await c.env.DB.prepare('INSERT INTO expenses (user_id, category, description, amount, expense_date, status, currency, use_balance, tipo_comprobante_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *').bind(user.id, expense.category, expense.description, expense.amount, expense.expense_date, 'pendiente', expense.currency || 'ARS', (expense.use_balance && descuentaSaldo !== 0) ? 1 : 0, expense.tipo_comprobante_id || null).all();
+      const { results } = await c.env.DB.prepare('INSERT INTO expenses (user_id, category, description, amount, expense_date, status, currency, use_balance, tipo_comprobante_id, sigla) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *').bind(user.id, expense.category, expense.description, expense.amount, expense.expense_date, 'pendiente', expense.currency || 'ARS', (expense.use_balance && descuentaSaldo !== 0) ? 1 : 0, expense.tipo_comprobante_id || null, expense.sigla || null).all();
       return c.json(results[0]);
     } catch (error) {
       return c.json({ error: String(error) }, 500);

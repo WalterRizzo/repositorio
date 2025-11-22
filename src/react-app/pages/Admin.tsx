@@ -107,6 +107,7 @@ export default function Admin() {
         setShowUserModal(false);
         resetUserForm();
         alert("Usuario creado exitosamente");
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.create' } })); } catch(e){}
       } else {
         const errorData = await response.json();
         alert(`Error al crear usuario: ${errorData.error || 'Error desconocido'}`);
@@ -146,6 +147,7 @@ export default function Admin() {
         setEditingUser(null);
         resetUserForm();
         alert("Usuario actualizado exitosamente");
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.update', userId: editingUser?.user_id || null } })); } catch(e){}
       } else {
         const errorData = await response.json();
         alert(`Error al actualizar usuario: ${errorData.error || 'Error desconocido'}`);
@@ -167,6 +169,7 @@ export default function Admin() {
       if (response.ok) {
         await fetchUsers();
         alert("Usuario eliminado exitosamente");
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.delete', userId } })); } catch(e){}
       } else {
         alert("Error al eliminar usuario");
       }
@@ -211,6 +214,7 @@ export default function Admin() {
         method: "PUT",
       });
       await fetchExpenses();
+      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.approve', id } })); } catch(e){}
       alert("Gasto aprobado exitosamente");
     } catch (error) {
       console.error("Error aprobando gasto:", error);
@@ -226,6 +230,7 @@ export default function Admin() {
         method: "PUT",
       });
       await fetchExpenses();
+      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id } })); } catch(e){}
       alert("Gasto rechazado exitosamente");
     } catch (error) {
       console.error("Error rechazando gasto:", error);

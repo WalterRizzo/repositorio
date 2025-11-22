@@ -58,15 +58,20 @@ export default function Reports() {
 
   const fetchUserProfile = async () => {
     try {
-      const response = await fetch("/api/users/me");
-      const data = await response.json();
+      // request user profile (send credentials) and load into state
+      const res = await fetch('/api/users/me', { credentials: 'include' });
+      if (!res.ok) throw new Error(`Failed to load user profile: ${res.status}`);
+      const data = await res.json();
       setUserProfile(data);
-    } catch (error) {
-      console.error("Error cargando perfil:", error);
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+      // If fetching profile fails, redirect to login so user can re-authenticate
+      try { navigate('/login'); } catch (e) { /* no-op */ }
     }
   };
 
   const fetchReports = async () => {
+    setIsLoading(true);
     try {
       const qs = new URLSearchParams();
       if (filterUserId) qs.set('userId', filterUserId);
@@ -74,11 +79,17 @@ export default function Reports() {
       if (filterFrom) qs.set('from', filterFrom);
       if (filterTo) qs.set('to', filterTo);
       const url = `/api/expenses/reports/summary${qs.toString() ? ('?' + qs.toString()) : ''}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      setReportData(data);
-    } catch (error) {
-      console.error("Error cargando reportes:", error);
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`Reports endpoint returned ${res.status}: ${txt?.slice(0,200)}`);
+      }
+      const json = await res.json();
+      setReportData(json || null);
+    } catch (e) {
+      console.error('Error fetching reports:', e);
+      alert('Error cargando reportes: ' + (e instanceof Error ? e.message : String(e)));
+      setReportData(null);
     } finally {
       setIsLoading(false);
     }
@@ -116,8 +127,34 @@ export default function Reports() {
       console.info('Exporting using URL (with debug):', url, { filterUserId, filterCurrency, filterFrom, filterTo });
       console.info('Exporting using URL:', url, { filterUserId, filterCurrency, filterFrom, filterTo });
       // Add a short cache buster to avoid any CDN caching confusion
-      let response = await fetch(url + (url.includes('?') ? '&_=' : '?_=' ) + Date.now());
-      let json = await response.json();
+      // Ensure cookies are sent and handle non-ok responses to show helpful errors
+      let response = await fetch(url + (url.includes('?') ? '&_=' : '?_=' ) + Date.now(), { credentials: 'include' });
+      if (!response.ok) {
+        // Try to parse JSON error body when possible
+        let bodyText = '';
+        try { const err = await response.json(); bodyText = err?.error || JSON.stringify(err); } catch (e) { bodyText = await response.text(); }
+        throw new Error(`Export endpoint returned ${response.status}: ${bodyText}`);
+      }
+      // Try parse JSON, but if the response is HTML (login page or error page) detect and give clearer message
+      let json: any;
+      // Read body once as text, then parse JSON. This avoids reading the stream multiple times
+      const responseBodyText = await response.text();
+
+      // If the server returned an HTML document (login page or generic error), give a clearer message.
+      if (responseBodyText && responseBodyText.trim().startsWith('<')) {
+        const hint = response.status === 401 ? 'No autenticado (inicia sesión).' : response.status === 403 ? 'No autorizado.' : 'Probablemente no autenticado o error del servidor.';
+        throw new Error(`Server returned HTML (${hint}). Response starts with: ${responseBodyText.trim().slice(0,140)}`);
+      }
+      try {
+        json = responseBodyText ? JSON.parse(responseBodyText) : {};
+      } catch (parseErr) {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('text/html') || responseBodyText.trim().startsWith('<')) {
+          throw new Error(`Server returned HTML (probably not authenticated or a server error). Response starts with: ${responseBodyText.trim().slice(0,140)}`);
+        }
+        // If not HTML, rethrow parse error with some context
+        throw new Error(`Invalid JSON from export endpoint: ${parseErr instanceof Error ? parseErr.message : String(parseErr)} — response body: ${responseBodyText.slice(0,140)}`);
+      }
       if (json?.debug) console.info('Export debug info from server:', json.debug);
       let expenses = json?.data || json || [];
 
@@ -163,13 +200,14 @@ export default function Reports() {
           'Estado': expense.status === 'pendiente' ? 'En revisión' : expense.status === 'aprobado' ? 'Aprobado' : 'Rechazado',
           'Usa Saldo': expense.use_balance ? 'Sí' : 'No',
           'Tiene Recibo': expense.receipt_photo_url ? 'Sí' : 'No',
+          'Forma de Pago': expense.sigla || '-',
           'Fecha de Creación': new Date(expense.created_at).toLocaleDateString('es-ES'),
         }));
 
         const ws = XLSX.utils.json_to_sheet(rows);
 
         // apply column widths
-        ws['!cols'] = [{wch:20},{wch:25},{wch:40},{wch:20},{wch:15},{wch:12},{wch:8},{wch:10},{wch:18}];
+        ws['!cols'] = [{wch:20},{wch:25},{wch:40},{wch:20},{wch:15},{wch:12},{wch:8},{wch:10},{wch:14},{wch:18}];
 
         // set currency format for Monto column (find 'Monto' col)
         try {
@@ -239,7 +277,8 @@ export default function Reports() {
       XLSX.writeFile(wb, filename);
     } catch (error) {
       console.error("Error exportando a Excel:", error);
-      alert("Error al exportar el reporte");
+      const message = error instanceof Error ? error.message : String(error);
+      alert(`Error al exportar el reporte: ${message}`);
     } finally {
       setIsExporting(false);
     }

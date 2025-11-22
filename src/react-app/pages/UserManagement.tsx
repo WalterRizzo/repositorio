@@ -106,6 +106,7 @@ export default function UserManagement() {
         setNewUser({ user_id: "", role: "usuario", balance: 0 });
         await fetchUsers();
         navigate('/users', { replace: true });
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.create' } })); } catch(e){}
       } else {
         const errorData = await response.json();
         showMessage('error', errorData.error || 'Error creando usuario');
@@ -144,6 +145,7 @@ export default function UserManagement() {
         setEditingUserId(null);
         setEditingUser(null);
         await fetchUsers();
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.update', userId: editingUser?.user_id || null } })); } catch(e){}
       } else {
         const errorData = await response.json();
         showMessage('error', errorData.error || 'Error actualizando usuario');
@@ -165,6 +167,7 @@ export default function UserManagement() {
       if (response.ok) {
         showMessage('success', 'Usuario eliminado exitosamente');
         await fetchUsers();
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.delete', userId } })); } catch(e){}
       } else {
         const errorData = await response.json();
         showMessage('error', errorData.error || 'Error eliminando usuario');

@@ -53,15 +53,13 @@ export default function Sidebar() {
             </li>
           )}
 
-          {/* Settings visible for admin & supervisor */}
-          {(role === 'admin' || role === 'supervisor') && (
-            <li>
-              <button onClick={() => navigate('/settings')} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
-                <SettingsIcon className="w-4 h-4" />
-                <span>Configuración</span>
-              </button>
-            </li>
-          )}
+          {/* Settings visible for ALL roles so every user can change their own password */}
+          <li>
+            <button onClick={() => navigate('/settings')} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
+              <SettingsIcon className="w-4 h-4" />
+              <span>Configuración</span>
+            </button>
+          </li>
 
           {/* DBA only visible to admin */}
           {role === 'admin' && (
