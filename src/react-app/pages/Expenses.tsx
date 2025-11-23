@@ -753,7 +753,7 @@ export default function Expenses() {
       if (response.ok && result.results) {
         // Filtrar solo las tablas principales
   // Keep this list intentionally small to avoid clutter — but include formapago so admins can manage payment methods
-  const mainTables = ['users', 'user_profiles', 'expenses', 'tipo_comprobantes', 'categories', 'currencies', 'formapago', 'balance_transactions', 'saldos', 'saldo_transacciones'];
+  const mainTables = ['users', 'user_profiles', 'expenses', 'expenses_cierre', 'tipo_comprobantes', 'categories', 'currencies', 'formapago', 'balance_transactions', 'saldos', 'saldo_transacciones', 'saldo_transacciones_cierre'];
         const tableNames = result.results
           .map((row: any) => row.name)
           .filter((name: string) => mainTables.includes(name));
