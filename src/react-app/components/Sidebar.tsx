@@ -1,4 +1,4 @@
-import { Receipt, Users, Database, FileSpreadsheet, Settings as SettingsIcon } from 'lucide-react';
+import { Receipt, Users, Database, FileSpreadsheet, Settings as SettingsIcon, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/react-app/hooks/useAuth';
 import argentinaFlag from '@/react-app/assets/argentina.svg';
@@ -39,6 +39,16 @@ export default function Sidebar() {
               <button onClick={() => navigate('/reports')} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
                 <FileSpreadsheet className="w-4 h-4" />
                 <span>Reportes</span>
+              </button>
+            </li>
+          )}
+
+          {/* Cierre de viajes - admin & supervisor */}
+          {(role === 'admin' || role === 'supervisor') && (
+            <li>
+              <button onClick={() => navigate('/cierre-viajes')} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
+                <MapPin className="w-4 h-4" />
+                <span>Cierre de viajes</span>
               </button>
             </li>
           )}
