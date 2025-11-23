@@ -1162,10 +1162,10 @@ export default function Expenses() {
                   <select
                     value={movementsCurrency}
                     onChange={(e) => { setMovementsCurrency(e.target.value); setMovementsPage(1); }}
-                    className="px-3 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all text-sm"
+                    className="px-3 py-2 bg-black border border-violet-500/20 rounded-xl text-white hover:bg-gray-900 font-semibold transition-all text-sm"
                   >
                     <option value="all">Todas las monedas</option>
-                    {Array.from(new Set(balanceMovements.map(b => String(b.currency || '').toUpperCase()).filter(Boolean))).sort().map(c => (
+                    {(currenciesList.length === 0 ? Array.from(new Set(balanceMovements.map(b => String(b.currency || '').toUpperCase()).filter(Boolean))).sort() : currenciesList.map(c => c.code)).map((c:any) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
@@ -1364,10 +1364,10 @@ export default function Expenses() {
                   <select
                     value={movementsCurrency}
                     onChange={(e) => { setMovementsCurrency(e.target.value); setMovementsPage(1); }}
-                    className="px-3 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all text-sm"
+                    className="px-3 py-2 bg-black border border-violet-500/20 rounded-xl text-white hover:bg-gray-900 font-semibold transition-all text-sm"
                   >
                     <option value="all">Todas las monedas</option>
-                    {Array.from(new Set(balanceMovements.map(b => String(b.currency || '').toUpperCase()).filter(Boolean))).sort().map(c => (
+                    {(currenciesList.length === 0 ? Array.from(new Set(balanceMovements.map(b => String(b.currency || '').toUpperCase()).filter(Boolean))).sort() : currenciesList.map(c => c.code)).map((c:any) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>

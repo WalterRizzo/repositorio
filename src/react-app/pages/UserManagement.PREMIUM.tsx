@@ -49,8 +49,26 @@ export default function UserManagement() {
     if (user) {
       fetchUserProfile();
       fetchUsers();
+      fetchCurrencies();
     }
   }, [user]);
+
+  // Load canonical currencies list for footer/selects
+  const [currenciesList, setCurrenciesList] = useState<Array<{ code: string; name?: string; symbol?: string }>>([]);
+
+  const fetchCurrencies = async () => {
+    try {
+      const res = await fetch('/api/currencies');
+      if (!res.ok) return setCurrenciesList([]);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setCurrenciesList(data.map((c:any) => ({ code: String(c.code).toUpperCase(), name: c.name, symbol: c.symbol })));
+      }
+    } catch (err) {
+      console.error('Error loading currencies', err);
+      setCurrenciesList([]);
+    }
+  };
 
   useEffect(() => {
     if (location.hash === '#create') {
@@ -447,11 +465,17 @@ export default function UserManagement() {
               CARGAS
             </button>
 
-            <select value={footerCurrency} onChange={(e) => setFooterCurrency(e.target.value)} className="px-3 py-1 rounded-full bg-gray-800 text-white text-sm border border-white/6">
+            <select value={footerCurrency} onChange={(e) => setFooterCurrency(e.target.value)} className="px-3 py-1 rounded-full bg-black text-white text-sm border border-white/6">
               <option value="all">Todas las monedas</option>
-              <option value="ARS">ARS</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
+              {currenciesList.length === 0 ? (
+                [
+                  { code: 'ARS', label: 'ARS' },
+                  { code: 'USD', label: 'USD' },
+                  { code: 'EUR', label: 'EUR' }
+                ].map(c => <option key={c.code} value={c.code}>{c.label}</option>)
+              ) : (
+                currenciesList.map(c => <option key={c.code} value={c.code} className="bg-black text-white">{c.name ? `${c.name} (${c.code})` : c.code}</option>)
+              )}
             </select>
 
             <div className="flex items-center gap-2 text-xs text-white/60">

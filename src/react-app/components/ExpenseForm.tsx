@@ -721,7 +721,7 @@ export default function ExpenseForm({
                 value={formData.currency || 'ARS'}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-gray-700 font-semibold"
+                className="w-full px-4 py-3 bg-black border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-gray-900 font-semibold"
               >
                 {currenciesList.length === 0 ? (
                   // Fallback to a small safe list while currencies load or in case of error

@@ -396,7 +396,7 @@ export default function ExpensesTable({
             <select
               value={currencyFilter}
               onChange={(e) => { setCurrencyFilter(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-1 text-xs bg-gray-800 border border-white/6 rounded-full text-white hover:bg-gray-700 font-semibold transition-all"
+              className="px-3 py-1 text-xs bg-black border border-white/6 rounded-full text-white hover:bg-gray-900 font-semibold transition-all"
             >
               <option value="all">Todas las monedas</option>
               {currenciesList.map(c => (
