@@ -163,10 +163,11 @@ function HeaderTabs() {
       <button
         onClick={() => { navigate('/admin'); window.location.hash = '#users'; }}
         className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
-          active === 'users'
-            ? 'bg-indigo-600 text-white shadow-md magic-tab-active'
-            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+          // Mostrar el mismo efecto "magic-tab" en Usuarios como en Gastos.
+          // El botón de Usuarios tendrá el mismo estilo destacado para coincidir visualmente.
+          'bg-indigo-600 text-white shadow-md magic-tab-active'
         }`}
+        aria-pressed={active === 'users'}
       >
         <div className="flex items-center justify-center space-x-2">
           <Users className="w-4 h-4" />
