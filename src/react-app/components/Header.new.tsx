@@ -1,12 +1,14 @@
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { Link, useLocation } from "react-router";
-import { Receipt, BarChart3, LogOut, Moon, Sun, Tag, Users, KeyRound, Wallet, TrendingUp } from "lucide-react";
+import { Receipt, BarChart3, LogOut, Moon, Sun, Tag, KeyRound, Wallet, TrendingUp } from "lucide-react";
 import { useTheme } from "@/react-app/hooks/useTheme";
 
 interface HeaderProps {
   userProfile?: any;
   onSettingsClick?: () => void;
 }
+
+import { useEffect, useState } from 'react';
 
 export default function Header({ userProfile, onSettingsClick }: HeaderProps) {
   const { user, logout } = useAuth();
@@ -27,6 +29,23 @@ export default function Header({ userProfile, onSettingsClick }: HeaderProps) {
       minimumFractionDigits: 0,
     }).format(amount);
   };
+
+  const [localBalances, setLocalBalances] = useState<Array<{currency:string; balance:number}> | null>(Array.isArray(userProfile?.balances) ? userProfile.balances : null);
+
+  useEffect(() => {
+    let mounted = true;
+    if (userProfile && !Array.isArray(userProfile.balances)) {
+      (async () => {
+        try {
+          const resp = await fetch('/api/users/me/balances');
+          if (!resp.ok) return;
+          const json = await resp.json();
+          if (mounted && Array.isArray(json.balances)) setLocalBalances(json.balances);
+        } catch (e) {}
+      })();
+    }
+    return () => { mounted = false };
+  }, [userProfile]);
 
   return (
     <header className="sticky top-0 z-50 bg-dark-900/95 backdrop-blur-xl border-b border-dark-800/50 shadow-xl">
@@ -106,22 +125,7 @@ export default function Header({ userProfile, onSettingsClick }: HeaderProps) {
                     </div>
                   </Link>
 
-                  <Link
-                    to="/expenses#users"
-                    className={`group relative px-5 py-2.5 rounded-xl font-medium transition-all duration-200 ${
-                      location.pathname === "/expenses" && location.hash === "#users"
-                        ? "text-primary-400"
-                        : "text-gray-400 hover:text-gray-200"
-                    }`}
-                  >
-                    {location.pathname === "/expenses" && location.hash === "#users" && (
-                      <div className="absolute inset-0 bg-primary-500/10 rounded-xl border border-primary-500/20"></div>
-                    )}
-                    <div className="relative flex items-center space-x-2.5">
-                      <Users className="w-4.5 h-4.5" />
-                      <span>Usuarios</span>
-                    </div>
-                  </Link>
+                  {/* Users header link removed per UX request */}
                 </>
               )}
             </nav>
@@ -129,21 +133,30 @@ export default function Header({ userProfile, onSettingsClick }: HeaderProps) {
 
           {/* Saldo y Acciones del Usuario */}
           <div className="flex items-center space-x-4">
-            {/* Saldo Total */}
-            {userProfile?.balance !== undefined && (
+            {/* Saldo Total / Saldos por moneda */}
+
+            {userProfile && (
               <div className="hidden md:flex items-center space-x-3 px-5 py-2.5 bg-dark-850 rounded-xl border border-dark-700">
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-accent-green/20 to-accent-cyan/20">
                   <Wallet className="w-4 h-4 text-accent-green" />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wide">
-                    Saldo Total
+                    Saldo
                   </span>
-                  <span className={`text-sm font-bold ${
-                    userProfile.balance >= 0 ? 'text-accent-green' : 'text-red-400'
-                  }`}>
-                    {formatBalance(userProfile.balance)}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    {Array.isArray(localBalances) && localBalances.length > 0 ? (
+                      localBalances.map((b: { currency: string; balance: number }) => (
+                        <span key={b.currency} className={`text-sm font-semibold ${b.balance >= 0 ? 'text-accent-green' : 'text-red-400'}`}>
+                          {b.currency} {Number(b.balance).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </span>
+                      ))
+                    ) : (
+                      <span className={`text-sm font-bold ${userProfile.balance >= 0 ? 'text-accent-green' : 'text-red-400'}`}>
+                        {formatBalance(userProfile.balance || 0)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

@@ -7,6 +7,7 @@ import ExpensesPage from "@/react-app/pages/Expenses";
 import ReportsPage from "@/react-app/pages/Reports";
 import SettingsPage from "@/react-app/pages/Settings";
 import AdminPage from "@/react-app/pages/Admin";
+import CierreViajesPage from "@/react-app/pages/CierreViajes";
 import UserManagementPage from "@/react-app/pages/UserManagement";
 import DocumentationPage from "@/react-app/pages/Documentation";
 import PendingExpensesNotifier from "@/react-app/components/PendingExpensesNotifier";
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/categories" element={<SettingsPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/users" element={<UserManagementPage />} />
+            <Route path="/cierre-viajes" element={<CierreViajesPage />} />
             <Route path="/documentation" element={<DocumentationPage />} />
           </Routes>
         </Router>

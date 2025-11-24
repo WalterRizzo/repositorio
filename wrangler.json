@@ -12,11 +12,6 @@
     "directory": "./dist/client",
     "binding": "ASSETS"
   },
-  "triggers": {
-    "crons": [
-      "0 3 * * SUN"
-    ]
-  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -24,5 +19,8 @@
       "database_id": "54aa56b9-161b-46eb-a707-52191fa9e76d"
     }
   ],
-  "vars": {}
+  "vars": {
+  "JWT_SECRET": "tharsis-expense-app-secret-key-2024-secure",
+  "RESEND_API_KEY": "re_jfhoMvdq_3hfWvJGfdLqUSovi6BgPqFf1"
+  }
 }

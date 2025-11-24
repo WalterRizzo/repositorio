@@ -52,12 +52,10 @@ export default function Admin() {
     }
   };
 
-  const fetchExpenses = async (page = 1, perPage = 100) => {
+  const fetchExpenses = async () => {
     try {
-      const offset = (page - 1) * perPage;
-      const response = await fetch(`/api/expenses?limit=${perPage}&offset=${offset}`);
-      const json = await response.json();
-      const data = (json && (json.data || json)) || [];
+      const response = await fetch("/api/expenses");
+      const data = await response.json();
       setExpenses(data);
     } catch (error) {
       console.error("Error cargando gastos:", error);
@@ -83,7 +81,7 @@ export default function Admin() {
     
     // Validación en frontend
     if (!userForm.name.trim() || !userForm.email.trim()) {
-      console.warn("Nombre y email son requeridos en frontend");
+      alert("Nombre y email son requeridos en frontend");
       return;
     }
     
@@ -108,14 +106,15 @@ export default function Admin() {
         await fetchUsers();
         setShowUserModal(false);
         resetUserForm();
-        console.log("Usuario creado exitosamente");
+        alert("Usuario creado exitosamente");
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.create' } })); } catch(e){}
       } else {
         const errorData = await response.json();
-        console.log(`Error al crear usuario: ${errorData.error || 'Error desconocido'}`);
+        alert(`Error al crear usuario: ${errorData.error || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error("Error creando usuario:", error);
-      console.log("Error al crear usuario");
+      alert("Error al crear usuario");
     }
   };
 
@@ -125,7 +124,7 @@ export default function Admin() {
     
     // Validación en frontend
     if (!userForm.name.trim() || !userForm.email.trim()) {
-      console.log("Nombre y email son requeridos");
+      alert("Nombre y email son requeridos");
       return;
     }
     
@@ -147,18 +146,20 @@ export default function Admin() {
         setShowUserModal(false);
         setEditingUser(null);
         resetUserForm();
-        console.log("Usuario actualizado exitosamente");
+        alert("Usuario actualizado exitosamente");
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.update', userId: editingUser?.user_id || null } })); } catch(e){}
       } else {
         const errorData = await response.json();
-        console.log(`Error al actualizar usuario: ${errorData.error || 'Error desconocido'}`);
+        alert(`Error al actualizar usuario: ${errorData.error || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error("Error actualizando usuario:", error);
-      console.log("Error al actualizar usuario");
+      alert("Error al actualizar usuario");
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
+    if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
     
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -167,13 +168,14 @@ export default function Admin() {
       
       if (response.ok) {
         await fetchUsers();
-        console.log("Usuario eliminado exitosamente");
+        alert("Usuario eliminado exitosamente");
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.delete', userId } })); } catch(e){}
       } else {
-        console.log("Error al eliminar usuario");
+        alert("Error al eliminar usuario");
       }
     } catch (error) {
       console.error("Error eliminando usuario:", error);
-      console.log("Error al eliminar usuario");
+      alert("Error al eliminar usuario");
     }
   };
 
@@ -205,30 +207,41 @@ export default function Admin() {
   };
 
   const handleApprove = async (id: number) => {
+    if (!confirm("¿Aprobar este gasto?")) return false;
 
     try {
-      await fetch(`/api/expenses/${id}/approve`, {
-        method: "PUT",
-      });
+      const resp = await fetch(`/api/expenses/${id}/approve`, { method: "PUT", credentials: 'include' });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        const msg = err.error || `Error ${resp.status} al aprobar gasto`;
+        console.error('Approve failed:', msg);
+        alert(`❌ No se pudo aprobar: ${msg}`);
+        return false;
+      }
       await fetchExpenses();
-      console.log("Gasto aprobado exitosamente");
+      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.approve', id } })); } catch(e){}
+      alert("Gasto aprobado exitosamente");
+      return true;
     } catch (error) {
       console.error("Error aprobando gasto:", error);
-      console.log("Error al aprobar el gasto");
+      alert("Error al aprobar el gasto");
+      return false;
     }
   };
 
   const handleReject = async (id: number) => {
+    if (!confirm("¿Rechazar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/reject`, {
         method: "PUT",
       });
       await fetchExpenses();
-      console.log("Gasto rechazado exitosamente");
+      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id } })); } catch(e){}
+      alert("Gasto rechazado exitosamente");
     } catch (error) {
       console.error("Error rechazando gasto:", error);
-      console.log("Error al rechazar el gasto");
+      alert("Error al rechazar el gasto");
     }
   };
 
@@ -242,7 +255,7 @@ export default function Admin() {
     );
   }
 
-  const pendingExpenses = expenses.filter(e => e.status === 'pendiente');
+  // pending expenses variable removed — not used in this view after KPI cleanup
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -254,31 +267,46 @@ export default function Admin() {
           <p className="text-gray-600 dark:text-gray-300">Gestionar gastos y usuarios</p>
         </div>
 
-        {/* Tabs */}
+        {/* Modern tabs (replicate Gastos visual for Usuarios) */}
         <div className="mb-8">
-          <div className="border-b border-gray-200 dark:border-gray-700">
-            <nav className="-mb-px flex space-x-8">
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-1.5 shadow-md border border-slate-200 dark:border-slate-700">
+            <style>{`
+              .magic-tab-active {
+                box-shadow: 0 0 12px 2px #6366f1, 0 0 24px 4px #818cf8;
+                animation: magicGlow 2s infinite alternate;
+              }
+              @keyframes magicGlow {
+                0% { box-shadow: 0 0 12px 2px #6366f1, 0 0 24px 4px #818cf8; }
+                100% { box-shadow: 0 0 24px 6px #818cf8, 0 0 32px 8px #6366f1; }
+              }
+            `}</style>
+            <nav className="flex space-x-1">
               <button
-                onClick={() => setActiveTab('expenses')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                onClick={() => { setActiveTab('expenses'); window.location.hash = ''; }}
+                className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
                   activeTab === 'expenses'
-                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                    ? 'bg-indigo-600 text-white shadow-md magic-tab-active'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
               >
-                <Receipt className="w-4 h-4 inline mr-2" />
-                Gastos
+                <div className="flex items-center justify-center space-x-2">
+                  <Receipt className="w-4 h-4" />
+                  <span>Gastos</span>
+                </div>
               </button>
+
               <button
-                onClick={() => setActiveTab('users')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                onClick={() => { setActiveTab('users'); window.location.hash = '#users'; }}
+                className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
                   activeTab === 'users'
-                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                    ? 'bg-indigo-600 text-white shadow-md magic-tab-active'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
               >
-                <Users className="w-4 h-4 inline mr-2" />
-                Usuarios
+                <div className="flex items-center justify-center space-x-2">
+                  <Users className="w-4 h-4" />
+                  <span>Usuarios</span>
+                </div>
               </button>
             </nav>
           </div>
@@ -286,29 +314,7 @@ export default function Admin() {
 
         {activeTab === 'expenses' && (
           <>
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 shadow-sm border border-blue-700">
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                  {pendingExpenses.length}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">Gastos Pendientes</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl p-6 shadow-sm border border-emerald-700">
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                  {expenses.filter(e => e.status === 'aprobado').length}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">Gastos Aprobados</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-orange-500 to-orange-700 rounded-2xl p-6 shadow-sm border border-orange-700">
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                  {expenses.filter(e => e.status === 'rechazado').length}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">Gastos Rechazados</div>
-              </div>
-            </div>
-
+            {/* KPI cards removed — simplified view */}
             <ExpensesTable
               expenses={expenses}
               isLoading={isLoading}
@@ -375,8 +381,10 @@ export default function Admin() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           ${user.monthly_salary.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          ${user.balance.toLocaleString()}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className={user.balance < 0 ? 'text-rose-500 font-bold' : 'text-gray-900 dark:text-white'}>
+                            ${user.balance.toLocaleString()}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex space-x-2">

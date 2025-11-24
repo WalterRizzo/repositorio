@@ -1,11 +1,10 @@
-import { Plus, Trash2, Receipt, Filter, Edit3, CheckCircle, XCircle, Sparkles, FileSpreadsheet } from "lucide-react";
+import { Plus, Trash2, Receipt, Filter, Edit3, CheckCircle, XCircle, Sparkles, FileSpreadsheet, Clock } from "lucide-react";
 import { useState, useRef } from "react";
 import BubbleTooltipPortal from "./BubbleTooltipPortal";
 import { getStatusBadgeClasses, getStatusLabel } from '@/react-app/utils/status';
 import type { Expense } from "@/shared/types";
-// ExcelJS loaded dynamically in exportToExcel
-// @ts-ignore - file-saver typing not installed in repo
-import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
+import { parseDbTimestampToDate } from '@/react-app/utils/dates';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
@@ -16,7 +15,9 @@ interface ExpensesTableProps {
   onAdd?: () => void;
   onEdit: (expense: Expense) => void;
   onDelete: (id: number) => void;
-  onApprove?: (id: number) => void;
+  // onApprove should return a boolean (or Promise<boolean>) indicating success so
+  // the caller component can decide whether to show success animations/etc.
+  onApprove?: (id: number) => Promise<boolean> | boolean;
   onReject?: (id: number) => void;
   userRole?: string;
   users?: any[];
@@ -37,8 +38,28 @@ export default function ExpensesTable({
   currentUserId,
   forceMobileView = false,
 }: ExpensesTableProps) {
+  // Dynamic lists for filters (pull from server so grid uses DB values)
+  const [currenciesList, setCurrenciesList] = useState<Array<{code: string; name?: string; symbol?: string}>>([]);
+
+  // Selected filters
+  // (category filter removed as per request)
+  const [currencyFilter, setCurrencyFilter] = useState<string>('all');
+
+  // Fetch currencies & categories for dropdowns used in the grid
+  useState(() => {
+    fetch('/api/currencies')
+      .then(r => r.ok ? r.json() : [])
+      .then((data) => {
+        if (Array.isArray(data)) setCurrenciesList(data.map((c:any) => ({ code: String(c.code).toUpperCase(), name: c.name, symbol: c.symbol })));
+      })
+      .catch(() => setCurrenciesList([]));
+
+    // categories not required here (grid has no category filter)
+  });
   // Estado para el modal de preview de adjuntos
   const [previewAttachments, setPreviewAttachments] = useState<Array<{url?: string, filename: string, originalName?: string}> | null>(null);
+  // Hover preview (zoom) state for thumbnails
+  const [hoverPreview, setHoverPreview] = useState<{ url: string; left: number; top: number } | null>(null);
   // Estado para burbuja de rechazo
   const [bubbleVisible, setBubbleVisible] = useState(false);
   const [bubbleData, setBubbleData] = useState<{x: number, y: number, rejectionReason: string, rejectedBy?: string, rejectedAt?: string} | null>(null);
@@ -77,6 +98,7 @@ export default function ExpensesTable({
       USD: "en-US", 
       EUR: "de-DE",
       BRL: "pt-BR",
+      UYU: "es-UY",
     };
     
     const locale = currencyMap[currency] || "es-AR";
@@ -87,39 +109,88 @@ export default function ExpensesTable({
   };
 
   // Función exportar Excel
-  const exportToExcel = async () => {
-    // Use ExcelJS to build a richer, styled workbook
-    const ExcelJSModule = (await import('exceljs'));
-    const ExcelJS = ExcelJSModule.default || ExcelJSModule;
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('Gastos');
-    const headers = ['ID','Usuario','Descripción','Monto','Moneda','Categoría','Fecha','Estado'];
-    ws.columns = headers.map(h => ({ header: h, key: h, width: 20 })) as any;
-    // Map rows ensuring Fecha is a Date object and Creado is omitted
-    filteredExpenses.forEach(expense => {
-      ws.addRow([
-        expense.id,
-        expense.user_name || 'N/A',
-        expense.description,
-        Number(expense.amount || 0),
-        expense.currency,
-        expense.category,
-        new Date(expense.expense_date),
-        expense.status
-      ]);
-    });
-    // Header style
-    ws.getRow(1).eachCell((cell:any) => { cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '6D28D9' } }; cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; });
-    // Format columns: Monto, Fecha
-    const montoCol = ws.getColumn(headers.indexOf('Monto') + 1);
-    montoCol.numFmt = '#,##0.00'; montoCol.alignment = { horizontal: 'right' } as any;
-    const fechaCol = ws.getColumn(headers.indexOf('Fecha') + 1);
-    fechaCol.numFmt = 'dd/mm/yyyy'; fechaCol.alignment = { horizontal: 'center' } as any;
-    // Add borders to all rows
-    ws.eachRow((row:any) => { row.eachCell((cell:any) => { cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; }); });
-    ws.views = [{ state: 'frozen', ySplit: 1 }];
-    const buf = await wb.xlsx.writeBuffer();
-    saveAs(new Blob([buf]), `gastos_${new Date().toISOString().split('T')[0]}.xlsx`);
+  const exportToExcel = () => {
+    // Group expenses by currency and create a sheet per currency
+    const grouped: Record<string, any[]> = {};
+    for (const exp of filteredExpenses) {
+      const key = (exp.currency || 'ARS').toUpperCase();
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(exp);
+    }
+
+    const workbook = XLSX.utils.book_new();
+    const currencyFormatMap: Record<string, string> = {
+      ARS: '[$ARS] #,##0.00',
+      USD: '[$USD] #,##0.00',
+      EUR: '[$EUR] #,##0.00',
+      BRL: '[$BRL] #,##0.00',
+      UYU: '[$UYU] #,##0.00'
+    };
+
+    const summary: Array<{Moneda: string; Total: number; Count: number}> = [];
+
+    for (const currency of Object.keys(grouped)) {
+      const rows = grouped[currency].map(exp => ({
+        'ID': exp.id,
+        'Usuario': exp.user_name || 'N/A',
+        'Descripción': exp.description,
+        'Monto': Number(exp.amount),
+        'Moneda': exp.currency,
+        'Forma de Pago': exp.sigla || '-',
+        'Categoría': exp.category,
+        'Fecha': new Date(exp.expense_date).toLocaleDateString('es-AR'),
+        'Estado': exp.status,
+        'Creado': (() => { const d = parseDbTimestampToDate(exp.created_at); return d ? d.toLocaleDateString('es-AR') : exp.created_at; })(),
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 8 }, { wch: 25 }, { wch: 40 }, { wch: 15 }, { wch: 10 },
+        { wch: 10 }, { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 15 },
+      ];
+
+      // Apply currency formatting to 'Monto' column
+      const header = Object.keys(rows[0] || {});
+      const mIdx = header.indexOf('Monto');
+      if (mIdx >= 0) {
+        const toCol = (n: number) => {
+          let s = '';
+          while (n >= 0) {
+            s = String.fromCharCode((n % 26) + 65) + s;
+            n = Math.floor(n / 26) - 1;
+          }
+          return s;
+        };
+        const col = toCol(mIdx);
+        for (let i = 0; i < rows.length; i++) {
+          const addr = `${col}${i+2}`;
+          const cell = ws[addr];
+          if (cell && typeof cell.v === 'number') {
+            cell.z = currencyFormatMap[currency] || currencyFormatMap['ARS'];
+          }
+        }
+      }
+
+      XLSX.utils.book_append_sheet(workbook, ws, currency);
+
+      const total = grouped[currency].reduce((s, e) => s + Number(e.amount || 0), 0);
+      summary.push({Moneda: currency, Total: total, Count: grouped[currency].length});
+    }
+
+    // Add summary sheet
+    if (summary.length > 0) {
+      const wsSum = XLSX.utils.json_to_sheet(summary);
+      XLSX.utils.book_append_sheet(workbook, wsSum, 'Resumen por Moneda');
+    }
+
+    // Ask for filename
+    const date = new Date().toLocaleDateString('es-AR').replace(/\//g, '-');
+    let filename = window.prompt('Nombre de archivo para exportar (sin extensión):', `gastos_${date}`) || `gastos_${date}`;
+    if (!filename.toLowerCase().endsWith('.xlsx')) filename = `${filename}.xlsx`;
+
+    // Currency formatting has been applied per-currency when creating their respective sheets.
+
+    XLSX.writeFile(workbook, filename);
     setShowExportPreview(false);
   };
 
@@ -132,14 +203,7 @@ export default function ExpensesTable({
 
   const handleRejectSubmit = async () => {
     if (!rejectionReason.trim()) {
-      // Non-blocking in-component notification instead of native alert
-      console.warn('⚠️ Debes proporcionar una razón para el rechazo');
-      setNotificationType('reject');
-      setCurrentEmoji(getRandomEmoji('reject'));
-      setParticleEmojis(getRandomEmojis('reject', 'particles', 6));
-      setParticleColors(getColorSet(6));
-      setShowNotification(true);
-      setTimeout(() => setShowNotification(false), 3500);
+      alert('⚠️ Debes proporcionar una razón para el rechazo');
       return;
     }
     
@@ -166,20 +230,18 @@ export default function ExpensesTable({
         setTimeout(() => setShowNotification(false), 3500); // 3.5 segundos
       } catch (error) {
         console.error('Error al rechazar:', error);
-        setNotificationType('reject');
-        setCurrentEmoji(getRandomEmoji('reject'));
-        setParticleEmojis(getRandomEmojis('reject', 'particles', 6));
-        setParticleColors(getColorSet(6));
-        setShowNotification(true);
-        setTimeout(() => setShowNotification(false), 3500);
+        alert('❌ Error al rechazar el gasto');
       }
     }
   };
 
-  const handleApproveClick = (expenseId: number) => {
-    if (onApprove) {
-      onApprove(expenseId);
-      
+  const handleApproveClick = async (expenseId: number) => {
+    if (!onApprove) return;
+
+    try {
+      const ok = await onApprove(expenseId);
+      if (!ok) return; // nothing further if approval failed
+
       // Reproducir sonido de éxito y mostrar notificación animada con emojis y colores aleatorios
       playRandomSound('approve', 0.25);
       setCurrentEmoji(getRandomEmoji('approve'));
@@ -188,6 +250,9 @@ export default function ExpensesTable({
       setNotificationType('approve');
       setShowNotification(true);
       setTimeout(() => setShowNotification(false), 3500); // 3.5 segundos
+    } catch (err) {
+      // If onApprove throws or fails unexpectedly, do not show success animation
+      console.error('onApprove handler failed', err);
     }
   };
 
@@ -227,6 +292,14 @@ export default function ExpensesTable({
       return false;
     }
 
+    // Filtro por categoría (opcional)
+      // category filter intentionally removed from grid (UI requirement)
+
+    // Filtro por moneda (opcional)
+    if (currencyFilter !== 'all' && String((expense.currency || '').toUpperCase()) !== String(currencyFilter).toUpperCase()) {
+      return false;
+    }
+
     // Filtro por fecha
     const expenseDate = new Date(expense.expense_date);
     const fromDate = dateFilters.desde ? new Date(dateFilters.desde) : null;
@@ -245,14 +318,22 @@ export default function ExpensesTable({
 
   return (
   <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden w-full px-4 sm:px-8 py-4 sm:py-6">
+    {/* Floating zoom preview for hovered attachment thumbnails (pointer-events none so it won't block hover) */}
+    {hoverPreview && (
+      <div style={{ position: 'fixed', left: hoverPreview.left, top: hoverPreview.top, zIndex: 9999, pointerEvents: 'none' }}>
+        <div className="bg-white rounded-lg border border-gray-200 dark:border-gray-700 shadow-lg p-1" style={{ maxWidth: '360px', maxHeight: '75vh' }}>
+          <img src={hoverPreview.url} alt="preview" style={{ display: 'block', width: '100%', height: 'auto', borderRadius: 8 }} />
+        </div>
+      </div>
+    )}
   <div className="p-0 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-y-4 mb-4">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Lista de Gastos</h2>
+          {/* Title removed per request - keeping counts below */}
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Total: {expenses.length} {expenses.length === 1 ? "gasto" : "gastos"}
-            {expenses.length > 10 && (
+            {expenses.length > 5 && (
               <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">
-                Mostrando solo los primeros 10
+                Mostrando solo los primeros 5
               </span>
             )}
           </p>
@@ -270,76 +351,73 @@ export default function ExpensesTable({
       </div>
 
       {/* Filtros por estado */}
-  <div className="px-2 sm:px-6 py-2 sm:py-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 rounded-xl shadow mb-4">
-  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-y-2 sm:space-x-6">
+  <div className="px-3 sm:px-6 py-3 bg-gradient-to-br from-gray-900/60 to-gray-800/50 dark:from-gray-800/70 dark:to-gray-900/70 border border-white/5 rounded-2xl shadow-sm mb-4">
+  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-6">
           <div className="flex items-center gap-x-2">
             <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por estado:</span>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-y-2 sm:space-x-4">
-            <label className="flex items-center space-x-2 cursor-pointer bg-blue-600 rounded-lg px-4 py-2 shadow text-white">
-              <input
-                type="checkbox"
-                checked={filters.pendientes}
-                onChange={(e) => {
-                  setFilters({...filters, pendientes: e.target.checked});
-                  setCurrentPage(1);
-                }}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm font-bold">
-                🔵 Pendientes ({expenses.filter(e => e.status === 'pendiente').length})
-              </span>
-            </label>
-            
-            <label className="flex items-center space-x-2 cursor-pointer bg-green-600 rounded-lg px-4 py-2 shadow text-white">
-              <input
-                type="checkbox"
-                checked={filters.aprobados}
-                onChange={(e) => {
-                  setFilters({...filters, aprobados: e.target.checked});
-                  setCurrentPage(1);
-                }}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-              <span className="text-sm font-bold">
-                🟢 Aprobados ({expenses.filter(e => e.status === 'aprobado').length})
-              </span>
-            </label>
-            
-            <label className="flex items-center space-x-2 cursor-pointer bg-orange-500 rounded-lg px-4 py-2 shadow text-white">
-              <input
-                type="checkbox"
-                checked={filters.rechazados}
-                onChange={(e) => {
-                  setFilters({...filters, rechazados: e.target.checked});
-                  setCurrentPage(1);
-                }}
-                className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
-              />
-              <span className="text-sm font-bold">
-                🟠 Rechazados ({expenses.filter(e => e.status === 'rechazado').length})
-              </span>
-            </label>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Compact status pills */}
+            <button
+              aria-pressed={filters.pendientes}
+              onClick={() => { setFilters({ ...filters, pendientes: !filters.pendientes }); setCurrentPage(1); }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${filters.pendientes ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
+              <Clock className={`w-4 h-4 ${filters.pendientes ? 'text-white' : 'text-indigo-300'}`} />
+              <span className="truncate">Pendientes</span>
+              <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'pendiente').length}</span>
+            </button>
+
+            <button
+              aria-pressed={filters.aprobados}
+              onClick={() => { setFilters({ ...filters, aprobados: !filters.aprobados }); setCurrentPage(1); }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${filters.aprobados ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
+              <CheckCircle className={`w-4 h-4 ${filters.aprobados ? 'text-white' : 'text-emerald-300'}`} />
+              <span className="truncate">Aprobados</span>
+              <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'aprobado').length}</span>
+            </button>
+
+            <button
+              aria-pressed={filters.rechazados}
+              onClick={() => { setFilters({ ...filters, rechazados: !filters.rechazados }); setCurrentPage(1); }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-orange-400 ${filters.rechazados ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
+              <XCircle className={`w-4 h-4 ${filters.rechazados ? 'text-white' : 'text-orange-300'}`} />
+              <span className="truncate">Rechazados</span>
+              <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'rechazado').length}</span>
+            </button>
           </div>
           
-          <div className="flex gap-x-2 ml-auto">
+          <div className="flex gap-x-2 ml-auto items-center">
             <button
               onClick={() => {
                 setFilters({pendientes: true, aprobados: true, rechazados: true});
                 setCurrentPage(1);
               }}
-              className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+              className="px-2 sm:px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors shadow-sm"
             >
               Todos
             </button>
+            {/* Category filter (from DB) */}
+              {/* Category filter removed from grid per request */}
+
+            {/* Currency filter (from DB) */}
+            <select
+              value={currencyFilter}
+              onChange={(e) => { setCurrencyFilter(e.target.value); setCurrentPage(1); }}
+              className="px-3 py-1 text-xs bg-gray-800 border border-white/6 rounded-full text-white hover:bg-gray-700 font-semibold transition-all"
+            >
+              <option value="all">Todas las monedas</option>
+              {currenciesList.map(c => (
+                <option key={c.code} value={c.code}>{c.code} {c.name ? `- ${c.name}` : ''}</option>
+              ))}
+            </select>
             <button
               onClick={() => {
                 setFilters({pendientes: false, aprobados: false, rechazados: false});
                 setCurrentPage(1);
               }}
-              className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
+              className="px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded-full transition-colors border border-white/6"
             >
               Ninguno
             </button>
@@ -394,15 +472,7 @@ export default function ExpensesTable({
               </>
             )}
           </select>
-                {userRole === 'usuario' && (
-                  <button
-                    onClick={() => setShowExportPreview(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
-                  >
-                    <FileSpreadsheet className="w-5 h-5" />
-                    <span>Exportar Excel</span>
-                  </button>
-                )}
+          {/* Export button removed from Lista de Gastos (hidden per request) */}
           <button
             onClick={() => {
               setDateFilters({desde: '', hasta: ''});
@@ -457,6 +527,9 @@ export default function ExpensesTable({
                     </div>
                     <div className="text-base font-semibold text-gray-900 dark:text-white mb-1">{expense.category}</div>
                     <div className="text-sm text-gray-600 dark:text-gray-300 mb-2 truncate">{expense.description}</div>
+                    {expense.sigla ? (
+                      <div className="text-xs text-gray-400">Forma de Pago: <span className="font-semibold text-gray-200">{expense.sigla}</span></div>
+                    ) : null}
                     <div className="text-xs text-gray-500 dark:text-gray-400">{expense.user_name || 'N/A'}{expense.user_email ? <span className="block">{expense.user_email}</span> : null}</div>
                   </div>
                 </div>
@@ -466,8 +539,21 @@ export default function ExpensesTable({
                       expense.status === 'aprobado' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
                       expense.status === 'rechazado' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
                     }`}>{expense.status === 'aprobado' ? 'Aprobado' : expense.status === 'rechazado' ? 'Rechazado' : 'Pendiente'}</span>
-                    {expense.attachments && expense.attachments.length > 0 ? (
-                      <img src={expense.attachments[0].url || `/api/files/${expense.attachments[0].filename}`} alt="adj" className="w-8 h-8 object-cover rounded-md border" />
+                      {expense.attachments && expense.attachments.length > 0 ? (
+                      <img
+                        src={expense.attachments[0].url || `/api/files/${expense.attachments[0].filename}`}
+                        alt="adj"
+                        className="w-8 h-8 object-cover rounded-md border cursor-zoom-in"
+                        onMouseEnter={(e) => {
+                          const rect = (e.target as HTMLElement).getBoundingClientRect();
+                          setHoverPreview({ url: expense.attachments[0].url || `/api/files/${expense.attachments[0].filename}`, left: rect.right + 8, top: rect.top - 6 });
+                        }}
+                        onMouseMove={(e) => {
+                          const rect = (e.target as HTMLElement).getBoundingClientRect();
+                          setHoverPreview({ url: expense.attachments[0].url || `/api/files/${expense.attachments[0].filename}`, left: rect.right + 8, top: rect.top - 6 });
+                        }}
+                        onMouseLeave={() => setHoverPreview(null)}
+                      />
                     ) : expense.receipt_photo_url ? (
                       <img src={`/api/files/${expense.receipt_photo_url}`} alt="recibo" className="w-8 h-8 object-cover rounded-md border" />
                     ) : (
@@ -511,6 +597,7 @@ export default function ExpensesTable({
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Cargado por</th>
                   <th className="px-1 py-1 text-right text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Monto</th>
                   <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Moneda</th>
+                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Forma Pago</th>
                   <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Estado</th>
                   <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Archivos</th>
                   <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Acciones</th>
@@ -530,6 +617,7 @@ export default function ExpensesTable({
                     </td>
                     <td className="px-1 py-2 whitespace-nowrap text-[11px] text-right font-bold" style={{ color: expense.amount < 0 ? '#FF0000' : undefined }}>{formatCurrency(expense.amount, expense.currency)}</td>
                     <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">{expense.currency}</td>
+                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">{expense.sigla || '-'}</td>
                     <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">
                       <div className="relative group flex justify-center items-center">
                         <span className={`px-1 py-0.5 text-[10px] font-semibold rounded-full ${getStatusBadgeClasses(expense.status as any)}`}>
@@ -589,7 +677,16 @@ export default function ExpensesTable({
                                 <img
                                   src={attachment.url || `/api/files/${attachment.filename}`}
                                   alt={attachment.originalName || "Archivo adjunto"}
-                                  className="w-8 h-8 object-cover rounded border border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform cursor-pointer shadow-sm"
+                                  className="w-8 h-8 object-cover rounded border border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform cursor-zoom-in shadow-sm"
+                                  onMouseEnter={(e) => {
+                                    const rect = (e.target as HTMLElement).getBoundingClientRect();
+                                    setHoverPreview({ url: attachment.url || `/api/files/${attachment.filename}`, left: rect.right + 8, top: rect.top - 6 });
+                                  }}
+                                  onMouseMove={(e) => {
+                                    const rect = (e.target as HTMLElement).getBoundingClientRect();
+                                    setHoverPreview({ url: attachment.url || `/api/files/${attachment.filename}`, left: rect.right + 8, top: rect.top - 6 });
+                                  }}
+                                  onMouseLeave={() => setHoverPreview(null)}
                                   onError={(e) => {
                                     console.error('Error loading attachment:', attachment.filename);
                                     e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='15' y1='9' x2='9' y2='15'/%3E%3Cline x1='9' y1='9' x2='15' y2='15'/%3E%3C/svg%3E";
@@ -621,7 +718,16 @@ export default function ExpensesTable({
                             <img
                               src={`/api/files/${expense.receipt_photo_url}`}
                               alt="Recibo"
-                              className="w-10 h-10 object-cover rounded-lg border border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform cursor-pointer shadow-sm"
+                              className="w-10 h-10 object-cover rounded-lg border border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform cursor-zoom-in shadow-sm"
+                              onMouseEnter={(e) => {
+                                const rect = (e.target as HTMLElement).getBoundingClientRect();
+                                setHoverPreview({ url: `/api/files/${expense.receipt_photo_url}`, left: rect.right + 8, top: rect.top - 6 });
+                              }}
+                              onMouseMove={(e) => {
+                                const rect = (e.target as HTMLElement).getBoundingClientRect();
+                                setHoverPreview({ url: `/api/files/${expense.receipt_photo_url}`, left: rect.right + 8, top: rect.top - 6 });
+                              }}
+                              onMouseLeave={() => setHoverPreview(null)}
                               onError={(e) => {
                                 console.error('Error loading receipt image:', expense.receipt_photo_url);
                                 e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='15' y1='9' x2='9' y2='15'/%3E%3Cline x1='9' y1='9' x2='15' y2='15'/%3E%3C/svg%3E";
@@ -724,7 +830,7 @@ export default function ExpensesTable({
           
           {/* Controles de paginación */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-gradient-to-r from-violet-600 to-purple-600 border-t gap-y-2 rounded-xl shadow-lg mb-2">
+            <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black text-white border-t gap-y-2 rounded-xl shadow-lg mb-2">
               <div className="text-xs sm:text-sm text-white font-semibold">
                 Mostrando {startIndex + 1} - {Math.min(startIndex + recordsPerPage, filteredExpenses.length)} de {filteredExpenses.length} gastos
               </div>
@@ -794,7 +900,7 @@ export default function ExpensesTable({
 
             <div className="p-6 overflow-auto max-h-[60vh]">
               <div className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Mostrando los primeros 10 registros de {filteredExpenses.length}
+                Mostrando los primeros 5 registros de {filteredExpenses.length}
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">

@@ -88,6 +88,23 @@ npx wrangler d1 execute expense-app-db --local --file=./migrations/3.sql
 npx wrangler d1 execute expense-app-db --remote --file=./migrations/1.sql
 npx wrangler d1 execute expense-app-db --remote --file=./migrations/2.sql  
 npx wrangler d1 execute expense-app-db --remote --file=./migrations/3.sql
+
+#### Nota importante: `formapago` / `sigla`
+
+La aplicación utiliza una tabla `formapago` y la columna `sigla` en `expenses` (migration 22).
+Si no ves la tabla `formapago` en tu instancia, aplica la migración 22:
+
+```bash
+npx wrangler d1 execute expense-app-db --local --file=./migrations/22.sql
+npx wrangler d1 execute expense-app-db --remote --file=./migrations/22.sql
+```
+
+También añadimos un endpoint de comprobación rápida (`/api/db-check`) protegido por autenticación que te permitirá verificar en pocos segundos si la tabla y la columna están presentes en tu DB. Úsalo desde el cliente (o curl) cuando estés autenticado:
+
+```bash
+# desde el cliente (ej. con cookie de sesión):
+curl -i -b "YOUR_COOKIE_AUTH" https://<tu-app>/api/db-check
+```
 ```
 
 ### 4. Configurar variables de entorno
@@ -245,11 +262,5 @@ npm run check        # Verificar build + dry-run deploy
 5. Crear un Pull Request
 
 ## 📄 Licencia
-## 🔐 Seguridad y secretos
-
-Este proyecto no debería contener secretos en el repositorio. Los valores sensibles deben almacenarse como `wrangler` secrets o variables de entorno en CI/CD.
-
-Lee `SECRETS_MIGRATION.md` para instrucciones sobre cómo rotar y migrar claves fuera del repositorio.
-
 
 Este proyecto fue creado usando [getmocha.com](https://getmocha.com) - MIT License.

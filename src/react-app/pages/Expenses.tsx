@@ -1,4 +1,4 @@
-  // ...existing code...
+// ...existing code...
 
   // ...existing code...
 
@@ -12,18 +12,20 @@
 
   // Resetear página de movimientos al cambiar filtros
   // Eliminado: paginación de movimientos
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNotifications } from "@/react-app/hooks/useNotifications";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
-import { Loader2, Receipt, Users, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Eye } from "lucide-react";
-import { getNumberColorClass } from '@/react-app/utils/numbers';
+  import { Loader2, Receipt, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Wallet } from "lucide-react";
 import type { Expense, UserProfile } from "@/shared/types";
 import ExpensesTable from "@/react-app/components/ExpensesTable";
 import ExpenseForm from "@/react-app/components/ExpenseForm";
 import Header from "@/react-app/components/Header";
 import Sidebar from "@/react-app/components/Sidebar";
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
+import * as XLSX from 'xlsx';
+import { formatBalance, isSpuriousPendingReembolso } from '@/react-app/utils/format';
+import { parseDbTimestampToDate } from '@/react-app/utils/dates';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
 
@@ -36,7 +38,7 @@ export default function Expenses() {
     console.log('Ejecutando consulta SQL:', sql);
     setDbaLoading(true);
     if (!sql) {
-      console.warn('Por favor, ingrese una consulta SQL');
+      alert('Por favor, ingrese una consulta SQL');
       setDbaLoading(false);
       return;
     }
@@ -57,6 +59,36 @@ export default function Expenses() {
     } catch (error) {
       setDbaResults({ error: 'Error de conexión al servidor' });
       setDbaLoading(false);
+    }
+  };
+
+  // Fetch data for cierre de viaje (closed tables)
+  const fetchCierreData = async () => {
+    setCierreError(null);
+    setCierreLoading(true);
+    setClosedExpenses(null);
+    setClosedMovements(null);
+    try {
+      const resp1 = await fetch('/api/dba/execute', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'SELECT * FROM closed_expenses ORDER BY archived_at DESC LIMIT 500;' })
+      });
+      const data1 = await resp1.json().catch(() => ({ results: [] }));
+
+      const resp2 = await fetch('/api/dba/execute', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'SELECT * FROM closed_saldo_transacciones ORDER BY archived_at DESC LIMIT 500;' })
+      });
+      const data2 = await resp2.json().catch(() => ({ results: [] }));
+
+      if (!resp1.ok) throw new Error(data1.error || 'Error cargando closed_expenses');
+      if (!resp2.ok) throw new Error(data2.error || 'Error cargando closed_saldo_transacciones');
+
+      setClosedExpenses(Array.isArray(data1.results) ? data1.results : []);
+      setClosedMovements(Array.isArray(data2.results) ? data2.results : []);
+    } catch (err:any) {
+      console.error('Error cargando datos Cierre de viaje:', err);
+      setCierreError(err?.message || String(err));
+    } finally {
+      setCierreLoading(false);
     }
   };
   // ...existing code...
@@ -83,9 +115,6 @@ export default function Expenses() {
   const location = useLocation();
   const [userProfile, setUserProfile] = useState<any>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [expensesPage, setExpensesPage] = useState(1);
-  const [expensesPerPage, setExpensesPerPage] = useState(50);
-  const [totalExpenses, setTotalExpenses] = useState(0);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'expenses' | 'users' | 'dba' | 'movements'>('expenses');
@@ -104,11 +133,23 @@ export default function Expenses() {
   // Balance movements state
   const [balanceMovements, setBalanceMovements] = useState<any[]>([]);
   const [isLoadingMovements, setIsLoadingMovements] = useState(false);
-  const [movementsFilter, setMovementsFilter] = useState<string>('all'); // 'all', 'carga', 'descuento', 'ajuste'
+  // Movements grid should only show 'carga' (loads). Disable other filters per UX requirement.
+  const [movementsFilter] = useState<string>('carga'); // fixed to 'carga' (no UI control)
+  const [movementsCurrency, setMovementsCurrency] = useState<string>('all'); // 'all' or currency codes like 'ARS', 'USD'
   const [userFilter, setUserFilter] = useState<string>('all'); // Filtro por usuario
+  // footer per-users temporary states removed — using single movement filters under table
+
+  // (no export helper here — keep export in UserManagement premium page)
 
   // Multi-currency balances state
-  const [multiBalances, setMultiBalances] = useState<Array<{ currency: string; balance: number }>>([]);
+  const [, setMultiBalances] = useState<Array<{ currency: string; balance: number }>>([]);
+  // Balances modal state
+  const [showBalancesModal, setShowBalancesModal] = useState(false);
+  const [balancesLoading, setBalancesLoading] = useState(false);
+  const [selectedUserBalances, setSelectedUserBalances] = useState<Array<{ currency: string; balance: number }>>([]);
+  const [balancesModalUser, setBalancesModalUser] = useState<UserProfile | null>(null);
+  // Load currencies from canonical server source to avoid hard-coded lists
+  const [currenciesList, setCurrenciesList] = useState<Array<{ code: string; name?: string; symbol?: string }>>([]);
 
   // DBA state variables
   const [dbaQuery, setDbaQuery] = useState('');
@@ -117,12 +158,44 @@ export default function Expenses() {
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
   const [dbaTables, setDbaTables] = useState<string[]>([]);
 
+  // Cierre de viaje (closed tables) data
+  const [closedExpenses, setClosedExpenses] = useState<any[] | null>(null);
+  const [closedMovements, setClosedMovements] = useState<any[] | null>(null);
+  const [cierreLoading, setCierreLoading] = useState(false);
+  const [cierreError, setCierreError] = useState<string | null>(null);
+
   // Pagination state for users table
   const [usersPage, setUsersPage] = useState(1);
   // Pagination state for movements grid
   const [movementsPage, setMovementsPage] = useState(1);
-  const [expandedMovements, setExpandedMovements] = useState<Record<string, boolean>>({});
-  const recordsPerPage = 10;
+  const recordsPerPage = 5;
+
+  // derived filtered movements + pagination (fixes date filter not refreshing grid)
+  const filteredMovements = balanceMovements
+    .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
+    .filter(m => userFilter === 'all' || m.user_id === userFilter)
+    .filter(m => movementsCurrency === 'all' || String(m.currency || '').toUpperCase() === String(movementsCurrency || '').toUpperCase())
+    .filter(m => {
+      if ((!dateFilter.from && !dateFilter.to)) return true;
+      const date = (m.created_at || '').slice(0,10);
+      if (dateFilter.from && date < dateFilter.from) return false;
+      if (dateFilter.to && date > dateFilter.to) return false;
+      return true;
+    });
+
+  // Hide spurious pending reembolso rows created by deletion flows
+  // (they still exist in DB but must not be visible in admin UI)
+  const filteredMovementsSanitized = filteredMovements.filter(m => !isSpuriousPendingReembolso(m.description || m.descripcion));
+
+  const totalFiltered = filteredMovementsSanitized.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / recordsPerPage));
+  const startIdx = (movementsPage - 1) * recordsPerPage;
+  const pageItems = filteredMovementsSanitized.slice(startIdx, startIdx + recordsPerPage);
+
+  // Ensure page reset when filters reduce results
+  useEffect(() => {
+    if (movementsPage > totalPages) setMovementsPage(1);
+  }, [totalFiltered]);
   
   // Settings modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -149,7 +222,7 @@ export default function Expenses() {
   });
 
   // Excel export state
-  const [showExportPreview, setShowExportPreview] = useState(false);
+  // export preview removed: export will download directly
 
   // Balance notification state
   // ...existing code...
@@ -187,16 +260,14 @@ export default function Expenses() {
   }, [user, authLoading, navigate]);
 
   // Detectar hash en URL para cambiar pestaña
+  // NOTE: removed '#users' handling per UX request — Users tab isn't exposed in this flowset
   useEffect(() => {
     console.log('🔥 Location hash changed:', location.hash);
-    if (location.hash === '#users') {
-      console.log('🔥 Setting tab to users');
-      setActiveTab('users');
-    } else if (location.hash === '#dba') {
+    if (location.hash === '#dba') {
       console.log('🔥 Setting tab to dba');
       setActiveTab('dba');
     } else {
-      console.log('🔥 Setting tab to expenses');  
+      console.log('🔥 Setting tab to expenses');
       setActiveTab('expenses');
     }
   }, [location.hash, location.pathname]);
@@ -206,18 +277,43 @@ export default function Expenses() {
     if (activeTab === 'dba' && dbaTables.length === 0) {
       fetchDbaTables();
     }
+    // if DBA tab active and user selected cierre_viaje, preload its data
+    if (activeTab === 'dba' && selectedTable === 'cierre_viaje') {
+      fetchCierreData();
+    }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'dba' && selectedTable === 'cierre_viaje') {
+      fetchCierreData();
+    }
+  }, [activeTab, selectedTable]);
 
   useEffect(() => {
     if (user) {
       fetchUserProfile();
       fetchExpenses();
       fetchMultiBalances();
+      fetchCurrencies();
       if (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') {
         fetchUsers();
       }
     }
   }, [user, userProfile?.role]);
+
+  const fetchCurrencies = async () => {
+    try {
+      const resp = await fetch('/api/currencies');
+      if (!resp.ok) return setCurrenciesList([]);
+      const data = await resp.json();
+      if (Array.isArray(data)) {
+        setCurrenciesList(data.map((c:any) => ({ code: String(c.code).toUpperCase(), name: c.name, symbol: c.symbol })));
+      }
+    } catch (err) {
+      console.error('Error loading currencies:', err);
+      setCurrenciesList([]);
+    }
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -245,14 +341,11 @@ export default function Expenses() {
     }
   };
 
-  const fetchExpenses = async (page = expensesPage, perPage = expensesPerPage) => {
+  const fetchExpenses = async () => {
     try {
-      const offset = (page - 1) * perPage;
-      const res = await fetch(`/api/expenses?limit=${perPage}&offset=${offset}`);
-      const json = await res.json();
-      const data = (json && (json.data || json)) || [];
+      const response = await fetch("/api/expenses");
+      const data = await response.json();
       setExpenses(data);
-      setTotalExpenses(json?.total ?? data.length);
     } catch (error) {
       console.error("Error cargando gastos:", error);
     } finally {
@@ -282,18 +375,7 @@ export default function Expenses() {
     }
   };
 
-  const formatCurrency = (amount: number, currency: string) => {
-    const symbols: Record<string, string> = {
-      'ARS': '$',
-      'USD': 'US$',
-      'EUR': '€',
-      'BRL': 'R$',
-      'CLP': 'CLP$',
-      'UYU': '$U'
-    };
-    const symbol = symbols[currency] || currency;
-    return `${symbol} ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-  };
+  
 
   const handleEditExpense = (expense: Expense) => {
     setEditingExpense(expense);
@@ -301,6 +383,7 @@ export default function Expenses() {
   };
 
   const handleDeleteExpense = async (id: number) => {
+    if (!confirm("¿Estás seguro de eliminar este gasto?")) return;
 
     try {
       const response = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
@@ -313,18 +396,27 @@ export default function Expenses() {
           setTimeout(() => setShowDeleteNotification(false), 2500);
           await fetchUserProfile();
           await fetchMultiBalances();
+        } else if (result.pending_refund && result.pending_refund > 0) {
+          // Refund created as PENDING — do not assume balances were updated
+          setDeleteEmoji('⏳');
+          setShowDeleteNotification(true);
+          setTimeout(() => setShowDeleteNotification(false), 2500);
+          // notify others so they can show pending movement lists, but don't refresh balances
+          try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.delete.pending', id, pending_refund: result.pending_refund } })); } catch(e){}
         } else {
           setDeleteEmoji('🗑️');
           setShowDeleteNotification(true);
           setTimeout(() => setShowDeleteNotification(false), 2000);
         }
         await fetchExpenses();
+        // notify other components that data changed (automatically refresh movements)
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.delete', id } })); } catch(e){}
       } else {
-        console.warn(`❌ Error: ${result.error}`);
+        alert(`❌ Error: ${result.error}`);
       }
     } catch (error) {
       console.error("Error eliminando gasto:", error);
-      console.warn("❌ Error al eliminar el gasto");
+      alert("❌ Error al eliminar el gasto");
     }
   };
 
@@ -334,24 +426,44 @@ export default function Expenses() {
     await fetchUserProfile();
     await fetchMultiBalances();
     await fetchExpenses();
+    // Notify that data changed so movements and other lists refresh
+    try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.upsert' } })); } catch(e){}
   };
 
   const handleApprove = async (id: number) => {
+    if (!confirm("¿Aprobar este gasto?")) return false;
 
     try {
-      await fetch(`/api/expenses/${id}/approve`, {
+      const resp = await fetch(`/api/expenses/${id}/approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include'
       });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        const msg = err.error || `Error ${resp.status} al aprobar gasto`;
+        console.error('Approve failed:', msg);
+        alert(`❌ No se pudo aprobar: ${msg}`);
+        return false;
+      }
+
       await fetchExpenses();
-      console.log("Gasto aprobado exitosamente");
+      // Refresh user balances so the header and movements reflect the approved deduction
+      await fetchUserProfile();
+      await fetchMultiBalances();
+      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.approve', id } })); } catch(e){}
+      alert("Gasto aprobado exitosamente");
+      return true;
     } catch (error) {
       console.error("Error aprobando gasto:", error);
-      console.warn("Error al aprobar el gasto");
+      alert("Error al aprobar el gasto");
+      return false;
     }
   };
 
   const handleReject = async (id: number) => {
+    if (!confirm("¿Rechazar este gasto?")) return;
 
     try {
       await fetch(`/api/expenses/${id}/reject`, {
@@ -359,21 +471,22 @@ export default function Expenses() {
         headers: { "Content-Type": "application/json" },
       });
       await fetchExpenses();
-      console.log("Gasto rechazado exitosamente");
-        // Notificación push al usuario
-        if (isSupported && permission === "granted") {
-          showNotification(
-            "🚫 Gasto Rechazado",
-            {
-              body: "Revisa la lista de gastos: uno o más han sido rechazados.",
-              tag: "expense-rejected",
-              data: { url: "/expenses" }
-            }
-          );
-        }
+      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id } })); } catch(e){}
+      alert("Gasto rechazado exitosamente");
+      // Notificación push al usuario
+      if (isSupported && permission === "granted") {
+        showNotification(
+          "🚫 Gasto Rechazado",
+          {
+            body: "Revisa la lista de gastos: uno o más han sido rechazados.",
+            tag: "expense-rejected",
+            data: { url: "/expenses" }
+          }
+        );
+      }
     } catch (error) {
       console.error("Error rechazando gasto:", error);
-      console.warn("Error al rechazar el gasto");
+      alert("Error al rechazar el gasto");
     }
   };
 
@@ -405,6 +518,16 @@ export default function Expenses() {
     if ((activeTab === 'movements' || activeTab === 'users') && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor')) {
       fetchBalanceMovements();
     }
+    // listen for external changes in DB and refresh movements automatically
+    const handler = () => {
+      try {
+        if ((activeTab === 'movements' || activeTab === 'users') && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor')) {
+          fetchBalanceMovements();
+        }
+      } catch (err) { console.error('data:changed handler error', err); }
+    };
+    window.addEventListener('data:changed', handler);
+    return () => window.removeEventListener('data:changed', handler);
   }, [activeTab, userProfile?.role]);
 
   // Funciones de usuarios
@@ -415,7 +538,7 @@ export default function Expenses() {
     
     const newBalance = parseFloat(userForm.balance);
     if (isNaN(newBalance) || newBalance < 0) {
-      console.warn("Por favor ingrese un saldo válido");
+      alert("Por favor ingrese un saldo válido");
       return;
     }
     
@@ -438,6 +561,8 @@ export default function Expenses() {
         
         // Actualizar datos localmente de forma más eficiente
         await Promise.all([fetchUsers(), fetchUserProfile()]);
+        // notify other parts of the app (movements grid) to refresh
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.update', userId: editingUser.user_id } })); } catch (e) { /* noop */ }
         
         // Reproducir sonido y mostrar notificación de dinero con emojis y colores aleatorios
         playMoneySound();
@@ -460,17 +585,18 @@ export default function Expenses() {
         }
       } else {
         const errorData = await response.json();
-        console.warn(`Error: ${errorData.error}`);
+        alert(`Error: ${errorData.error}`);
       }
     } catch (error) {
       console.error("Error actualizando usuario:", error);
-      console.warn("Error al actualizar usuario");
+      alert("Error al actualizar usuario");
     } finally {
       setIsUpdatingUser(false);
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
+    if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
     
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -479,13 +605,13 @@ export default function Expenses() {
       
       if (response.ok) {
         await fetchUsers();
-        console.log("Usuario eliminado exitosamente");
+        alert("Usuario eliminado exitosamente");
       } else {
-        console.warn("Error al eliminar usuario");
+        alert("Error al eliminar usuario");
       }
     } catch (error) {
       console.error("Error eliminando usuario:", error);
-      console.warn("Error al eliminar usuario");
+      alert("Error al eliminar usuario");
     }
   };
 
@@ -511,6 +637,34 @@ export default function Expenses() {
     });
     
     setShowUserModal(true);
+  };
+
+  // Fetch all balances for user and open balances modal
+  const fetchUserBalancesAndOpen = async (user: UserProfile) => {
+    try {
+      setBalancesModalUser(user);
+      setSelectedUserBalances([]);
+      setShowBalancesModal(true);
+      setBalancesLoading(true);
+
+      const response = await fetch(`/api/users/${user.user_id}/saldos`, { credentials: 'include' });
+      if (!response.ok) {
+        const txt = await response.text();
+        throw new Error(`Error fetching balances: ${response.status} ${txt}`);
+      }
+      const json = await response.json();
+      if (json && json.saldos) {
+        setSelectedUserBalances(Array.isArray(json.saldos) ? json.saldos : []);
+      } else {
+        setSelectedUserBalances([]);
+      }
+    } catch (err) {
+      console.error('Error loading user balances:', err);
+      alert('Error cargando saldos del usuario');
+      setSelectedUserBalances([]);
+    } finally {
+      setBalancesLoading(false);
+    }
   };
   
   // Nueva función para obtener saldo por moneda
@@ -546,12 +700,12 @@ export default function Expenses() {
     e.preventDefault();
     
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
     
     if (passwordForm.newPassword.length < 6) {
-      console.warn('La contraseña debe tener al menos 6 caracteres');
+      alert('La contraseña debe tener al menos 6 caracteres');
       return;
     }
     
@@ -569,16 +723,16 @@ export default function Expenses() {
       });
       
       if (response.ok) {
-        console.log('✅ Contraseña actualizada correctamente');
+        alert('✅ Contraseña actualizada correctamente');
         setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
         setShowSettingsModal(false);
       } else {
         const data = await response.json();
-        console.warn(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
+        alert(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
       }
     } catch (error) {
       console.error('Error cambiando contraseña:', error);
-      console.warn('❌ Error al cambiar contraseña');
+      alert('❌ Error al cambiar contraseña');
     } finally {
       setIsChangingPassword(false);
     }
@@ -588,17 +742,17 @@ export default function Expenses() {
     e.preventDefault();
     
     if (userPasswordForm.newPassword !== userPasswordForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
     
     if (userPasswordForm.newPassword.length < 6) {
-      console.warn('La contraseña debe tener al menos 6 caracteres');
+      alert('La contraseña debe tener al menos 6 caracteres');
       return;
     }
     
     if (!userPasswordForm.userId) {
-      console.warn('Por favor, selecciona un usuario');
+      alert('Por favor, selecciona un usuario');
       return;
     }
     
@@ -615,15 +769,15 @@ export default function Expenses() {
       });
       
       if (response.ok) {
-        console.log('✅ Contraseña del usuario actualizada correctamente');
+        alert('✅ Contraseña del usuario actualizada correctamente');
         setUserPasswordForm({ userId: '', newPassword: '', confirmPassword: '' });
       } else {
         const data = await response.json();
-        console.warn(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
+        alert(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
       }
     } catch (error) {
       console.error('Error cambiando contraseña de usuario:', error);
-      console.warn('❌ Error al cambiar contraseña');
+      alert('❌ Error al cambiar contraseña');
     } finally {
       setIsChangingPassword(false);
     }
@@ -634,17 +788,17 @@ export default function Expenses() {
     e.preventDefault();
     
     if (createUserForm.password !== createUserForm.confirmPassword) {
-      console.warn('Las contraseñas no coinciden');
+      alert('Las contraseñas no coinciden');
       return;
     }
     
     if (createUserForm.password.length < 6) {
-      console.warn('La contraseña debe tener al menos 6 caracteres');
+      alert('La contraseña debe tener al menos 6 caracteres');
       return;
     }
     
     if (!createUserForm.email || !createUserForm.name) {
-      console.warn('Por favor, completa todos los campos');
+      alert('Por favor, completa todos los campos');
       return;
     }
     
@@ -664,17 +818,17 @@ export default function Expenses() {
       });
       
       if (response.ok) {
-        console.log('✅ Usuario creado exitosamente');
+        alert('✅ Usuario creado exitosamente');
         setCreateUserForm({ email: '', password: '', confirmPassword: '', name: '', role: 'usuario' });
         setShowSettingsModal(false);
         await fetchUsers(); // Recargar lista de usuarios
       } else {
         const data = await response.json();
-        console.warn(`❌ Error: ${data.error || 'No se pudo crear el usuario'}`);
+        alert(`❌ Error: ${data.error || 'No se pudo crear el usuario'}`);
       }
     } catch (error) {
       console.error('Error creando usuario:', error);
-      console.warn('❌ Error al crear usuario');
+      alert('❌ Error al crear usuario');
     } finally {
       setIsChangingPassword(false);
     }
@@ -695,7 +849,8 @@ export default function Expenses() {
       
       if (response.ok && result.results) {
         // Filtrar solo las tablas principales
-  const mainTables = ['users', 'user_profiles', 'expenses', 'tipo_comprobantes', 'categories', 'balance_transactions', 'saldos', 'saldo_transacciones'];
+  // Keep this list intentionally small to avoid clutter — but include formapago so admins can manage payment methods
+  const mainTables = ['users', 'user_profiles', 'expenses', 'tipo_comprobantes', 'categories', 'currencies', 'formapago', 'balance_transactions', 'saldos', 'saldo_transacciones'];
         const tableNames = result.results
           .map((row: any) => row.name)
           .filter((name: string) => mainTables.includes(name));
@@ -711,20 +866,28 @@ export default function Expenses() {
 
 
   // Función para exportar movimientos a Excel
-  const exportToExcel = async () => {
+  const exportToExcel = () => {
     const filteredMovements = balanceMovements
       .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-      .filter(m => userFilter === 'all' || m.user_id === userFilter);
+      .filter(m => movementsCurrency === 'all' || String(m.currency || '').toUpperCase() === String(movementsCurrency || '').toUpperCase())
+      .filter(m => userFilter === 'all' || m.user_id === userFilter)
+      .filter(m => movementsCurrency === 'all' || String(m.currency || '').toUpperCase() === String(movementsCurrency || '').toUpperCase());
 
-    const excelData = filteredMovements.map(movement => ({
-      'Fecha': new Date(movement.created_at).toLocaleString('es-AR', {
+    // Remove spurious pending reembolso rows from exports as well
+    const exportMovements = filteredMovements.filter(m => !isSpuriousPendingReembolso(m.description || m.descripcion));
+
+    const excelData = exportMovements.map(movement => ({
+      'Fecha': (() => {
+        const d = parseDbTimestampToDate(movement.created_at);
+        return d ? d.toLocaleString('es-AR', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
         hour12: true
-      }),
+        }).replace(',', '') : movement.created_at;
+      })(),
       'Usuario': movement.user_name,
       'Tipo': movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste',
       'Monto': `${movement.type === 'carga' ? '+' : ''}${movement.amount} ${movement.currency}`,
@@ -733,8 +896,6 @@ export default function Expenses() {
       'Descripción': movement.description
     }));
 
-    const XLSXModule = (await import('xlsx'));
-    const XLSX = XLSXModule.default || XLSXModule;
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Movimientos');
@@ -754,15 +915,10 @@ export default function Expenses() {
     const fileName = `movimientos_${new Date().toISOString().split('T')[0]}.xlsx`;
     XLSX.writeFile(workbook, fileName);
     
-    setShowExportPreview(false);
+    // preview flow removed; keep this no-op for compatibility
   };
 
-  const getFilteredMovementsCount = () => {
-    return balanceMovements
-      .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-      .filter(m => userFilter === 'all' || m.user_id === userFilter)
-      .length;
-  };
+  // getFilteredMovementsCount is no longer used (preview removed)
 
   if (authLoading || !user || !userProfile) {
     return (
@@ -774,7 +930,7 @@ export default function Expenses() {
     );
   }
 
-  const pendingExpenses = expenses.filter(e => e.status === 'pendiente');
+  // pendingExpenses removed — counts computed inline where necessary
 
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
@@ -856,27 +1012,7 @@ export default function Expenses() {
                 </div>
               </button>
               
-              {/* Pestaña Usuarios - Solo para admin/supervisor */}
-              {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
-                <button
-                  data-tab="users"
-                  onClick={() => {
-                    console.log('🔥 Users button clicked');
-                    setActiveTab('users');
-                    window.location.hash = '#users';
-                  }}
-                  className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
-                    activeTab === 'users'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-center space-x-2">
-                    <Users className="w-4 h-4" />
-                    <span>Usuarios</span>
-                  </div>
-                </button>
-              )}
+              {/* Usuarios tab removed from Expenses tabs per UX request */}
 
               {/* Pestaña Historial - Solo para admin/supervisor - OCULTO POR AHORA */}
               {false && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
@@ -926,68 +1062,49 @@ export default function Expenses() {
         </div>
 
         {/* Barras de estadísticas - Solo mostrar en tab de expenses */}
-        {activeTab === 'expenses' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 w-full">
-            {/* CARD PENDIENTES */}
-            <div className="bg-gradient-to-br from-blue-600 to-blue-800 border border-blue-700 rounded-2xl p-5 flex flex-col items-start justify-between shadow-md group transition-all duration-200 hover:shadow-lg cursor-pointer"
-              onMouseEnter={() => playRandomSound('money', 0.5)}>
-              <div className="flex items-center space-x-3 mb-2">
-                <span className="bg-blue-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
-                <span className="text-3xl font-bold text-white">{pendingExpenses.length}</span>
+        {/* top KPIs removed per UX request — bottom filters/pills remain in the table area */}
+
+        {/* Modal: Ver Saldos de Usuario */}
+        {showBalancesModal && balancesModalUser && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+            <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-2xl w-full max-w-md transform transition-all">
+              <div className="bg-gradient-to-r from-teal-600 via-cyan-600 to-indigo-600 p-4 rounded-t-2xl flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white font-bold">💼</div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Saldos — {balancesModalUser.name}</h3>
+                    <div className="text-xs text-teal-100/90">Listado de saldos por moneda</div>
+                  </div>
+                </div>
+                <button onClick={() => { setShowBalancesModal(false); setSelectedUserBalances([]); setBalancesModalUser(null); }} className="text-white p-2 rounded-lg hover:bg-white/10"><X className="w-4 h-4" /></button>
               </div>
-              <div className="uppercase text-xs font-bold text-white tracking-wider">Gastos pendientes</div>
-            </div>
-            {/* CARD APROBADOS */}
-            <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 border border-emerald-700 rounded-2xl p-5 flex flex-col items-start justify-between shadow-md group transition-all duration-200 hover:shadow-lg cursor-pointer"
-              onMouseEnter={() => playRandomSound('money', 0.5)}>
-              <div className="flex items-center space-x-3 mb-2">
-                <span className="bg-emerald-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="10"/><path d="M16 10l-4 4-2-2"/></svg></span>
-                <span className="text-3xl font-bold text-white">{expenses.filter(e => e.status === 'aprobado').length}</span>
-              </div>
-              <div className="uppercase text-xs font-bold text-white tracking-wider">Gastos aprobados</div>
-            </div>
-            {/* CARD RECHAZADOS */}
-            <div className="bg-gradient-to-br from-orange-500 to-orange-700 border border-orange-700 rounded-2xl p-5 flex flex-col items-start justify-between shadow-md group transition-all duration-200 hover:shadow-lg cursor-pointer"
-              onMouseEnter={() => playRandomSound('money', 0.5)}>
-              <div className="flex items-center space-x-3 mb-2">
-                <span className="bg-orange-900 rounded-lg p-2"><svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
-                <span className="text-3xl font-bold text-white">{expenses.filter(e => e.status === 'rechazado').length}</span>
-              </div>
-              <div className="uppercase text-xs font-bold text-white tracking-wider">Gastos rechazados</div>
-            </div>
-            {/* SALDO MULTIMONEDA */}
-            <div className="bg-[#23293a] border border-indigo-500 rounded-2xl p-4 flex flex-col items-start justify-between min-w-[220px] max-w-xs shadow-lg" style={{height:'fit-content'}}>
-              <div className="flex justify-between items-center w-full mb-2">
-                <span className="text-xs font-bold text-white uppercase tracking-wide">Saldos disponibles</span>
-                <button
-                  onClick={() => {
-                    fetchMultiBalances();
-                    fetchUserProfile();
-                  }}
-                  className="p-1.5 bg-indigo-900 hover:bg-indigo-700 rounded-lg text-indigo-300 transition-all duration-200"
-                  title="Actualizar saldos"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
-              </div>
-              <div className="flex flex-col w-full gap-1 max-h-56 overflow-y-auto">
-                {multiBalances.length === 0 ? (
-                  <div className="text-slate-400 text-xs italic">Sin saldos registrados</div>
+
+              <div className="p-4">
+                {balancesLoading ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+                  </div>
                 ) : (
-                  multiBalances.map((item) => (
-                    <div key={item.currency} className="flex justify-between items-center px-2 py-1 rounded-lg">
-                      <span className="text-xs font-bold text-slate-200" style={{minWidth:'48px'}}>{item.currency}</span>
-                      <span className={`text-sm font-bold ${
-                        item.balance < 0 
-                          ? 'text-red-400' 
-                          : 'text-emerald-400'
-                      }`}>
-                        {formatCurrency(item.balance, item.currency)}
-                      </span>
-                    </div>
-                  ))
+                  <div className="space-y-3">
+                    {selectedUserBalances.length === 0 ? (
+                      <div className="text-sm text-gray-500 p-6 text-center">No hay saldos registrados para este usuario.</div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2">
+                        {selectedUserBalances.map((s) => (
+                          <div key={s.currency} className="flex justify-between items-center p-3 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-9 h-9 rounded-md bg-gradient-to-r from-gray-700 to-gray-600 text-white flex items-center justify-center font-bold">{s.currency}</div>
+                              <div>
+                                <div className="text-sm font-semibold">{s.currency}</div>
+                                <div className="text-xs text-gray-500">Saldo</div>
+                              </div>
+                            </div>
+                            <div className={`text-sm font-semibold ${s.balance < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{formatBalance(s.balance, s.currency)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -1024,21 +1141,21 @@ export default function Expenses() {
               <div className="text-sm text-gray-600 dark:text-gray-400">
                 📊 Mostrando {Math.min((usersPage - 1) * recordsPerPage + 1, users.length)} - {Math.min(usersPage * recordsPerPage, users.length)} de {users.length} usuarios
               </div>
-              <div className="flex space-x-2">
+              <div className="flex space-x-2 bg-black text-white rounded-xl px-3 py-2">
                 <button
                   onClick={() => setUsersPage(Math.max(1, usersPage - 1))}
                   disabled={usersPage === 1}
-                  className="px-3 py-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-700 rounded text-sm"
+                  className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm"
                 >
                   ← Anterior
                 </button>
-                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm">
+                <span className="px-3 py-1 bg-white/10 text-white rounded text-sm">
                   Página {usersPage} de {Math.ceil(users.length / recordsPerPage)}
                 </span>
                 <button
                   onClick={() => setUsersPage(Math.min(Math.ceil(users.length / recordsPerPage), usersPage + 1))}
                   disabled={usersPage >= Math.ceil(users.length / recordsPerPage)}
-                  className="px-3 py-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-700 rounded text-sm"
+                  className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm"
                 >
                   Siguiente →
                 </button>
@@ -1056,9 +1173,7 @@ export default function Expenses() {
                     <th className="px-6 py-3 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       🎯 Rol
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                      💰 Saldo
-                    </th>
+                      {/* Balance column hidden per UX — open 'Ver Saldos' to view all balances */}
                     <th className="px-6 py-3 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       ⚙️ Acciones
                     </th>
@@ -1068,50 +1183,36 @@ export default function Expenses() {
                   {users
                     .slice((usersPage - 1) * recordsPerPage, usersPage * recordsPerPage)
                     .map((user) => (
-                    <tr key={user.user_id} className="hover:bg-violet-50/50 dark:hover:bg-gray-700/50 transition-all">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        <div>
-                          <div className="font-bold">{user.name}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
+                    <tr key={user.user_id} className="group transition-all duration-200">
+                      <td className="px-6 py-4 align-top">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-pink-500 flex items-center justify-center text-white font-extrabold text-sm shadow-2xl">
+                            {String(user.user_id || user.name || '?').charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-bold text-gray-900 dark:text-white truncate max-w-[260px]">{user.name || user.user_id}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[260px]">{user.email}</div>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1.5 text-xs font-bold rounded-full shadow-md ${
-                          user.role === 'admin' 
-                            ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white'
-                            : user.role === 'supervisor' 
-                              ? 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
-                              : 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
-                        }`}>
-                          {user.role === 'admin' ? '🔴 ADMIN' : user.role === 'supervisor' ? '🟡 SUPERVISOR' : '🟢 USUARIO'}
-                        </span>
+                      <td className="px-6 py-4 align-middle">
+                        <span className={`inline-flex px-3 py-1 text-[11px] font-semibold rounded-full text-white uppercase tracking-wide ${user.role === 'admin' ? 'bg-gradient-to-r from-red-600 to-pink-600' : user.role === 'supervisor' ? 'bg-gradient-to-r from-yellow-600 to-orange-600' : 'bg-gradient-to-r from-green-600 to-emerald-600'}`}>{user.role === 'admin' ? 'ADMIN' : user.role === 'supervisor' ? 'SUPERVISOR' : 'USUARIO'}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`text-sm font-black ${
-                          user.balance < 0 
-                            ? 'text-red-600 dark:text-red-400' 
-                            : 'bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent'
-                        }`}>
-                          ${user.balance.toFixed(2)}
-                        </span>
-                      </td>
+                      {/* Balance cell removed here to keep table compact — use View Balances action */}
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-3">
-                          <button
-                            onClick={() => openUserModal(user)}
-                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 hover:scale-110"
-                            title="Editar saldo"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                            <Sparkles className="absolute -top-1 -right-1 w-3 h-3 text-yellow-300 opacity-0 group-hover:opacity-100 transition-all duration-300 animate-pulse" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(user.user_id)}
-                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 hover:from-red-600 hover:to-pink-700 hover:scale-110"
-                            title="Eliminar usuario"
-                          >
+                          { (userProfile?.role === 'admin' || userProfile?.role === 'supervisor' || user.user_id === userProfile?.user_id) && (
+                            <button onClick={() => openUserModal(user)} className="w-9 h-9 flex items-center justify-center rounded-full bg-violet-800/50 hover:bg-violet-700/60 text-white shadow hover:shadow-lg transition-transform transform hover:-translate-y-0.5" title="Editar saldo">
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                          )}
+                          { (userProfile?.role === 'admin' || userProfile?.role === 'supervisor' || user.user_id === userProfile?.user_id) && (
+                            <button onClick={() => fetchUserBalancesAndOpen(user)} className="w-9 h-9 flex items-center justify-center rounded-full bg-teal-500/60 hover:bg-teal-500 text-white shadow hover:shadow-lg transition-transform transform hover:-translate-y-0.5" title="Ver saldos">
+                              <Wallet className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button onClick={() => handleDeleteUser(user.user_id)} className="w-9 h-9 flex items-center justify-center rounded-full bg-rose-600/60 hover:bg-rose-600 text-white shadow hover:shadow-lg transition-transform transform hover:-translate-y-0.5" title="Eliminar usuario">
                             <Trash2 className="w-4 h-4" />
-                            <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
                           </button>
                         </div>
                       </td>
@@ -1121,15 +1222,12 @@ export default function Expenses() {
               </table>
             </div>
 
+            {/* removed duplicate footer filters — leaving only the core movements filters below */}
+
             {/* Historial de Movimientos dentro de Gestión de Usuarios */}
             <div className="mt-8 pt-8 border-t border-violet-500/20">
               <div className="mb-6 flex items-center space-x-2">
-                <button
-                  onClick={fetchBalanceMovements}
-                  className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl"
-                >
-                  🔄 Actualizar
-                </button>
+                {/* Update button removed - movements refresh now automatic when data changes */}
                 <select
                   value={userFilter}
                   onChange={(e) => setUserFilter(e.target.value)}
@@ -1140,15 +1238,21 @@ export default function Expenses() {
                     <option key={u.user_id} value={u.user_id} className="bg-gray-800">{u.name}</option>
                   ))}
                 </select>
-                <select
-                  value={movementsFilter}
-                  onChange={(e) => setMovementsFilter(e.target.value)}
-                  className="px-4 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all"
-                >
-                  <option value="all" className="bg-gray-800">Todos los movimientos</option>
-                  <option value="carga" className="bg-gray-800">Cargas</option>
-                  <option value="descuento" className="bg-gray-800">Gastos</option>
-                </select>
+                <div className="flex items-center space-x-2">
+                  <div className="px-4 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white font-semibold transition-all flex items-center justify-center">
+                    <span className="text-xs uppercase tracking-wide">Cargas</span>
+                  </div>
+                  <select
+                    value={movementsCurrency}
+                    onChange={(e) => { setMovementsCurrency(e.target.value); setMovementsPage(1); }}
+                    className="px-3 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all text-sm"
+                  >
+                    <option value="all">Todas las monedas</option>
+                    {Array.from(new Set(balanceMovements.map(b => String(b.currency || '').toUpperCase()).filter(Boolean))).sort().map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex items-center space-x-2 mt-2">
                   <label className="text-xs text-gray-400">Fecha desde:</label>
                   <input
@@ -1167,15 +1271,13 @@ export default function Expenses() {
                     style={{ minWidth: 120 }}
                   />
                 </div>
-                {userProfile?.role === 'usuario' && (
-                  <button
-                    onClick={() => setShowExportPreview(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
-                  >
-                    <FileSpreadsheet className="w-5 h-5" />
-                    <span>Exportar Excel</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => exportToExcel()}
+                  className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
+                >
+                  <FileSpreadsheet className="w-5 h-5" />
+                  <span>Exportar Excel</span>
+                </button>
               </div>
 
               {isLoadingMovements ? (
@@ -1187,39 +1289,31 @@ export default function Expenses() {
                   <table className="w-full min-w-max magic-movements-table">
                     <thead className="bg-black text-white">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap sm:hidden"> </th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
                         <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">MONEDA</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap hidden sm:table-cell">📊 SALDO ANTERIOR</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap hidden sm:table-cell">📈 SALDO NUEVO</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap hidden sm:table-cell">📝 DESCRIPCIÓN</th>
+                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📊 SALDO ANTERIOR</th>
+                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📈 SALDO NUEVO</th>
+                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📝 DESCRIPCIÓN</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
-                      {balanceMovements
-                        .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                        .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                        .slice(0, movementsPage * recordsPerPage)
-                        .map((movement) => (
-                          <React.Fragment key={movement.id}>
-                          <tr className="bg-black text-white magic-movements-row">
-                            <td className="px-2 py-2 sm:hidden text-sm">
-                              <button onClick={() => setExpandedMovements(prev => ({...prev, [String(movement.id)]: !prev[String(movement.id)]}))} className="px-2 py-1 rounded bg-gray-800 text-gray-300 hover:bg-gray-700">
-                                {expandedMovements[String(movement.id)] ? '−' : '+'}
-                              </button>
-                            </td>
+                      {pageItems.map((movement) => (
+                          <tr key={movement.id} className="bg-black text-white">
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
-                              {new Date(movement.created_at).toLocaleString('es-AR', {
+                              {(() => {
+                                const d = parseDbTimestampToDate(movement.created_at);
+                                return d ? d.toLocaleString('es-AR', {
                                 year: 'numeric',
                                 month: '2-digit',
                                 day: '2-digit',
                                 hour: '2-digit',
                                 minute: '2-digit',
                                 hour12: true
-                              }).replace(',', '')}
+                                }).replace(',', '') : movement.created_at;
+                              })()}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
                               {movement.user_name}
@@ -1249,40 +1343,16 @@ export default function Expenses() {
                                 {movement.currency}
                               </span>
                             </td>
-                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold hidden sm:table-cell ${getNumberColorClass(movement.balance_before)}`}>
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${Number(movement.balance_before) < 0 ? 'text-rose-500 font-bold' : 'text-gray-400'}`}>
                               ${Number(movement.balance_before).toFixed(2)}
                             </td>
-                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-black hidden sm:table-cell ${getNumberColorClass(movement.balance_after)}`}>
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-black ${Number(movement.balance_after) < 0 ? 'text-rose-500' : 'text-green-400'}`}>
                               ${Number(movement.balance_after).toFixed(2)}
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-300 hidden sm:table-cell">
+                            <td className="px-4 py-3 text-sm text-gray-300">
                               {movement.description}
                             </td>
                           </tr>
-                          {/* Mobile-only expanded content */}
-                          {expandedMovements[movement.id] && (
-                            <tr className="bg-gray-900 text-white sm:hidden" key={movement.id + '-details'}>
-                              <td colSpan={9} className="px-4 py-3 text-sm">
-                                <div className="flex flex-col gap-y-1 text-xs">
-                                  <div><span className="font-semibold">Saldo Anterior:</span> <span className={`${getNumberColorClass(movement.balance_before)} font-mono`}>${Number(movement.balance_before).toFixed(2)}</span></div>
-                                  <div><span className="font-semibold">Saldo Nuevo:</span> <span className={`${getNumberColorClass(movement.balance_after)} font-mono`}>${Number(movement.balance_after).toFixed(2)}</span></div>
-                                  <div><span className="font-semibold">Descripción:</span> <span className="text-gray-300">{movement.description}</span></div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                          {expandedMovements[String(movement.id)] && (
-                            <tr className="bg-gray-900 text-white sm:hidden" key={movement.id + '-details'}>
-                              <td colSpan={9} className="px-4 py-3 text-sm">
-                                <div className="flex flex-col gap-y-1 text-xs">
-                                  <div><span className="font-semibold">Saldo Anterior:</span> <span className={`${getNumberColorClass(movement.balance_before)} font-mono`}>${Number(movement.balance_before).toFixed(2)}</span></div>
-                                  <div><span className="font-semibold">Saldo Nuevo:</span> <span className={`${getNumberColorClass(movement.balance_after)} font-mono`}>${Number(movement.balance_after).toFixed(2)}</span></div>
-                                  <div><span className="font-semibold">Descripción:</span> <span className="text-gray-300">{movement.description}</span></div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                          </React.Fragment>
                         ))}
                     </tbody>
                   </table>
@@ -1303,26 +1373,36 @@ export default function Expenses() {
                     }
                   `}</style>
                   
-                  {balanceMovements
-                    .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                    .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                    .length === 0 && (
+                  {filteredMovements.length === 0 && (
                     <div className="text-center py-12">
                       <p className="text-gray-400 font-semibold">📭 No hay movimientos registrados</p>
                     </div>
                   )}
                   
-                  {balanceMovements
-                    .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                    .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                    .length > movementsPage * recordsPerPage && (
-                    <div className="flex justify-center items-center mt-4">
-                      <button
-                        onClick={() => setMovementsPage(prev => prev + 1)}
-                        className="px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl shadow-md"
-                      >
-                        Cargar más
-                      </button>
+                  {totalFiltered > recordsPerPage && (
+                    <div className="flex justify-between items-center mt-4 bg-black text-white rounded-xl px-3 py-2">
+                      <div className="text-sm text-gray-300">
+                        Mostrando {Math.min((movementsPage - 1) * recordsPerPage + 1, totalFiltered)} - {Math.min(movementsPage * recordsPerPage, totalFiltered)} de {totalFiltered} movimientos
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => setMovementsPage(Math.max(1, movementsPage - 1))}
+                          disabled={movementsPage === 1}
+                          className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm"
+                        >
+                          ← Anterior
+                        </button>
+                        <span className="px-3 py-1 bg-white/10 text-white rounded text-sm">
+                          Página {movementsPage} de {totalPages}
+                        </span>
+                        <button
+                          onClick={() => setMovementsPage(Math.min(totalPages, movementsPage + 1))}
+                          disabled={movementsPage >= totalPages}
+                          className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm"
+                        >
+                          Siguiente →
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1336,12 +1416,7 @@ export default function Expenses() {
           <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl border border-violet-500/20 p-6">
             <div className="mb-6 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => fetchBalanceMovements()}
-                  className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl"
-                >
-                  🔄 Actualizar
-                </button>
+                {/* manual refresh removed - auto refresh on data:changed */}
                 <select
                   value={userFilter}
                   onChange={(e) => setUserFilter(e.target.value)}
@@ -1352,18 +1427,23 @@ export default function Expenses() {
                     <option key={u.user_id} value={u.user_id} className="bg-gray-800">{u.name}</option>
                   ))}
                 </select>
-                <select
-                  value={movementsFilter}
-                  onChange={(e) => setMovementsFilter(e.target.value)}
-                  className="px-4 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all"
-                >
-                  <option value="all" className="bg-gray-800">Todos los movimientos</option>
-                  <option value="carga" className="bg-gray-800">Cargas</option>
-                  <option value="descuento" className="bg-gray-800">Descontados</option>
-                  <option value="ajuste" className="bg-gray-800">Ajustes</option>
-                </select>
+                <div className="flex items-center space-x-2">
+                  <div className="px-4 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white font-semibold transition-all flex items-center justify-center">
+                    <span className="text-xs uppercase tracking-wide">Cargas</span>
+                  </div>
+                  <select
+                    value={movementsCurrency}
+                    onChange={(e) => { setMovementsCurrency(e.target.value); setMovementsPage(1); }}
+                    className="px-3 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all text-sm"
+                  >
+                    <option value="all">Todas las monedas</option>
+                    {Array.from(new Set(balanceMovements.map(b => String(b.currency || '').toUpperCase()).filter(Boolean))).sort().map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
                 <button
-                  onClick={() => setShowExportPreview(true)}
+                  onClick={() => exportToExcel()}
                   className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
                 >
                   <FileSpreadsheet className="w-5 h-5" />
@@ -1391,28 +1471,20 @@ export default function Expenses() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {balanceMovements
-                      .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                      .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                      .filter(m => {
-                        if ((!dateFilter.from && !dateFilter.to)) return true;
-                        const date = m.created_at.slice(0,10);
-                        if (dateFilter.from && date < dateFilter.from) return false;
-                        if (dateFilter.to && date > dateFilter.to) return false;
-                        return true;
-                      })
-                      .slice(0, 5)
-                      .map((movement) => (
+                    {pageItems.map((movement) => (
                         <tr key={movement.id} className="hover:bg-violet-900/30 transition-all">
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
-                            {new Date(movement.created_at).toLocaleString('es-AR', {
+                            {(() => {
+                              const d = parseDbTimestampToDate(movement.created_at);
+                              return d ? d.toLocaleString('es-AR', {
                               year: 'numeric',
                               month: '2-digit',
                               day: '2-digit',
                               hour: '2-digit',
                               minute: '2-digit',
                               hour12: true
-                            }).replace(',', '')}
+                              }).replace(',', '') : movement.created_at;
+                            })()}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
                             {movement.user_name}
@@ -1437,12 +1509,12 @@ export default function Expenses() {
                               {movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}
                             </span>
                           </td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${getNumberColorClass(movement.balance_before)}`}>
-                            ${Number(movement.balance_before).toFixed(2)}
-                          </td>
-                          <td className={`px-4 py-3 whitespace-nowrap text-sm font-black ${getNumberColorClass(movement.balance_after)}`}>
-                            ${Number(movement.balance_after).toFixed(2)}
-                          </td>
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-semibold ${Number(movement.balance_before) < 0 ? 'text-rose-500 font-bold' : 'text-gray-400'}`}>
+                              ${Number(movement.balance_before).toFixed(2)}
+                            </td>
+                            <td className={`px-4 py-3 whitespace-nowrap text-sm font-black ${Number(movement.balance_after) < 0 ? 'text-rose-500' : 'text-green-400'}`}>
+                              ${Number(movement.balance_after).toFixed(2)}
+                            </td>
                           <td className="px-4 py-3 text-sm text-gray-300">
                             {movement.description}
                           </td>
@@ -1451,10 +1523,7 @@ export default function Expenses() {
                   </tbody>
                 </table>
                 
-                {balanceMovements
-                  .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                  .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                  .length === 0 && (
+                  {filteredMovements.length === 0 && (
                   <div className="text-center py-12">
                     <p className="text-gray-400 font-semibold">📭 No hay movimientos registrados</p>
                   </div>
@@ -1487,17 +1556,21 @@ export default function Expenses() {
                 className="w-full md:w-auto px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-white hover:bg-gray-700 font-semibold transition-all"
               >
                 {dbaTables.length > 0 ? (
-                  [...dbaTables, 'audit_logs'].map(table => (
+                  [...dbaTables, 'cierre_viaje', 'audit_logs'].map(table => (
                     <option key={table} value={table} className="bg-gray-800 text-white">
-                      {table === 'users' ? '👥' : table === 'expenses' ? '💰' : table === 'categories' ? '🏷️' : table === 'audit_logs' ? '📝' : '📊'} {table}
+                      {table === 'users' ? '👥' : table === 'expenses' ? '💰' : table === 'closed_expenses' ? '📦' : table === 'categories' ? '🏷️' : table === 'trip_closures' ? '✈️' : table === 'closed_saldo_transacciones' ? '💳' : table === 'cierre_viaje' ? '🧳' : table === 'audit_logs' ? '📝' : '📊'} {table}
                     </option>
                   ))
                 ) : (
                   <>
-                    <option value="users" className="bg-gray-800 text-white">👥 users</option>
-                    <option value="expenses" className="bg-gray-800 text-white">💰 expenses</option>
-                    <option value="categories" className="bg-gray-800 text-white">🏷️ categories</option>
-                    <option value="audit_logs" className="bg-gray-800 text-white">📝 audit_logs</option>
+                      <option value="users" className="bg-gray-800 text-white">👥 users</option>
+                      <option value="expenses" className="bg-gray-800 text-white">💰 expenses</option>
+                      <option value="closed_expenses" className="bg-gray-800 text-white">📦 closed_expenses</option>
+                      <option value="categories" className="bg-gray-800 text-white">🏷️ categories</option>
+                      <option value="trip_closures" className="bg-gray-800 text-white">✈️ trip_closures</option>
+                      <option value="closed_saldo_transacciones" className="bg-gray-800 text-white">💳 closed_saldo_transacciones</option>
+                      <option value="cierre_viaje" className="bg-gray-800 text-white">🧳 CIERRE DE VIAJE</option>
+                      <option value="audit_logs" className="bg-gray-800 text-white">📝 audit_logs</option>
                   </>
                 )}
               </select>
@@ -1557,12 +1630,95 @@ export default function Expenses() {
                   )}
                 </div>
               )}
+
+              {/* Special view: Cierre de viaje — show two grids from closed_* tables */}
+              {selectedTable === 'cierre_viaje' && (
+                <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div className="bg-gray-900 p-4 rounded-xl border border-violet-500/10 overflow-auto">
+                    <h3 className="text-white font-bold mb-2">Closed Expenses (closed_expenses)</h3>
+                    {cierreLoading ? (
+                      <div className="text-gray-400">Cargando...</div>
+                    ) : cierreError ? (
+                      <div className="text-red-400 font-bold">Error: {cierreError}</div>
+                    ) : Array.isArray(closedExpenses) && closedExpenses.length > 0 ? (
+                      <table className="w-full text-sm text-left text-gray-300">
+                        <thead>
+                          <tr>
+                            <th className="px-2 py-1">id</th>
+                            <th className="px-2 py-1">original_expense_id</th>
+                            <th className="px-2 py-1">user_id</th>
+                            <th className="px-2 py-1">description</th>
+                            <th className="px-2 py-1">amount</th>
+                            <th className="px-2 py-1">currency</th>
+                            <th className="px-2 py-1">expense_date</th>
+                            <th className="px-2 py-1">archived_at</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {closedExpenses.map((r:any) => (
+                            <tr key={r.id} className="border-t border-white/5">
+                              <td className="px-2 py-1">{r.id}</td>
+                              <td className="px-2 py-1">{r.original_expense_id}</td>
+                              <td className="px-2 py-1">{r.user_id}</td>
+                              <td className="px-2 py-1">{r.description}</td>
+                              <td className="px-2 py-1">{r.amount}</td>
+                              <td className="px-2 py-1">{r.currency}</td>
+                              <td className="px-2 py-1">{r.expense_date}</td>
+                              <td className="px-2 py-1">{r.archived_at}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="text-gray-400">No se encontraron closed_expenses.</div>
+                    )}
+                  </div>
+
+                  <div className="bg-gray-900 p-4 rounded-xl border border-violet-500/10 overflow-auto">
+                    <h3 className="text-white font-bold mb-2">Closed Saldo Movements (closed_saldo_transacciones)</h3>
+                    {cierreLoading ? (
+                      <div className="text-gray-400">Cargando...</div>
+                    ) : cierreError ? (
+                      <div className="text-red-400 font-bold">Error: {cierreError}</div>
+                    ) : Array.isArray(closedMovements) && closedMovements.length > 0 ? (
+                      <table className="w-full text-sm text-left text-gray-300">
+                        <thead>
+                          <tr>
+                            <th className="px-2 py-1">id</th>
+                            <th className="px-2 py-1">original_movement_id</th>
+                            <th className="px-2 py-1">user_id</th>
+                            <th className="px-2 py-1">tipo</th>
+                            <th className="px-2 py-1">monto</th>
+                            <th className="px-2 py-1">saldo_anterior</th>
+                            <th className="px-2 py-1">saldo_nuevo</th>
+                            <th className="px-2 py-1">archived_at</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {closedMovements.map((r:any) => (
+                            <tr key={r.id} className="border-t border-white/5">
+                              <td className="px-2 py-1">{r.id}</td>
+                              <td className="px-2 py-1">{r.original_movement_id}</td>
+                              <td className="px-2 py-1">{r.user_id}</td>
+                              <td className="px-2 py-1">{r.tipo}</td>
+                              <td className="px-2 py-1">{r.monto}</td>
+                              <td className="px-2 py-1">{r.saldo_anterior}</td>
+                              <td className="px-2 py-1">{r.saldo_nuevo}</td>
+                              <td className="px-2 py-1">{r.archived_at}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="text-gray-400">No se encontraron closed_saldo_transacciones.</div>
+                    )}
+                  </div>
+                </div>
+              )}
               <p className="text-xs text-red-400 font-bold mt-2">
                 ⚠️ ¡Cuidado! Estas consultas se ejecutan directamente en la base de datos.
               </p>
             </div>
-
-            {/* ...eliminado script de paginación, lógica ya está en useEffect... */}
 
             {/* Controles de paginación modernos para audit_logs */}
             {selectedTable === 'audit_logs' && (
@@ -1769,12 +1925,21 @@ export default function Expenses() {
                       }}
                       className="w-full px-4 py-3 border-2 border-gray-300 dark:border-gray-600 rounded-xl focus:ring-4 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-medium text-lg transition-all shadow-sm hover:shadow-md"
                     >
-                      <option value="ARS">🇦🇷 Peso Argentino (ARS)</option>
-                      <option value="USD">🇺🇸 Dólar (USD)</option>
-                      <option value="EUR">🇪🇺 Euro (EUR)</option>
-                      <option value="BRL">🇧🇷 Real (BRL)</option>
-                      <option value="CLP">🇨🇱 Peso Chileno (CLP)</option>
-                      <option value="UYU">🇺🇾 Peso Uruguayo (UYU)</option>
+                      {currenciesList.length === 0 ? (
+                        // fallback while loading or if API fails
+                        [
+                          { code: 'ARS', label: '🇦🇷 Peso Argentino (ARS)' },
+                          { code: 'USD', label: '🇺🇸 Dólar (USD)' },
+                          { code: 'EUR', label: '🇪🇺 Euro (EUR)' },
+                          { code: 'BRL', label: '🇧🇷 Real (BRL)' },
+                          { code: 'CLP', label: '🇨🇱 Peso Chileno (CLP)' },
+                          { code: 'UYU', label: '🇺🇾 Peso Uruguayo (UYU)' },
+                        ].map(c => <option key={c.code} value={c.code}>{c.label}</option>)
+                      ) : (
+                        currenciesList.map(c => (
+                          <option key={c.code} value={c.code}>{(c.symbol ? c.symbol + ' ' : '') + (c.name ? c.name + ' (' + c.code + ')' : c.code)}</option>
+                        ))
+                      )}
                     </select>
                   </div>
 
@@ -2181,116 +2346,7 @@ export default function Expenses() {
         )}
 
         {/* Modal de Preview de Exportación */}
-        {showExportPreview && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-            <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl transform transition-all border border-violet-500/20">
-              {/* Header */}
-              <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 p-6 rounded-t-2xl">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center backdrop-blur-lg">
-                      <FileSpreadsheet className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-white">Vista Previa - Exportar a Excel</h2>
-                      <p className="text-green-100 text-sm">{getFilteredMovementsCount()} movimientos seleccionados</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowExportPreview(false)}
-                    className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6">
-                <div className="bg-gray-800 rounded-xl p-4 mb-6 border border-violet-500/20">
-                  <h3 className="text-white font-bold mb-2 flex items-center space-x-2">
-                    <Eye className="w-5 h-5" />
-                    <span>Preview de los datos:</span>
-                  </h3>
-                  <div className="overflow-x-auto max-h-96">
-                    <table className="w-full text-sm">
-                      <thead className="bg-gradient-to-r from-violet-600 to-purple-600 sticky top-0">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-xs font-black text-white">Fecha</th>
-                          <th className="px-3 py-2 text-left text-xs font-black text-white">Usuario</th>
-                          <th className="px-3 py-2 text-left text-xs font-black text-white">Tipo</th>
-                          <th className="px-3 py-2 text-left text-xs font-black text-white">Monto</th>
-                          <th className="px-3 py-2 text-left text-xs font-black text-white">Saldo Anterior</th>
-                          <th className="px-3 py-2 text-left text-xs font-black text-white">Saldo Nuevo</th>
-                          <th className="px-3 py-2 text-left text-xs font-black text-white">Descripción</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-700">
-                        {balanceMovements
-                          .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                          .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                          .slice(0, 10)
-                          .map((movement, idx) => (
-                            <tr key={idx} className="hover:bg-violet-900/30 transition-all">
-                              <td className="px-3 py-2 whitespace-nowrap text-white">
-                                {new Date(movement.created_at).toLocaleString('es-AR', {
-                                  year: 'numeric',
-                                  month: '2-digit',
-                                  day: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                  hour12: true
-                                })}
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-white">{movement.user_name}</td>
-                              <td className="px-3 py-2 whitespace-nowrap">
-                                <span className={`px-2 py-1 rounded text-xs font-bold ${
-                                  movement.type === 'carga' ? 'bg-green-600' : 
-                                  movement.type === 'descuento' ? 'bg-red-600' : 'bg-yellow-600'
-                                } text-white`}>
-                                  {movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste'}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap text-white">
-                                {movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}
-                              </td>
-                              <td className={`px-3 py-2 whitespace-nowrap ${getNumberColorClass(movement.balance_before)}`}>
-                                ${Number(movement.balance_before).toFixed(2)}
-                              </td>
-                              <td className={`px-3 py-2 whitespace-nowrap font-bold ${getNumberColorClass(movement.balance_after)}`}>
-                                ${Number(movement.balance_after).toFixed(2)}
-                              </td>
-                              <td className="px-3 py-2 text-gray-300 truncate max-w-xs">{movement.description}</td>
-                            </tr>
-                          ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {getFilteredMovementsCount() > 10 && (
-                    <p className="text-violet-300 text-xs mt-2 text-center">
-                      Mostrando primeros 10 de {getFilteredMovementsCount()} movimientos
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => setShowExportPreview(false)}
-                    className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-xl transition-all"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={exportToExcel}
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg flex items-center justify-center space-x-2"
-                  >
-                    <FileSpreadsheet className="w-5 h-5" />
-                    <span>Descargar Excel</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Export preview removed - export happens directly via exportToExcel */}
 
         {/* Notificación de Saldo Cargado */}
         {showBalanceNotification && (

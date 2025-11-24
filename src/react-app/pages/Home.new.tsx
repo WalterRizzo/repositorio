@@ -4,8 +4,6 @@ import {
   Zap, 
   Shield, 
   BarChart3, 
-  Users, 
-  Wallet,
   ArrowRight,
   CheckCircle,
   Sparkles
@@ -61,25 +59,7 @@ export default function Home() {
             </a>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 animate-in fade-in slide-in-from-bottom duration-700 delay-500">
-            {[
-              { label: "Multi-Divisa", value: "6+", icon: Wallet },
-              { label: "Usuarios", value: "Ilimitados", icon: Users },
-              { label: "Reportes", value: "Real-time", icon: BarChart3 },
-              { label: "Seguro", value: "100%", icon: Shield }
-            ].map((stat, i) => (
-              <div key={i} className="text-center">
-                <div className="flex justify-center mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center">
-                    <stat.icon className="w-6 h-6 text-primary-400" />
-                  </div>
-                </div>
-                <div className="text-3xl font-display font-bold text-white mb-1">{stat.value}</div>
-                <div className="text-sm text-gray-500">{stat.label}</div>
-              </div>
-            ))}
-          </div>
+          {/* Stats removed per request */}
         </div>
       </div>
 
