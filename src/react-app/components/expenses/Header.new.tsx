@@ -125,7 +125,7 @@ export default function Header({ userProfile, onSettingsClick }: HeaderProps) {
                     </div>
                   </Link>
 
-                  {/* Users header link removed per UX request */}
+                  {/* Usuarios link removed from expenses header per UX request */}
                 </>
               )}
             </nav>

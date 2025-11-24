@@ -3,9 +3,9 @@ import { X, Save, Upload, Eye, Wallet } from "lucide-react";
 import type { Expense, TipoComprobante } from "@/shared/types";
 import { EXPENSE_CATEGORIES } from "@/shared/types";
 import { createWorker } from 'tesseract.js';
-import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
-import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
-import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
+import { getRandomEmoji, getRandomEmojis } from '../../../../epic-effects-library/effects/EmojiVariations';
+import { playRandomSound } from '../../../../epic-effects-library/sounds/SoundVariations';
+import { getColorSet } from '../../../../epic-effects-library/effects/ColorVariations';
 
 interface ExpenseFormProps {
   expense: Expense | null;

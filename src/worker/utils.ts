@@ -4,21 +4,35 @@ export async function registrarTransaccionSaldo(
   currency: string,
   tipo: 'carga' | 'descuento' | 'ajuste',
   monto: number,
-  saldoAnterior: number,
-  saldoNuevo: number,
+  saldoAnterior: number | null,
+  saldoNuevo: number | null,
   descripcion: string,
-  realizadoPor: string
+  realizadoPor: string,
+  status: 'aprobado' | 'pendiente' = 'aprobado',
+  approvedBy: string | null = null,
+  approvedAt: string | null = null
 ) {
   try {
+    // Insert with status + approval metadata (columns added in migration 31)
     await db.prepare(`
       INSERT INTO saldo_transacciones 
-      (user_id, currency, tipo, monto, saldo_anterior, saldo_nuevo, descripcion, realizado_por, fecha_transaccion) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `).bind(userId, currency, tipo, monto, saldoAnterior, saldoNuevo, descripcion, realizadoPor).run();
+      (user_id, currency, tipo, monto, saldo_anterior, saldo_nuevo, descripcion, realizado_por, status, approved_by, approved_at, fecha_transaccion) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).bind(userId, currency, tipo, monto, saldoAnterior, saldoNuevo, descripcion, realizadoPor, status, approvedBy, approvedAt).run();
 
-    console.log(`Transaction recorded: ${userId} ${tipo} ${monto} ${currency} by ${realizadoPor}`);
+    console.log(`✅ Transacción registrada: Usuario ${userId} - ${tipo} ${monto} ${currency} por ${realizadoPor} (status=${status})`);
   } catch (error) {
-    console.error('Error recording transaction:', error);
+    // Fallback: if DB doesn't yet have the new columns, try to insert without them
+    try {
+      await db.prepare(`
+        INSERT INTO saldo_transacciones 
+        (user_id, currency, tipo, monto, saldo_anterior, saldo_nuevo, descripcion, realizado_por, fecha_transaccion) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      `).bind(userId, currency, tipo, monto, saldoAnterior, saldoNuevo, descripcion, realizadoPor).run();
+      console.log(`✅ Transacción registrada (fallback insert): Usuario ${userId} - ${tipo} ${monto} ${currency} por ${realizadoPor}`);
+    } catch (err2) {
+      console.error('❌ Error recording transaction:', err2);
+    }
   }
 }
 

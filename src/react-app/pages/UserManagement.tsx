@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { Loader2, Plus, Users, Edit2, Trash2, X, Save, UserPlus, CheckCircle } from "lucide-react";
 import Header from "@/react-app/components/Header";
+import { parseDbTimestampToDate } from '@/react-app/utils/dates';
 import Sidebar from "@/react-app/components/Sidebar";
 import argentinaFlag from '@/react-app/assets/argentina.svg';
 
@@ -351,11 +352,10 @@ export default function UserManagement() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-xs text-white/70">
-                          {new Date(userItem.created_at).toLocaleDateString('es-ES', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
+                          {(() => {
+                            const d = parseDbTimestampToDate(userItem.created_at);
+                            return d ? d.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' }) : userItem.created_at;
+                          })()}
                         </div>
                       </td>
                       <td className="px-4 py-3">

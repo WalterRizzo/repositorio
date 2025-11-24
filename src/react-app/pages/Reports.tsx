@@ -9,6 +9,7 @@ import ReportsSummary from "@/react-app/components/ReportsSummary";
 import CategoryChart from "@/react-app/components/CategoryChart";
 import MonthlyChart from "@/react-app/components/MonthlyChart";
 import TrendAIChart from "../components/TrendAIChart";
+import { parseDbTimestampToDate } from '@/react-app/utils/dates';
 
 interface ReportData {
   byCategory: Array<{ category: string; total: number; count: number }>;
@@ -22,8 +23,7 @@ export default function Reports() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [users, setUsers] = useState<any[]>([]);
-  // load canonical currencies list from server (not just currencies used in expenses)
-  const [currencies, setCurrencies] = useState<Array<{ code: string; name?: string; symbol?: string }>>([]);
+  const [currencies, setCurrencies] = useState<string[]>([]);
   const [filterUserId, setFilterUserId] = useState<string | null>(null);
   const [filterCurrency, setFilterCurrency] = useState<string | null>(null);
   const [filterFrom, setFilterFrom] = useState<string | null>(null);
@@ -106,15 +106,10 @@ export default function Reports() {
 
   const fetchCurrencies = async () => {
     try {
-      const res = await fetch('/api/currencies');
-      if (!res.ok) return setCurrencies([]);
+      const res = await fetch('/api/expenses/currencies');
       const list = await res.json();
-      if (Array.isArray(list)) {
-        setCurrencies(list.map((c:any) => ({ code: String(c.code).toUpperCase(), name: c.name, symbol: c.symbol })));
-      } else {
-        setCurrencies([]);
-      }
-    } catch (e) { console.error('Error loading currencies', e); setCurrencies([]); }
+      setCurrencies(list || []);
+    } catch (e) { console.error('Error loading currencies', e); }
   };
 
   const exportToExcel = async () => {
@@ -207,7 +202,10 @@ export default function Reports() {
           'Usa Saldo': expense.use_balance ? 'Sí' : 'No',
           'Tiene Recibo': expense.receipt_photo_url ? 'Sí' : 'No',
           'Forma de Pago': expense.sigla || '-',
-          'Fecha de Creación': new Date(expense.created_at).toLocaleDateString('es-ES'),
+          'Fecha de Creación': (() => {
+            const d = parseDbTimestampToDate(expense.created_at);
+            return d ? d.toLocaleDateString('es-ES') : expense.created_at;
+          })(),
         }));
 
         const ws = XLSX.utils.json_to_sheet(rows);
@@ -330,11 +328,11 @@ export default function Reports() {
             <select
               value={filterCurrency || ''}
               onChange={(e) => setFilterCurrency(e.target.value || null)}
-              className="px-3 py-2 rounded bg-black text-white text-sm border border-white/10"
+              className="px-3 py-2 rounded bg-white/5 text-white text-sm border border-white/10"
             >
               <option value="">Todas las monedas</option>
               {currencies.map(c => (
-                <option key={c.code} value={c.code} className="bg-black text-white">{(c.symbol ? c.symbol + ' ' : '') + (c.name ? c.name + ' (' + c.code + ')' : c.code)}</option>
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
 

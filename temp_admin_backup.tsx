@@ -243,17 +243,25 @@ export default function Admin() {
   };
 
   const handleApprove = async (id: number) => {
-    if (!confirm("¿Aprobar este gasto?")) return;
+    if (!confirm("¿Aprobar este gasto?")) return false;
 
     try {
-      await fetch(`/api/expenses/${id}/approve`, {
-        method: "PUT",
-      });
+      const resp = await fetch(`/api/expenses/${id}/approve`, { method: "PUT" });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        const msg = err.error || `Error ${resp.status} al aprobar gasto`;
+        console.error('Approve failed:', msg);
+        alert(`❌ No se pudo aprobar: ${msg}`);
+        return false;
+      }
+
       await fetchExpenses();
       alert("Gasto aprobado exitosamente");
+      return true;
     } catch (error) {
       console.error("Error aprobando gasto:", error);
       alert("Error al aprobar el gasto");
+      return false;
     }
   };
 

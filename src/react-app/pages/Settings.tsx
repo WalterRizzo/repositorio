@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, Tag, FileText, Key, Save, X, Loader2, DollarSign } from "lucide-react";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import Header from "@/react-app/components/Header";
+import { parseDbTimestampToDate } from '@/react-app/utils/dates';
 import Sidebar from "@/react-app/components/Sidebar";
 
 interface Category {
@@ -633,7 +634,7 @@ export default function SettingsPage() {
                   </div>
                   
                   <div className="text-xs text-gray-500 mt-4 pt-4 border-t border-gray-700">
-                    Creada: {new Date(category.created_at).toLocaleDateString('es-ES')}
+                    Creada: {(() => { const d = parseDbTimestampToDate(category.created_at); return d ? d.toLocaleDateString('es-ES') : category.created_at; })()}
                   </div>
                 </div>
               ))}
@@ -710,7 +711,7 @@ export default function SettingsPage() {
                   </div>
                   
                   <div className="text-xs text-gray-500 mt-4 pt-4 border-t border-gray-700">
-                    Creado: {new Date(comprobante.created_at).toLocaleDateString('es-ES')}
+                    Creado: {(() => { const d = parseDbTimestampToDate(comprobante.created_at); return d ? d.toLocaleDateString('es-ES') : comprobante.created_at; })()}
                   </div>
                 </div>
               ))}
@@ -755,7 +756,7 @@ export default function SettingsPage() {
                     )}
                   </div>
 
-                  <div className="text-xs text-gray-500 mt-4 pt-4 border-t border-gray-700">Creada: {new Date(cur.created_at).toLocaleDateString('es-ES')}</div>
+                  <div className="text-xs text-gray-500 mt-4 pt-4 border-t border-gray-700">Creada: {(() => { const d = parseDbTimestampToDate(cur.created_at); return d ? d.toLocaleDateString('es-ES') : cur.created_at; })()}</div>
                 </div>
               ))}
             </div>

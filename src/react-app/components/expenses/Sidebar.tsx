@@ -43,7 +43,7 @@ export default function Sidebar() {
             </li>
           )}
 
-          {/* NOTE: 'Usuarios' nav entry removed from main left-sidebar per request */}
+          {/* NOTE: 'Usuarios' nav entry removed here too (expenses-specific sidebar) */}
 
           {/* Settings visible for ALL roles so every user can change their own password */}
           <li>

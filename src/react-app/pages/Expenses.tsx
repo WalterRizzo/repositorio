@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { useNotifications } from "@/react-app/hooks/useNotifications";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
-  import { Loader2, Receipt, Users, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Wallet } from "lucide-react";
+  import { Loader2, Receipt, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Wallet } from "lucide-react";
 import type { Expense, UserProfile } from "@/shared/types";
 import ExpensesTable from "@/react-app/components/ExpensesTable";
 import ExpenseForm from "@/react-app/components/ExpenseForm";
@@ -24,6 +24,8 @@ import Header from "@/react-app/components/Header";
 import Sidebar from "@/react-app/components/Sidebar";
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
 import * as XLSX from 'xlsx';
+import { formatBalance, isSpuriousPendingReembolso } from '@/react-app/utils/format';
+import { parseDbTimestampToDate } from '@/react-app/utils/dates';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
 
@@ -57,6 +59,36 @@ export default function Expenses() {
     } catch (error) {
       setDbaResults({ error: 'Error de conexión al servidor' });
       setDbaLoading(false);
+    }
+  };
+
+  // Fetch data for cierre de viaje (closed tables)
+  const fetchCierreData = async () => {
+    setCierreError(null);
+    setCierreLoading(true);
+    setClosedExpenses(null);
+    setClosedMovements(null);
+    try {
+      const resp1 = await fetch('/api/dba/execute', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'SELECT * FROM closed_expenses ORDER BY archived_at DESC LIMIT 500;' })
+      });
+      const data1 = await resp1.json().catch(() => ({ results: [] }));
+
+      const resp2 = await fetch('/api/dba/execute', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'SELECT * FROM closed_saldo_transacciones ORDER BY archived_at DESC LIMIT 500;' })
+      });
+      const data2 = await resp2.json().catch(() => ({ results: [] }));
+
+      if (!resp1.ok) throw new Error(data1.error || 'Error cargando closed_expenses');
+      if (!resp2.ok) throw new Error(data2.error || 'Error cargando closed_saldo_transacciones');
+
+      setClosedExpenses(Array.isArray(data1.results) ? data1.results : []);
+      setClosedMovements(Array.isArray(data2.results) ? data2.results : []);
+    } catch (err:any) {
+      console.error('Error cargando datos Cierre de viaje:', err);
+      setCierreError(err?.message || String(err));
+    } finally {
+      setCierreLoading(false);
     }
   };
   // ...existing code...
@@ -126,11 +158,44 @@ export default function Expenses() {
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
   const [dbaTables, setDbaTables] = useState<string[]>([]);
 
+  // Cierre de viaje (closed tables) data
+  const [closedExpenses, setClosedExpenses] = useState<any[] | null>(null);
+  const [closedMovements, setClosedMovements] = useState<any[] | null>(null);
+  const [cierreLoading, setCierreLoading] = useState(false);
+  const [cierreError, setCierreError] = useState<string | null>(null);
+
   // Pagination state for users table
   const [usersPage, setUsersPage] = useState(1);
   // Pagination state for movements grid
   const [movementsPage, setMovementsPage] = useState(1);
   const recordsPerPage = 5;
+
+  // derived filtered movements + pagination (fixes date filter not refreshing grid)
+  const filteredMovements = balanceMovements
+    .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
+    .filter(m => userFilter === 'all' || m.user_id === userFilter)
+    .filter(m => movementsCurrency === 'all' || String(m.currency || '').toUpperCase() === String(movementsCurrency || '').toUpperCase())
+    .filter(m => {
+      if ((!dateFilter.from && !dateFilter.to)) return true;
+      const date = (m.created_at || '').slice(0,10);
+      if (dateFilter.from && date < dateFilter.from) return false;
+      if (dateFilter.to && date > dateFilter.to) return false;
+      return true;
+    });
+
+  // Hide spurious pending reembolso rows created by deletion flows
+  // (they still exist in DB but must not be visible in admin UI)
+  const filteredMovementsSanitized = filteredMovements.filter(m => !isSpuriousPendingReembolso(m.description || m.descripcion));
+
+  const totalFiltered = filteredMovementsSanitized.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / recordsPerPage));
+  const startIdx = (movementsPage - 1) * recordsPerPage;
+  const pageItems = filteredMovementsSanitized.slice(startIdx, startIdx + recordsPerPage);
+
+  // Ensure page reset when filters reduce results
+  useEffect(() => {
+    if (movementsPage > totalPages) setMovementsPage(1);
+  }, [totalFiltered]);
   
   // Settings modal state
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -195,16 +260,14 @@ export default function Expenses() {
   }, [user, authLoading, navigate]);
 
   // Detectar hash en URL para cambiar pestaña
+  // NOTE: removed '#users' handling per UX request — Users tab isn't exposed in this flowset
   useEffect(() => {
     console.log('🔥 Location hash changed:', location.hash);
-    if (location.hash === '#users') {
-      console.log('🔥 Setting tab to users');
-      setActiveTab('users');
-    } else if (location.hash === '#dba') {
+    if (location.hash === '#dba') {
       console.log('🔥 Setting tab to dba');
       setActiveTab('dba');
     } else {
-      console.log('🔥 Setting tab to expenses');  
+      console.log('🔥 Setting tab to expenses');
       setActiveTab('expenses');
     }
   }, [location.hash, location.pathname]);
@@ -214,7 +277,17 @@ export default function Expenses() {
     if (activeTab === 'dba' && dbaTables.length === 0) {
       fetchDbaTables();
     }
+    // if DBA tab active and user selected cierre_viaje, preload its data
+    if (activeTab === 'dba' && selectedTable === 'cierre_viaje') {
+      fetchCierreData();
+    }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'dba' && selectedTable === 'cierre_viaje') {
+      fetchCierreData();
+    }
+  }, [activeTab, selectedTable]);
 
   useEffect(() => {
     if (user) {
@@ -323,6 +396,13 @@ export default function Expenses() {
           setTimeout(() => setShowDeleteNotification(false), 2500);
           await fetchUserProfile();
           await fetchMultiBalances();
+        } else if (result.pending_refund && result.pending_refund > 0) {
+          // Refund created as PENDING — do not assume balances were updated
+          setDeleteEmoji('⏳');
+          setShowDeleteNotification(true);
+          setTimeout(() => setShowDeleteNotification(false), 2500);
+          // notify others so they can show pending movement lists, but don't refresh balances
+          try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.delete.pending', id, pending_refund: result.pending_refund } })); } catch(e){}
         } else {
           setDeleteEmoji('🗑️');
           setShowDeleteNotification(true);
@@ -351,19 +431,34 @@ export default function Expenses() {
   };
 
   const handleApprove = async (id: number) => {
-    if (!confirm("¿Aprobar este gasto?")) return;
+    if (!confirm("¿Aprobar este gasto?")) return false;
 
     try {
-      await fetch(`/api/expenses/${id}/approve`, {
+      const resp = await fetch(`/api/expenses/${id}/approve`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include'
       });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        const msg = err.error || `Error ${resp.status} al aprobar gasto`;
+        console.error('Approve failed:', msg);
+        alert(`❌ No se pudo aprobar: ${msg}`);
+        return false;
+      }
+
       await fetchExpenses();
+      // Refresh user balances so the header and movements reflect the approved deduction
+      await fetchUserProfile();
+      await fetchMultiBalances();
       try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.approve', id } })); } catch(e){}
       alert("Gasto aprobado exitosamente");
+      return true;
     } catch (error) {
       console.error("Error aprobando gasto:", error);
       alert("Error al aprobar el gasto");
+      return false;
     }
   };
 
@@ -378,17 +473,17 @@ export default function Expenses() {
       await fetchExpenses();
       try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id } })); } catch(e){}
       alert("Gasto rechazado exitosamente");
-        // Notificación push al usuario
-        if (isSupported && permission === "granted") {
-          showNotification(
-            "🚫 Gasto Rechazado",
-            {
-              body: "Revisa la lista de gastos: uno o más han sido rechazados.",
-              tag: "expense-rejected",
-              data: { url: "/expenses" }
-            }
-          );
-        }
+      // Notificación push al usuario
+      if (isSupported && permission === "granted") {
+        showNotification(
+          "🚫 Gasto Rechazado",
+          {
+            body: "Revisa la lista de gastos: uno o más han sido rechazados.",
+            tag: "expense-rejected",
+            data: { url: "/expenses" }
+          }
+        );
+      }
     } catch (error) {
       console.error("Error rechazando gasto:", error);
       alert("Error al rechazar el gasto");
@@ -466,6 +561,8 @@ export default function Expenses() {
         
         // Actualizar datos localmente de forma más eficiente
         await Promise.all([fetchUsers(), fetchUserProfile()]);
+        // notify other parts of the app (movements grid) to refresh
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.update', userId: editingUser.user_id } })); } catch (e) { /* noop */ }
         
         // Reproducir sonido y mostrar notificación de dinero con emojis y colores aleatorios
         playMoneySound();
@@ -753,7 +850,7 @@ export default function Expenses() {
       if (response.ok && result.results) {
         // Filtrar solo las tablas principales
   // Keep this list intentionally small to avoid clutter — but include formapago so admins can manage payment methods
-  const mainTables = ['users', 'user_profiles', 'expenses', 'expenses_cierre', 'tipo_comprobantes', 'categories', 'currencies', 'formapago', 'balance_transactions', 'saldos', 'saldo_transacciones', 'saldo_transacciones_cierre'];
+  const mainTables = ['users', 'user_profiles', 'expenses', 'tipo_comprobantes', 'categories', 'currencies', 'formapago', 'balance_transactions', 'saldos', 'saldo_transacciones'];
         const tableNames = result.results
           .map((row: any) => row.name)
           .filter((name: string) => mainTables.includes(name));
@@ -776,15 +873,21 @@ export default function Expenses() {
       .filter(m => userFilter === 'all' || m.user_id === userFilter)
       .filter(m => movementsCurrency === 'all' || String(m.currency || '').toUpperCase() === String(movementsCurrency || '').toUpperCase());
 
-    const excelData = filteredMovements.map(movement => ({
-      'Fecha': new Date(movement.created_at).toLocaleString('es-AR', {
+    // Remove spurious pending reembolso rows from exports as well
+    const exportMovements = filteredMovements.filter(m => !isSpuriousPendingReembolso(m.description || m.descripcion));
+
+    const excelData = exportMovements.map(movement => ({
+      'Fecha': (() => {
+        const d = parseDbTimestampToDate(movement.created_at);
+        return d ? d.toLocaleString('es-AR', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
         hour12: true
-      }),
+        }).replace(',', '') : movement.created_at;
+      })(),
       'Usuario': movement.user_name,
       'Tipo': movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste',
       'Monto': `${movement.type === 'carga' ? '+' : ''}${movement.amount} ${movement.currency}`,
@@ -909,27 +1012,7 @@ export default function Expenses() {
                 </div>
               </button>
               
-              {/* Pestaña Usuarios - Solo para admin/supervisor */}
-              {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
-                <button
-                  data-tab="users"
-                  onClick={() => {
-                    console.log('🔥 Users button clicked');
-                    setActiveTab('users');
-                    window.location.hash = '#users';
-                  }}
-                  className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
-                    activeTab === 'users'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-center space-x-2">
-                    <Users className="w-4 h-4" />
-                    <span>Usuarios</span>
-                  </div>
-                </button>
-              )}
+              {/* Usuarios tab removed from Expenses tabs per UX request */}
 
               {/* Pestaña Historial - Solo para admin/supervisor - OCULTO POR AHORA */}
               {false && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
@@ -1016,7 +1099,7 @@ export default function Expenses() {
                                 <div className="text-xs text-gray-500">Saldo</div>
                               </div>
                             </div>
-                            <div className={`text-sm font-semibold ${s.balance < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{s.balance?.toString?.() ?? 0}</div>
+                            <div className={`text-sm font-semibold ${s.balance < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{formatBalance(s.balance, s.currency)}</div>
                           </div>
                         ))}
                       </div>
@@ -1162,10 +1245,10 @@ export default function Expenses() {
                   <select
                     value={movementsCurrency}
                     onChange={(e) => { setMovementsCurrency(e.target.value); setMovementsPage(1); }}
-                    className="px-3 py-2 bg-black border border-violet-500/20 rounded-xl text-white hover:bg-gray-900 font-semibold transition-all text-sm"
+                    className="px-3 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all text-sm"
                   >
                     <option value="all">Todas las monedas</option>
-                    {(currenciesList.length === 0 ? Array.from(new Set(balanceMovements.map(b => String(b.currency || '').toUpperCase()).filter(Boolean))).sort() : currenciesList.map(c => c.code)).map((c:any) => (
+                    {Array.from(new Set(balanceMovements.map(b => String(b.currency || '').toUpperCase()).filter(Boolean))).sort().map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
@@ -1217,22 +1300,20 @@ export default function Expenses() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
-                      {balanceMovements
-                        .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                        .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                        .filter(m => movementsCurrency === 'all' || String(m.currency || '').toUpperCase() === String(movementsCurrency || '').toUpperCase())
-                        .slice((movementsPage - 1) * recordsPerPage, movementsPage * recordsPerPage)
-                        .map((movement) => (
+                      {pageItems.map((movement) => (
                           <tr key={movement.id} className="bg-black text-white">
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
-                              {new Date(movement.created_at).toLocaleString('es-AR', {
+                              {(() => {
+                                const d = parseDbTimestampToDate(movement.created_at);
+                                return d ? d.toLocaleString('es-AR', {
                                 year: 'numeric',
                                 month: '2-digit',
                                 day: '2-digit',
                                 hour: '2-digit',
                                 minute: '2-digit',
                                 hour12: true
-                              }).replace(',', '')}
+                                }).replace(',', '') : movement.created_at;
+                              })()}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
                               {movement.user_name}
@@ -1292,27 +1373,16 @@ export default function Expenses() {
                     }
                   `}</style>
                   
-                  {balanceMovements
-                    .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                    .filter(m => movementsCurrency === 'all' || String(m.currency || '').toUpperCase() === String(movementsCurrency || '').toUpperCase())
-                    .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                    .filter(m => movementsCurrency === 'all' || String(m.currency || '').toUpperCase() === String(movementsCurrency || '').toUpperCase())
-                    .length === 0 && (
+                  {filteredMovements.length === 0 && (
                     <div className="text-center py-12">
                       <p className="text-gray-400 font-semibold">📭 No hay movimientos registrados</p>
                     </div>
                   )}
                   
-                  {balanceMovements
-                    .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                    .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                    .length > recordsPerPage && (
+                  {totalFiltered > recordsPerPage && (
                     <div className="flex justify-between items-center mt-4 bg-black text-white rounded-xl px-3 py-2">
                       <div className="text-sm text-gray-300">
-                        Mostrando {Math.min((movementsPage - 1) * recordsPerPage + 1, balanceMovements.length)} - {Math.min(movementsPage * recordsPerPage, balanceMovements.length)} de {balanceMovements
-                          .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                          .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                          .length} movimientos
+                        Mostrando {Math.min((movementsPage - 1) * recordsPerPage + 1, totalFiltered)} - {Math.min(movementsPage * recordsPerPage, totalFiltered)} de {totalFiltered} movimientos
                       </div>
                       <div className="flex items-center space-x-2">
                         <button
@@ -1323,11 +1393,11 @@ export default function Expenses() {
                           ← Anterior
                         </button>
                         <span className="px-3 py-1 bg-white/10 text-white rounded text-sm">
-                          Página {movementsPage} de {Math.ceil(balanceMovements.length / recordsPerPage)}
+                          Página {movementsPage} de {totalPages}
                         </span>
                         <button
-                          onClick={() => setMovementsPage(Math.min(Math.ceil(balanceMovements.length / recordsPerPage), movementsPage + 1))}
-                          disabled={movementsPage >= Math.ceil(balanceMovements.length / recordsPerPage)}
+                          onClick={() => setMovementsPage(Math.min(totalPages, movementsPage + 1))}
+                          disabled={movementsPage >= totalPages}
                           className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm"
                         >
                           Siguiente →
@@ -1364,10 +1434,10 @@ export default function Expenses() {
                   <select
                     value={movementsCurrency}
                     onChange={(e) => { setMovementsCurrency(e.target.value); setMovementsPage(1); }}
-                    className="px-3 py-2 bg-black border border-violet-500/20 rounded-xl text-white hover:bg-gray-900 font-semibold transition-all text-sm"
+                    className="px-3 py-2 bg-gray-800 border border-violet-500/20 rounded-xl text-white hover:bg-gray-700 font-semibold transition-all text-sm"
                   >
                     <option value="all">Todas las monedas</option>
-                    {(currenciesList.length === 0 ? Array.from(new Set(balanceMovements.map(b => String(b.currency || '').toUpperCase()).filter(Boolean))).sort() : currenciesList.map(c => c.code)).map((c:any) => (
+                    {Array.from(new Set(balanceMovements.map(b => String(b.currency || '').toUpperCase()).filter(Boolean))).sort().map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
@@ -1401,28 +1471,20 @@ export default function Expenses() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {balanceMovements
-                      .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                      .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                      .filter(m => {
-                        if ((!dateFilter.from && !dateFilter.to)) return true;
-                        const date = m.created_at.slice(0,10);
-                        if (dateFilter.from && date < dateFilter.from) return false;
-                        if (dateFilter.to && date > dateFilter.to) return false;
-                        return true;
-                      })
-                      .slice(0, 5)
-                      .map((movement) => (
+                    {pageItems.map((movement) => (
                         <tr key={movement.id} className="hover:bg-violet-900/30 transition-all">
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
-                            {new Date(movement.created_at).toLocaleString('es-AR', {
+                            {(() => {
+                              const d = parseDbTimestampToDate(movement.created_at);
+                              return d ? d.toLocaleString('es-AR', {
                               year: 'numeric',
                               month: '2-digit',
                               day: '2-digit',
                               hour: '2-digit',
                               minute: '2-digit',
                               hour12: true
-                            }).replace(',', '')}
+                              }).replace(',', '') : movement.created_at;
+                            })()}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
                             {movement.user_name}
@@ -1461,10 +1523,7 @@ export default function Expenses() {
                   </tbody>
                 </table>
                 
-                {balanceMovements
-                  .filter(m => movementsFilter === 'all' || m.type === movementsFilter)
-                  .filter(m => userFilter === 'all' || m.user_id === userFilter)
-                  .length === 0 && (
+                  {filteredMovements.length === 0 && (
                   <div className="text-center py-12">
                     <p className="text-gray-400 font-semibold">📭 No hay movimientos registrados</p>
                   </div>
@@ -1497,17 +1556,21 @@ export default function Expenses() {
                 className="w-full md:w-auto px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-white hover:bg-gray-700 font-semibold transition-all"
               >
                 {dbaTables.length > 0 ? (
-                  [...dbaTables, 'audit_logs'].map(table => (
+                  [...dbaTables, 'cierre_viaje', 'audit_logs'].map(table => (
                     <option key={table} value={table} className="bg-gray-800 text-white">
-                      {table === 'users' ? '👥' : table === 'expenses' ? '💰' : table === 'categories' ? '🏷️' : table === 'audit_logs' ? '📝' : '📊'} {table}
+                      {table === 'users' ? '👥' : table === 'expenses' ? '💰' : table === 'closed_expenses' ? '📦' : table === 'categories' ? '🏷️' : table === 'trip_closures' ? '✈️' : table === 'closed_saldo_transacciones' ? '💳' : table === 'cierre_viaje' ? '🧳' : table === 'audit_logs' ? '📝' : '📊'} {table}
                     </option>
                   ))
                 ) : (
                   <>
-                    <option value="users" className="bg-gray-800 text-white">👥 users</option>
-                    <option value="expenses" className="bg-gray-800 text-white">💰 expenses</option>
-                    <option value="categories" className="bg-gray-800 text-white">🏷️ categories</option>
-                    <option value="audit_logs" className="bg-gray-800 text-white">📝 audit_logs</option>
+                      <option value="users" className="bg-gray-800 text-white">👥 users</option>
+                      <option value="expenses" className="bg-gray-800 text-white">💰 expenses</option>
+                      <option value="closed_expenses" className="bg-gray-800 text-white">📦 closed_expenses</option>
+                      <option value="categories" className="bg-gray-800 text-white">🏷️ categories</option>
+                      <option value="trip_closures" className="bg-gray-800 text-white">✈️ trip_closures</option>
+                      <option value="closed_saldo_transacciones" className="bg-gray-800 text-white">💳 closed_saldo_transacciones</option>
+                      <option value="cierre_viaje" className="bg-gray-800 text-white">🧳 CIERRE DE VIAJE</option>
+                      <option value="audit_logs" className="bg-gray-800 text-white">📝 audit_logs</option>
                   </>
                 )}
               </select>
@@ -1565,6 +1628,91 @@ export default function Expenses() {
                   ) : (
                     <div className="text-yellow-400 font-bold">No se encontraron resultados.</div>
                   )}
+                </div>
+              )}
+
+              {/* Special view: Cierre de viaje — show two grids from closed_* tables */}
+              {selectedTable === 'cierre_viaje' && (
+                <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div className="bg-gray-900 p-4 rounded-xl border border-violet-500/10 overflow-auto">
+                    <h3 className="text-white font-bold mb-2">Closed Expenses (closed_expenses)</h3>
+                    {cierreLoading ? (
+                      <div className="text-gray-400">Cargando...</div>
+                    ) : cierreError ? (
+                      <div className="text-red-400 font-bold">Error: {cierreError}</div>
+                    ) : Array.isArray(closedExpenses) && closedExpenses.length > 0 ? (
+                      <table className="w-full text-sm text-left text-gray-300">
+                        <thead>
+                          <tr>
+                            <th className="px-2 py-1">id</th>
+                            <th className="px-2 py-1">original_expense_id</th>
+                            <th className="px-2 py-1">user_id</th>
+                            <th className="px-2 py-1">description</th>
+                            <th className="px-2 py-1">amount</th>
+                            <th className="px-2 py-1">currency</th>
+                            <th className="px-2 py-1">expense_date</th>
+                            <th className="px-2 py-1">archived_at</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {closedExpenses.map((r:any) => (
+                            <tr key={r.id} className="border-t border-white/5">
+                              <td className="px-2 py-1">{r.id}</td>
+                              <td className="px-2 py-1">{r.original_expense_id}</td>
+                              <td className="px-2 py-1">{r.user_id}</td>
+                              <td className="px-2 py-1">{r.description}</td>
+                              <td className="px-2 py-1">{r.amount}</td>
+                              <td className="px-2 py-1">{r.currency}</td>
+                              <td className="px-2 py-1">{r.expense_date}</td>
+                              <td className="px-2 py-1">{r.archived_at}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="text-gray-400">No se encontraron closed_expenses.</div>
+                    )}
+                  </div>
+
+                  <div className="bg-gray-900 p-4 rounded-xl border border-violet-500/10 overflow-auto">
+                    <h3 className="text-white font-bold mb-2">Closed Saldo Movements (closed_saldo_transacciones)</h3>
+                    {cierreLoading ? (
+                      <div className="text-gray-400">Cargando...</div>
+                    ) : cierreError ? (
+                      <div className="text-red-400 font-bold">Error: {cierreError}</div>
+                    ) : Array.isArray(closedMovements) && closedMovements.length > 0 ? (
+                      <table className="w-full text-sm text-left text-gray-300">
+                        <thead>
+                          <tr>
+                            <th className="px-2 py-1">id</th>
+                            <th className="px-2 py-1">original_movement_id</th>
+                            <th className="px-2 py-1">user_id</th>
+                            <th className="px-2 py-1">tipo</th>
+                            <th className="px-2 py-1">monto</th>
+                            <th className="px-2 py-1">saldo_anterior</th>
+                            <th className="px-2 py-1">saldo_nuevo</th>
+                            <th className="px-2 py-1">archived_at</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {closedMovements.map((r:any) => (
+                            <tr key={r.id} className="border-t border-white/5">
+                              <td className="px-2 py-1">{r.id}</td>
+                              <td className="px-2 py-1">{r.original_movement_id}</td>
+                              <td className="px-2 py-1">{r.user_id}</td>
+                              <td className="px-2 py-1">{r.tipo}</td>
+                              <td className="px-2 py-1">{r.monto}</td>
+                              <td className="px-2 py-1">{r.saldo_anterior}</td>
+                              <td className="px-2 py-1">{r.saldo_nuevo}</td>
+                              <td className="px-2 py-1">{r.archived_at}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="text-gray-400">No se encontraron closed_saldo_transacciones.</div>
+                    )}
+                  </div>
                 </div>
               )}
               <p className="text-xs text-red-400 font-bold mt-2">

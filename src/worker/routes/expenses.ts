@@ -127,6 +127,12 @@ export function registerExpenseRoutes(app: any) {
         const { results: fp } = await c.env.DB.prepare('SELECT afectaSaldo FROM formapago WHERE sigla = ?').bind(expense.sigla).all();
         if (fp.length > 0) descuentaSaldo = Number(fp[0].afectaSaldo ?? 1);
       }
+      // Insert the expense first so we can tag any generated saldo_transacciones with the expense id
+      const { results: insertRes } = await c.env.DB.prepare('INSERT INTO expenses (user_id, category, description, amount, expense_date, status, currency, use_balance, tipo_comprobante_id, sigla) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *').bind(user.id, expense.category, expense.description, expense.amount, expense.expense_date, 'pendiente', expense.currency || 'ARS', (expense.use_balance && descuentaSaldo !== 0) ? 1 : 0, expense.tipo_comprobante_id || null, expense.sigla || null).all();
+      const createdExpense = insertRes?.[0] ?? null;
+
+      if (!createdExpense) return c.json({ error: 'Error creating expense' }, 500);
+
       if (expense.use_balance && descuentaSaldo !== 0) {
         const expenseAmount = parseFloat(expense.amount);
         const currency = expense.currency || 'ARS';
@@ -137,13 +143,21 @@ export function registerExpenseRoutes(app: any) {
         } else {
           saldoAnterior = Number(saldoAnteriorResults[0].balance) || 0;
         }
-        const { success } = await c.env.DB.prepare('UPDATE saldos SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND currency = ?').bind(expenseAmount, user.id, currency).run();
-        if (!success) return c.json({ error: 'Error al actualizar saldo' }, 500);
-        const saldoNuevo = saldoAnterior - expenseAmount;
-        await registrarTransaccionSaldo(c.env.DB, user.id, currency, 'descuento', expenseAmount, saldoAnterior, saldoNuevo, `Descuento por gasto: ${expense.description}`, user.email || 'USUARIO');
+        // Only apply the deduction immediately if the actor is admin
+        // Supervisors should create pending transactions that require approval.
+        const actorIsAdmin = user && (user.role === 'admin');
+        if (actorIsAdmin) {
+          const { success } = await c.env.DB.prepare('UPDATE saldos SET balance = balance - ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND currency = ?').bind(expenseAmount, user.id, currency).run();
+          if (!success) return c.json({ error: 'Error al actualizar saldo' }, 500);
+          const saldoNuevo = saldoAnterior - expenseAmount;
+          await registrarTransaccionSaldo(c.env.DB, user.id, currency, 'descuento', expenseAmount, saldoAnterior, saldoNuevo, `Descuento por gasto: ${expense.description} | expense_id:${createdExpense.id}`, user.email || 'USUARIO', 'aprobado', user.email || null, null);
+        } else {
+          // create a pending descuento transaction and do not update saldos
+          const expectedNew = saldoAnterior - expenseAmount;
+          await registrarTransaccionSaldo(c.env.DB, user.id, currency, 'descuento', expenseAmount, saldoAnterior, expectedNew, `Descuento (pendiente) por gasto: ${expense.description} | expense_id:${createdExpense.id}`, user.email || 'USUARIO', 'pendiente', null, null);
+        }
       }
-      const { results } = await c.env.DB.prepare('INSERT INTO expenses (user_id, category, description, amount, expense_date, status, currency, use_balance, tipo_comprobante_id, sigla) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *').bind(user.id, expense.category, expense.description, expense.amount, expense.expense_date, 'pendiente', expense.currency || 'ARS', (expense.use_balance && descuentaSaldo !== 0) ? 1 : 0, expense.tipo_comprobante_id || null, expense.sigla || null).all();
-      return c.json(results[0]);
+      return c.json(createdExpense);
     } catch (error) {
       return c.json({ error: String(error) }, 500);
     }

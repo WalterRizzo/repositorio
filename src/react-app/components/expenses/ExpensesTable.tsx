@@ -5,9 +5,9 @@ import { getStatusBadgeClasses, getStatusLabel } from '@/react-app/utils/status'
 import type { Expense } from "@/shared/types";
 import * as XLSX from 'xlsx';
 import { parseDbTimestampToDate } from '@/react-app/utils/dates';
-import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
-import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
-import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
+import { getRandomEmoji, getRandomEmojis } from '../../../../epic-effects-library/effects/EmojiVariations';
+import { playRandomSound } from '../../../../epic-effects-library/sounds/SoundVariations';
+import { getColorSet } from '../../../../epic-effects-library/effects/ColorVariations';
 
 interface ExpensesTableProps {
   expenses: Expense[];
@@ -363,28 +363,28 @@ export default function ExpensesTable({
             <button
               aria-pressed={filters.pendientes}
               onClick={() => { setFilters({ ...filters, pendientes: !filters.pendientes }); setCurrentPage(1); }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${filters.pendientes ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
+              className={`flex items-center gap-3 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${filters.pendientes ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
               <Clock className={`w-4 h-4 ${filters.pendientes ? 'text-white' : 'text-indigo-300'}`} />
               <span className="truncate">Pendientes</span>
-              <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'pendiente').length}</span>
+              <span className="ml-2 text-xs font-bold px-3 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'pendiente').length}</span>
             </button>
 
             <button
               aria-pressed={filters.aprobados}
               onClick={() => { setFilters({ ...filters, aprobados: !filters.aprobados }); setCurrentPage(1); }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${filters.aprobados ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
+              className={`flex items-center gap-3 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${filters.aprobados ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
               <CheckCircle className={`w-4 h-4 ${filters.aprobados ? 'text-white' : 'text-emerald-300'}`} />
               <span className="truncate">Aprobados</span>
-              <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'aprobado').length}</span>
+              <span className="ml-2 text-xs font-bold px-3 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'aprobado').length}</span>
             </button>
 
             <button
               aria-pressed={filters.rechazados}
               onClick={() => { setFilters({ ...filters, rechazados: !filters.rechazados }); setCurrentPage(1); }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-orange-400 ${filters.rechazados ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
+              className={`flex items-center gap-3 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-orange-400 ${filters.rechazados ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
               <XCircle className={`w-4 h-4 ${filters.rechazados ? 'text-white' : 'text-orange-300'}`} />
               <span className="truncate">Rechazados</span>
-              <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'rechazado').length}</span>
+              <span className="ml-2 text-xs font-bold px-3 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'rechazado').length}</span>
             </button>
           </div>
           
