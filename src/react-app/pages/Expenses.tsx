@@ -1024,10 +1024,10 @@ export default function Expenses() {
                     window.location.hash = '#users';
                   }}
                   className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
-                    activeTab === 'users'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                  }`}
+                      activeTab === 'users'
+                        ? 'bg-blue-600 text-white shadow-md magic-tab-active'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
                 >
                   <div className="flex items-center justify-center space-x-2">
                     <Users className="w-4 h-4" />
