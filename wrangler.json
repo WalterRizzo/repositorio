@@ -19,5 +19,5 @@
       "database_id": "54aa56b9-161b-46eb-a707-52191fa9e76d"
     }
   ],
-  "vars": {}
+  "vars": { "DEBUG": "true" }
 }
