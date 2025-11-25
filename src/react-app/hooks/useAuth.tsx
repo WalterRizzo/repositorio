@@ -48,11 +48,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Error al iniciar sesión');
+      // Intentar parsear JSON; si falla, usar texto como fallback para mostrar un mensaje útil
+      try {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al iniciar sesión');
+      } catch (parseErr) {
+        const text = await response.text().catch(() => 'Error al iniciar sesión (respuesta no-JSON)');
+        throw new Error(text || 'Error al iniciar sesión');
+      }
     }
 
-    const data = await response.json();
+    // Respuesta OK: intentar parsear JSON con fallback
+    let data: any;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      // Si el servidor devolvió OK pero no JSON, informar al usuario
+      const text = await response.text().catch(() => null);
+      throw new Error(text || 'Respuesta inesperada del servidor');
+    }
+
     setUser(data.user);
   };
 
@@ -64,11 +79,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Error al registrarse');
+      try {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al registrarse');
+      } catch (parseErr) {
+        const text = await response.text().catch(() => 'Error al registrarse (respuesta no-JSON)');
+        throw new Error(text || 'Error al registrarse');
+      }
     }
 
-    const data = await response.json();
+    let data: any;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      const text = await response.text().catch(() => null);
+      throw new Error(text || 'Respuesta inesperada del servidor');
+    }
+
     setUser(data.user);
   };
 
