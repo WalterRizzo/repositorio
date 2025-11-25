@@ -191,6 +191,7 @@ const loginRateLimit = async (c: any, next: any) => {
 
 // Login endpoint
 app.post("/api/auth/login", loginRateLimit, async (c) => {
+  try {
   const body = await c.req.json();
 
   const identifier = body.identifier || body.email;
@@ -324,11 +325,20 @@ app.post("/api/auth/login", loginRateLimit, async (c) => {
     maxAge: 7 * 24 * 60 * 60, // 7 días
   });
 
-  return c.json({ 
-    success: true, 
-    user: userData,
-    token 
-  });
+    return c.json({ 
+      success: true, 
+      user: userData,
+      token 
+    });
+  } catch (error: any) {
+    console.error('❌ Error in /api/auth/login:', error);
+    const safeBody: any = { error: 'Internal Server Error', message: String(error?.message || error) };
+    try {
+      const includeStack = String((c.env as any).DEBUG || '').toLowerCase() === 'true';
+      if (includeStack) safeBody.stack = error?.stack || null;
+    } catch (e) { /* ignore */ }
+    return c.json(safeBody, 500);
+  }
 });
 
 // Register endpoint
