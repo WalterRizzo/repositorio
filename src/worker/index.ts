@@ -208,6 +208,11 @@ const loginRateLimit = async (c: any, next: any) => {
 // Login endpoint
 app.post("/api/auth/login", loginRateLimit, async (c) => {
   try {
+    // DEBUG: short-circuit to verify handler is reached in production
+    // (Temporary; removed once debugging completes)
+    console.log('DEBUG: login handler reached');
+    // return c.json({ debug: 'handler reached' });
+
     const body = await c.req.json();
 
     const identifier = body.identifier || body.email;
