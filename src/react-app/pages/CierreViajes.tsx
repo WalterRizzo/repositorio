@@ -207,7 +207,7 @@ export default function CierreViajes() {
         <Header userProfile={user} />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
           <h1 className="text-3xl font-bold text-white mb-4">Cierre de viajes</h1>
-          {/* Shortened/removed description per UX request */}
+          <p className="text-gray-300 mb-6">Área de cierre de viajes y conciliación. Aquí se gestionarán cierres cerrados en tablas separadas (expenses_cierre, saldo_transacciones_cierre).</p>
 
           <div className="bg-gradient-to-br from-gray-900/50 to-slate-900/40 p-6 rounded-2xl border border-violet-700/10">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">

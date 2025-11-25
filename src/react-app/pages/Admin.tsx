@@ -267,46 +267,31 @@ export default function Admin() {
           <p className="text-gray-600 dark:text-gray-300">Gestionar gastos y usuarios</p>
         </div>
 
-        {/* Modern tabs (replicate Gastos visual for Usuarios) */}
+        {/* Tabs */}
         <div className="mb-8">
-          <div className="bg-white dark:bg-slate-800 rounded-lg p-1.5 shadow-md border border-slate-200 dark:border-slate-700">
-            <style>{`
-              .magic-tab-active {
-                box-shadow: 0 0 12px 2px #6366f1, 0 0 24px 4px #818cf8;
-                animation: magicGlow 2s infinite alternate;
-              }
-              @keyframes magicGlow {
-                0% { box-shadow: 0 0 12px 2px #6366f1, 0 0 24px 4px #818cf8; }
-                100% { box-shadow: 0 0 24px 6px #818cf8, 0 0 32px 8px #6366f1; }
-              }
-            `}</style>
-            <nav className="flex space-x-1">
+          <div className="border-b border-gray-200 dark:border-gray-700">
+            <nav className="-mb-px flex space-x-8">
               <button
-                onClick={() => { setActiveTab('expenses'); window.location.hash = ''; }}
-                className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
+                onClick={() => setActiveTab('expenses')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'expenses'
-                    ? 'bg-indigo-600 text-white shadow-md magic-tab-active'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                 }`}
               >
-                <div className="flex items-center justify-center space-x-2">
-                  <Receipt className="w-4 h-4" />
-                  <span>Gastos</span>
-                </div>
+                <Receipt className="w-4 h-4 inline mr-2" />
+                Gastos
               </button>
-
               <button
-                onClick={() => { setActiveTab('users'); window.location.hash = '#users'; }}
-                className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
+                onClick={() => setActiveTab('users')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'users'
-                    ? 'bg-indigo-600 text-white shadow-md magic-tab-active'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                 }`}
               >
-                <div className="flex items-center justify-center space-x-2">
-                  <Users className="w-4 h-4" />
-                  <span>Usuarios</span>
-                </div>
+                <Users className="w-4 h-4 inline mr-2" />
+                Usuarios
               </button>
             </nav>
           </div>

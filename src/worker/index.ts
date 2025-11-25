@@ -10,22 +10,6 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// Global error handler: ensure the worker always returns JSON on uncaught errors
-// This prevents the frontend from receiving HTML/Text that would break JSON.parse
-app.use('*', async (c, next) => {
-  try {
-    await next();
-  } catch (err: any) {
-    console.error('Unhandled worker error:', err);
-    try {
-      return c.json({ error: String(err) || 'Internal Server Error' }, 500);
-    } catch (e) {
-      // Fallback to text if json() itself fails for any reason
-      return c.text(String(err) || 'Internal Server Error', 500);
-    }
-  }
-});
-
 // ============================================================
 // RATE LIMITING - Protección contra DDoS
 // ============================================================
@@ -207,154 +191,144 @@ const loginRateLimit = async (c: any, next: any) => {
 
 // Login endpoint
 app.post("/api/auth/login", loginRateLimit, async (c) => {
-  try {
-    // DEBUG: short-circuit to verify handler is reached in production
-    // (Temporary; removed once debugging completes)
-    console.log('DEBUG: login handler reached');
-    // return c.json({ debug: 'handler reached' });
+  const body = await c.req.json();
 
-    const body = await c.req.json();
-
-    const identifier = body.identifier || body.email;
-    if (!identifier || !body.password) {
-      return c.json({ error: "Identificador (email o usuario) y contraseña son requeridos" }, 400);
-    }
-
-    // Buscar usuario en la base de datos (case insensitive) por email o id
-    const { results } = await c.env.DB.prepare(
-      'SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(id) = LOWER(?)'
-    ).bind(identifier, identifier).all();
-
-    if (results.length === 0) {
-      return c.json({ error: "Credenciales inválidas" }, 401);
-    }
-
-    const user = results[0] as any;
-    
-    // Verificar si la cuenta está bloqueada
-    if (user.locked_until) {
-      const lockedUntil = new Date(user.locked_until);
-      const now = new Date();
-      
-      if (now < lockedUntil) {
-        const minutesLeft = Math.ceil((lockedUntil.getTime() - now.getTime()) / 60000);
-        return c.json({ 
-          error: `Cuenta bloqueada. Intenta nuevamente en ${minutesLeft} minutos.` 
-        }, 403);
-      } else {
-        // Desbloquear la cuenta si ya pasó el tiempo
-        await c.env.DB.prepare(
-          'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?'
-        ).bind(user.id).run();
-      }
-    }
-    
-    // Verificar contraseña
-    const isValidPassword = await verifyPassword(body.password, user.password_hash);
-    
-    if (!isValidPassword) {
-      // Incrementar intentos fallidos
-      const failedAttempts = (user.failed_login_attempts || 0) + 1;
-      const now = new Date().toISOString();
-      
-      if (failedAttempts >= 3) {
-        // Bloquear cuenta por 30 minutos
-        const lockUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-        
-        await c.env.DB.prepare(
-          'UPDATE users SET failed_login_attempts = ?, locked_until = ?, last_failed_login = ? WHERE id = ?'
-        ).bind(failedAttempts, lockUntil, now, user.id).run();
-        
-        // Enviar email de notificación al admin
-        try {
-          console.log('🔔 Intentando enviar email de bloqueo...');
-          const emailResponse = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${c.env.RESEND_API_KEY}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              from: 'Tharsis Expense <onboarding@resend.dev>',
-              to: 'wrizzo6802@gmail.com',
-              subject: '🔒 ALERTA: Cuenta bloqueada por intentos fallidos',
-              html: `
-                <h2>⚠️ Alerta de Seguridad</h2>
-                <p>La cuenta del usuario <strong>${user.name}</strong> (${user.email}) ha sido bloqueada temporalmente.</p>
-                <p><strong>Razón:</strong> 3 intentos fallidos de inicio de sesión</p>
-                <p><strong>Hora del bloqueo:</strong> ${new Date().toLocaleString('es-AR')}</p>
-                <p><strong>Duración del bloqueo:</strong> 30 minutos</p>
-                <p><strong>IP/User Agent:</strong> ${c.req.header('user-agent') || 'No disponible'}</p>
-                <hr>
-                <p style="color: #666; font-size: 12px;">Este es un mensaje automático del sistema ExpenseFlow.</p>
-              `
-            })
-          });
-          const emailResult = await emailResponse.json();
-          console.log('📧 Respuesta de Resend:', emailResponse.status, emailResult);
-        } catch (emailError) {
-          console.error('❌ Error sending lock notification email:', emailError);
-        }
-        
-        return c.json({ 
-          error: "Cuenta bloqueada por múltiples intentos fallidos. Intenta nuevamente en 30 minutos." 
-        }, 403);
-      } else {
-        // Actualizar intentos fallidos
-        await c.env.DB.prepare(
-          'UPDATE users SET failed_login_attempts = ?, last_failed_login = ? WHERE id = ?'
-        ).bind(failedAttempts, now, user.id).run();
-        
-        return c.json({ 
-          error: `Credenciales inválidas. Intentos restantes: ${3 - failedAttempts}` 
-        }, 401);
-      }
-    }
-
-    // Login exitoso - resetear intentos fallidos
-    await c.env.DB.prepare(
-      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_failed_login = NULL WHERE id = ?'
-    ).bind(user.id).run();
-
-    // Registrar logueo en audit_logs
-    await c.env.DB.prepare(
-      `INSERT INTO audit_logs (user_id, user_email, action, module, description) VALUES (?, ?, ?, ?, ?)`
-    ).bind(
-      user.id,
-      user.email,
-      'login',
-      'auth',
-      `Inicio de sesión exitoso para ${user.email}`
-    ).run();
-
-    // Generar token
-    const userData: User = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role
-    };
-    
-    const token = generateToken(userData, c.env.JWT_SECRET);
-
-    // Establecer cookie
-    setCookie(c, 'auth_token', token, {
-      httpOnly: true,
-      path: "/",
-      sameSite: "lax",
-      secure: true,
-      maxAge: 7 * 24 * 60 * 60, // 7 días
-    });
-
-    return c.json({ 
-      success: true, 
-      user: userData,
-      token 
-    });
-  } catch (err: any) {
-    console.error('❌ Login handler error:', err);
-    try { return c.json({ error: String(err) || 'Internal Server Error' }, 500); } catch(e) { return c.text(String(err) || 'Internal Server Error', 500); }
+  const identifier = body.identifier || body.email;
+  if (!identifier || !body.password) {
+    return c.json({ error: "Identificador (email o usuario) y contraseña son requeridos" }, 400);
   }
+
+  // Buscar usuario en la base de datos (case insensitive) por email o id
+  const { results } = await c.env.DB.prepare(
+    'SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(id) = LOWER(?)'
+  ).bind(identifier, identifier).all();
+
+  if (results.length === 0) {
+    return c.json({ error: "Credenciales inválidas" }, 401);
+  }
+
+  const user = results[0] as any;
+  
+  // Verificar si la cuenta está bloqueada
+  if (user.locked_until) {
+    const lockedUntil = new Date(user.locked_until);
+    const now = new Date();
+    
+    if (now < lockedUntil) {
+      const minutesLeft = Math.ceil((lockedUntil.getTime() - now.getTime()) / 60000);
+      return c.json({ 
+        error: `Cuenta bloqueada. Intenta nuevamente en ${minutesLeft} minutos.` 
+      }, 403);
+    } else {
+      // Desbloquear la cuenta si ya pasó el tiempo
+      await c.env.DB.prepare(
+        'UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?'
+      ).bind(user.id).run();
+    }
+  }
+  
+  // Verificar contraseña
+  const isValidPassword = await verifyPassword(body.password, user.password_hash);
+  
+  if (!isValidPassword) {
+    // Incrementar intentos fallidos
+    const failedAttempts = (user.failed_login_attempts || 0) + 1;
+    const now = new Date().toISOString();
+    
+    if (failedAttempts >= 3) {
+      // Bloquear cuenta por 30 minutos
+      const lockUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      
+      await c.env.DB.prepare(
+        'UPDATE users SET failed_login_attempts = ?, locked_until = ?, last_failed_login = ? WHERE id = ?'
+      ).bind(failedAttempts, lockUntil, now, user.id).run();
+      
+      // Enviar email de notificación al admin
+      try {
+        console.log('🔔 Intentando enviar email de bloqueo...');
+        const emailResponse = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${c.env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            from: 'Tharsis Expense <onboarding@resend.dev>',
+            to: 'wrizzo6802@gmail.com',
+            subject: '🔒 ALERTA: Cuenta bloqueada por intentos fallidos',
+            html: `
+              <h2>⚠️ Alerta de Seguridad</h2>
+              <p>La cuenta del usuario <strong>${user.name}</strong> (${user.email}) ha sido bloqueada temporalmente.</p>
+              <p><strong>Razón:</strong> 3 intentos fallidos de inicio de sesión</p>
+              <p><strong>Hora del bloqueo:</strong> ${new Date().toLocaleString('es-AR')}</p>
+              <p><strong>Duración del bloqueo:</strong> 30 minutos</p>
+              <p><strong>IP/User Agent:</strong> ${c.req.header('user-agent') || 'No disponible'}</p>
+              <hr>
+              <p style="color: #666; font-size: 12px;">Este es un mensaje automático del sistema ExpenseFlow.</p>
+            `
+          })
+        });
+        const emailResult = await emailResponse.json();
+        console.log('📧 Respuesta de Resend:', emailResponse.status, emailResult);
+      } catch (emailError) {
+        console.error('❌ Error sending lock notification email:', emailError);
+      }
+      
+      return c.json({ 
+        error: "Cuenta bloqueada por múltiples intentos fallidos. Intenta nuevamente en 30 minutos." 
+      }, 403);
+    } else {
+      // Actualizar intentos fallidos
+      await c.env.DB.prepare(
+        'UPDATE users SET failed_login_attempts = ?, last_failed_login = ? WHERE id = ?'
+      ).bind(failedAttempts, now, user.id).run();
+      
+      return c.json({ 
+        error: `Credenciales inválidas. Intentos restantes: ${3 - failedAttempts}` 
+      }, 401);
+    }
+  }
+
+  // Login exitoso - resetear intentos fallidos
+  await c.env.DB.prepare(
+    'UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_failed_login = NULL WHERE id = ?'
+  ).bind(user.id).run();
+
+  // Registrar logueo en audit_logs
+  await c.env.DB.prepare(
+    `INSERT INTO audit_logs (user_id, user_email, action, module, description) VALUES (?, ?, ?, ?, ?)`
+  ).bind(
+    user.id,
+    user.email,
+    'login',
+    'auth',
+    `Inicio de sesión exitoso para ${user.email}`
+  ).run();
+
+  // Generar token
+  const userData: User = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role
+  };
+  
+  const token = generateToken(userData, c.env.JWT_SECRET);
+
+  // Establecer cookie
+  setCookie(c, 'auth_token', token, {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: true,
+    maxAge: 7 * 24 * 60 * 60, // 7 días
+  });
+
+  return c.json({ 
+    success: true, 
+    user: userData,
+    token 
+  });
 });
 
 // Register endpoint

@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { useNotifications } from "@/react-app/hooks/useNotifications";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
-  import { Loader2, Receipt, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Wallet } from "lucide-react";
+  import { Loader2, Receipt, Users, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Wallet } from "lucide-react";
 import type { Expense, UserProfile } from "@/shared/types";
 import ExpensesTable from "@/react-app/components/ExpensesTable";
 import ExpenseForm from "@/react-app/components/ExpenseForm";
@@ -260,14 +260,16 @@ export default function Expenses() {
   }, [user, authLoading, navigate]);
 
   // Detectar hash en URL para cambiar pestaña
-  // NOTE: removed '#users' handling per UX request — Users tab isn't exposed in this flowset
   useEffect(() => {
     console.log('🔥 Location hash changed:', location.hash);
-    if (location.hash === '#dba') {
+    if (location.hash === '#users') {
+      console.log('🔥 Setting tab to users');
+      setActiveTab('users');
+    } else if (location.hash === '#dba') {
       console.log('🔥 Setting tab to dba');
       setActiveTab('dba');
     } else {
-      console.log('🔥 Setting tab to expenses');
+      console.log('🔥 Setting tab to expenses');  
       setActiveTab('expenses');
     }
   }, [location.hash, location.pathname]);
@@ -1012,7 +1014,27 @@ export default function Expenses() {
                 </div>
               </button>
               
-              {/* Usuarios tab removed from Expenses tabs per UX request */}
+              {/* Pestaña Usuarios - Solo para admin/supervisor */}
+              {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
+                <button
+                  data-tab="users"
+                  onClick={() => {
+                    console.log('🔥 Users button clicked');
+                    setActiveTab('users');
+                    window.location.hash = '#users';
+                  }}
+                  className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
+                    activeTab === 'users'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-center space-x-2">
+                    <Users className="w-4 h-4" />
+                    <span>Usuarios</span>
+                  </div>
+                </button>
+              )}
 
               {/* Pestaña Historial - Solo para admin/supervisor - OCULTO POR AHORA */}
               {false && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (

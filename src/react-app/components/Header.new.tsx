@@ -1,6 +1,6 @@
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { Link, useLocation } from "react-router";
-import { Receipt, BarChart3, LogOut, Moon, Sun, Tag, KeyRound, Wallet, TrendingUp } from "lucide-react";
+import { Receipt, BarChart3, LogOut, Moon, Sun, Tag, Users, KeyRound, Wallet, TrendingUp } from "lucide-react";
 import { useTheme } from "@/react-app/hooks/useTheme";
 
 interface HeaderProps {
@@ -125,7 +125,22 @@ export default function Header({ userProfile, onSettingsClick }: HeaderProps) {
                     </div>
                   </Link>
 
-                  {/* Users header link removed per UX request */}
+                  <Link
+                    to="/expenses#users"
+                    className={`group relative px-5 py-2.5 rounded-xl font-medium transition-all duration-200 ${
+                      location.pathname === "/expenses" && location.hash === "#users"
+                        ? "text-primary-400"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    {location.pathname === "/expenses" && location.hash === "#users" && (
+                      <div className="absolute inset-0 bg-primary-500/10 rounded-xl border border-primary-500/20"></div>
+                    )}
+                    <div className="relative flex items-center space-x-2.5">
+                      <Users className="w-4.5 h-4.5" />
+                      <span>Usuarios</span>
+                    </div>
+                  </Link>
                 </>
               )}
             </nav>

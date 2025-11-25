@@ -1,4 +1,4 @@
-import { Receipt, Database, FileSpreadsheet, Settings as SettingsIcon } from 'lucide-react';
+import { Receipt, Users, Database, FileSpreadsheet, Settings as SettingsIcon } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/react-app/hooks/useAuth';
 import argentinaFlag from '@/react-app/assets/argentina.svg';
@@ -43,7 +43,15 @@ export default function Sidebar() {
             </li>
           )}
 
-          {/* NOTE: 'Usuarios' nav entry removed from main left-sidebar per request */}
+          {/* Users visible for admin & supervisor (not for plain 'usuario') -> users button opens the users tab */}
+          {(role === 'admin' || role === 'supervisor') && (
+            <li>
+              <button onClick={() => { navigate('/expenses'); setTimeout(()=> { window.location.hash = '#users'; }, 50); }} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
+                <Users className="w-4 h-4" />
+                <span>Usuarios</span>
+              </button>
+            </li>
+          )}
 
           {/* Settings visible for ALL roles so every user can change their own password */}
           <li>

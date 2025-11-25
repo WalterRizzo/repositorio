@@ -90,7 +90,9 @@ export default function Home() {
           <Link to="/reports" className="flex items-center gap-2 px-4 py-3 rounded-lg bg-gray-900 text-violet-300 font-semibold shadow hover:bg-gray-800 transition-all">
             <TrendingUp className="w-5 h-5" /> Reportes
           </Link>
-          {/* Usuarios link removed from Home sidebar */}
+          <Link to="/users" className="flex items-center gap-2 px-4 py-3 rounded-lg bg-gray-900 text-violet-300 font-semibold shadow hover:bg-gray-800 transition-all">
+            <Users className="w-5 h-5" /> Usuarios
+          </Link>
         </nav>
         <div className="mt-auto text-xs text-gray-600">© 2025 ExpenseFlow</div>
         </aside>

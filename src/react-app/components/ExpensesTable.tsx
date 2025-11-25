@@ -328,7 +328,7 @@ export default function ExpensesTable({
     )}
   <div className="p-0 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-y-4 mb-4">
         <div>
-          {/* Title removed per request - keeping counts below */}
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Lista de Gastos</h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Total: {expenses.length} {expenses.length === 1 ? "gasto" : "gastos"}
             {expenses.length > 5 && (

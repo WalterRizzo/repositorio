@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { Link } from "react-router";
 import argentinaFlag from '@/react-app/assets/argentina.svg';
-import { Receipt, LogOut, Moon, Sun, CloudMoon, Users } from "lucide-react";
-import { useLocation, useNavigate } from 'react-router';
+import { Receipt, LogOut, Moon, Sun, CloudMoon } from "lucide-react";
 import { useTheme } from "@/react-app/hooks/useTheme";
 
 interface HeaderProps {
@@ -63,14 +62,13 @@ export default function Header({ userProfile }: HeaderProps) {
               </div>
             </Link>
 
-              {/* Top segmented tabs (Gastos / Usuarios) - magic-tab style to match page tabs */}
               <nav className="flex space-x-2 bg-slate-800/50 rounded-lg p-1 backdrop-blur-sm border border-slate-700/50 overflow-x-auto w-full">
-                <style>{`
-                  .magic-tab-active { box-shadow: 0 0 12px 2px #6366f1, 0 0 24px 4px #818cf8; animation: magicGlow 2s infinite alternate; }
-                  @keyframes magicGlow { 0% { box-shadow: 0 0 12px 2px #6366f1, 0 0 24px 4px #818cf8; } 100% { box-shadow: 0 0 24px 6px #818cf8, 0 0 32px 8px #6366f1; } }
-                `}</style>
-                <HeaderTabs />
-              </nav>
+              {/* Removed top nav 'Gastos' and 'Configuración' to keep them in the Sidebar per UX change request */}
+
+              {/* Documentación - visible para todos */}
+              {/* Docs moved to sidebar per UX request */}
+
+            </nav>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -135,45 +133,5 @@ export default function Header({ userProfile }: HeaderProps) {
         </div>
       </div>
     </header>
-  );
-}
-
-function HeaderTabs() {
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  const active = location.pathname.startsWith('/admin') ? 'users' : 'expenses';
-
-  return (
-    <>
-      <button
-        onClick={() => { navigate('/expenses'); window.location.hash = ''; }}
-        className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
-          active === 'expenses'
-            ? 'bg-indigo-600 text-white shadow-md magic-tab-active'
-            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-        }`}
-      >
-        <div className="flex items-center justify-center space-x-2">
-          <Receipt className="w-4 h-4" />
-          <span>Gastos</span>
-        </div>
-      </button>
-
-      <button
-        onClick={() => { navigate('/admin'); window.location.hash = '#users'; }}
-        className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
-          // Mostrar el mismo efecto "magic-tab" en Usuarios como en Gastos.
-          // El botón de Usuarios tendrá el mismo estilo destacado para coincidir visualmente.
-          'bg-indigo-600 text-white shadow-md magic-tab-active'
-        }`}
-        aria-pressed={active === 'users'}
-      >
-        <div className="flex items-center justify-center space-x-2">
-          <Users className="w-4 h-4" />
-          <span>Usuarios</span>
-        </div>
-      </button>
-    </>
   );
 }
