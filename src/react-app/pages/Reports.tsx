@@ -23,7 +23,7 @@ export default function Reports() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [users, setUsers] = useState<any[]>([]);
-  const [currencies, setCurrencies] = useState<string[]>([]);
+  const [currencies, setCurrencies] = useState<Array<{ code: string; name?: string; symbol?: string }>>([]);
   const [filterUserId, setFilterUserId] = useState<string | null>(null);
   const [filterCurrency, setFilterCurrency] = useState<string | null>(null);
   const [filterFrom, setFilterFrom] = useState<string | null>(null);
@@ -106,9 +106,23 @@ export default function Reports() {
 
   const fetchCurrencies = async () => {
     try {
-      const res = await fetch('/api/expenses/currencies');
+      // Prefer the public /api/currencies endpoint which returns { code, name, symbol }
+      const res = await fetch('/api/currencies');
+      if (!res.ok) {
+        // fallback to the older endpoint if present
+        const res2 = await fetch('/api/expenses/currencies');
+        const fallback = await res2.json();
+        // fallback might be an array of strings -> normalize
+        const normFallback = (Array.isArray(fallback) ? fallback : []).map((c: any) => (typeof c === 'string' ? { code: String(c).toUpperCase() } : { code: String(c?.code || c?.currency || '').toUpperCase(), name: c?.name, symbol: c?.symbol }));
+        setCurrencies(normFallback || []);
+        return;
+      }
       const list = await res.json();
-      setCurrencies(list || []);
+      // normalize objects: support array of strings or array of objects
+      const normalized = (Array.isArray(list) ? list : []).map((c: any) => (
+        typeof c === 'string' ? { code: String(c).toUpperCase() } : { code: String(c.code || c.currency || '').toUpperCase(), name: c.name, symbol: c.symbol }
+      ));
+      setCurrencies(normalized || []);
     } catch (e) { console.error('Error loading currencies', e); }
   };
 
@@ -317,7 +331,7 @@ export default function Reports() {
             <select
               value={filterUserId || ''}
               onChange={(e) => setFilterUserId(e.target.value || null)}
-              className="px-3 py-2 rounded bg-white/5 text-white text-sm border border-white/10"
+              className="px-3 py-2 rounded bg-black text-white text-sm border border-white/10"
             >
               <option value="">Todos los usuarios</option>
               {users.map(u => (
@@ -328,11 +342,11 @@ export default function Reports() {
             <select
               value={filterCurrency || ''}
               onChange={(e) => setFilterCurrency(e.target.value || null)}
-              className="px-3 py-2 rounded bg-white/5 text-white text-sm border border-white/10"
+              className="px-3 py-2 rounded bg-black text-white text-sm border border-white/10"
             >
               <option value="">Todas las monedas</option>
               {currencies.map(c => (
-                <option key={c} value={c}>{c}</option>
+                <option key={c.code} value={c.code}>{(c.symbol ? `${c.symbol} ` : '') + c.code + (c.name ? ` — ${c.name}` : '')}</option>
               ))}
             </select>
 
