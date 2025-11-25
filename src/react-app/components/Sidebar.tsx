@@ -43,15 +43,7 @@ export default function Sidebar() {
             </li>
           )}
 
-          {/* Users visible for admin & supervisor (not for plain 'usuario') -> users button opens the users tab */}
-          {(role === 'admin' || role === 'supervisor') && (
-            <li>
-              <button onClick={() => { navigate('/expenses'); setTimeout(()=> { window.location.hash = '#users'; }, 50); }} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
-                <Users className="w-4 h-4" />
-                <span>Usuarios</span>
-              </button>
-            </li>
-          )}
+          {/* Users removed from left sidebar per UX request. */}
 
           {/* Settings visible for ALL roles so every user can change their own password */}
           <li>
