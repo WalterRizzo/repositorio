@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from 'react-router';
 import { Plus, Edit2, Trash2, Tag, FileText, Key, Save, X, Loader2, DollarSign } from "lucide-react";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import Header from "@/react-app/components/Header";
@@ -85,6 +86,21 @@ export default function SettingsPage() {
     fetchCurrencies();
     fetchUsers();
   }, []);
+
+  // Allow opening a specific tab via query param, e.g. /settings?tab=users
+  const location = useLocation();
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(location.search || window.location.search);
+      const tab = params.get('tab');
+      if (tab === 'users') setActiveTab('users');
+      if (tab === 'categories') setActiveTab('categories');
+      if (tab === 'comprobantes') setActiveTab('comprobantes');
+      if (tab === 'currencies') setActiveTab('currencies');
+    } catch (e) {
+      // ignore
+    }
+  }, [location.search]);
 
   // Ensure plain users always see the 'users' tab (do not allow categories/comprobantes/currencies)
   useEffect(() => {

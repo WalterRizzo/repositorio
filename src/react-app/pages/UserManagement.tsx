@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
-import { Loader2, Plus, Users, Edit2, Trash2, X, Save, UserPlus, CheckCircle } from "lucide-react";
+import { Loader2, Plus, Users, Edit2, Trash2, X, Save, UserPlus, CheckCircle, Key } from "lucide-react";
 import Header from "@/react-app/components/Header";
 import { parseDbTimestampToDate } from '@/react-app/utils/dates';
 import Sidebar from "@/react-app/components/Sidebar";
@@ -395,6 +395,14 @@ export default function UserManagement() {
                                 <Trash2 className="w-3.5 h-3.5" />
                                 <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
                               </button>
+                                <button
+                                  onClick={() => navigate('/settings?tab=users')}
+                                  className="group relative inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 border-2 border-orange-300"
+                                  title="Gestión de Usuarios"
+                                >
+                                  <Key className="w-3.5 h-3.5" />
+                                  <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                                </button>
                             </>
                           )}
                         </div>
