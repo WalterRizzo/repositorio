@@ -331,13 +331,15 @@ app.post("/api/auth/login", loginRateLimit, async (c) => {
   });
 });
 
-// Register endpoint
-app.post("/api/auth/register", async (c) => {
-  const body = await c.req.json();
-
-  if (!body.email || !body.password || !body.name) {
-    return c.json({ error: "Email, contraseña y nombre son requeridos" }, 400);
-  }
+      const message = err && err.message ? String(err.message) : String(err) || 'Internal Server Error';
+      const stack = err && err.stack ? String(err.stack) : undefined;
+      try {
+        return c.json({ error: message, stack }, 500);
+      } catch (e) {
+        // Fallback to text if json() itself fails for any reason
+        const payload = { error: message, stack };
+        return c.text(JSON.stringify(payload), 500);
+      }
 
   // Verificar si el usuario ya existe (case insensitive)
   const { results: existingUsers } = await c.env.DB.prepare(
