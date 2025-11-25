@@ -1,4 +1,4 @@
-import { Plus, Trash2, Receipt, Filter, Edit3, CheckCircle, XCircle, Sparkles, FileSpreadsheet, Clock } from "lucide-react";
+import { Plus, Trash2, Receipt, Edit3, CheckCircle, XCircle, Sparkles, FileSpreadsheet, Clock } from "lucide-react";
 import { useState, useRef } from "react";
 import BubbleTooltipPortal from "./BubbleTooltipPortal";
 import { getStatusBadgeClasses, getStatusLabel } from '@/react-app/utils/status';
@@ -392,14 +392,13 @@ export default function ExpensesTable({
       {/* Filtros por estado */}
   <div className="px-3 sm:px-6 py-3 bg-gradient-to-br from-gray-900/60 to-gray-800/50 dark:from-gray-800/70 dark:to-gray-900/70 border border-white/5 rounded-2xl shadow-sm mb-4">
   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-6">
-          <div className="flex items-center gap-x-2">
-            <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por estado:</span>
-          </div>
+          {/* 'Filtrar por estado' label removed per UX — KPI pills already handle status filtering */}
+          
+          {/* Left-aligned filters: currency first */}
           
           {/* KPI buttons moved up into header */}
           
-          <div className="flex gap-x-2 ml-auto items-center">
+          <div className="flex gap-x-2 items-center">
             {/* Currency filter (from DB) */}
             <select
               value={currencyFilter}
