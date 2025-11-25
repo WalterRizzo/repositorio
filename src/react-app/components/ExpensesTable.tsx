@@ -327,44 +327,38 @@ export default function ExpensesTable({
       </div>
     )}
   <div className="p-0 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-y-4 mb-4">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Lista de Gastos</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Total: {expenses.length} {expenses.length === 1 ? "gasto" : "gastos"}
-            {expenses.length > 5 && (
-              <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">
-                Mostrando solo los primeros 5
-              </span>
-            )}
-          </p>
+        <div className="sr-only">
+          {/* Title removed per UX: KPI pills are primary — keep markup hidden for accessibility if needed */}
+          <h2>Lista de Gastos</h2>
+          <p>Total: {expenses.length} {expenses.length === 1 ? "gasto" : "gastos"}</p>
         </div>
         {/* KPI pills (moved here so they're aligned with title and New Expense) */}
-        <div className="flex items-center gap-2 sm:gap-3 mx-4">
+        <div className="flex items-center gap-3 sm:gap-4 mx-4">
           <button
             aria-pressed={filters.pendientes}
             onClick={() => { setFilters({ ...filters, pendientes: !filters.pendientes }); setCurrentPage(1); }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${filters.pendientes ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
-            <Clock className={`w-4 h-4 ${filters.pendientes ? 'text-white' : 'text-indigo-300'}`} />
+            className={`flex items-center gap-3 px-4 py-2 rounded-full text-base font-bold transition-all duration-150 focus:outline-none focus:ring-4 focus:ring-indigo-500 ${filters.pendientes ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-xl' : 'bg-white/5 text-white/70 border border-white/6'}`}>
+            <Clock className={`w-5 h-5 ${filters.pendientes ? 'text-white' : 'text-indigo-300'}`} />
             <span className="truncate">Pendientes</span>
-            <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'pendiente').length}</span>
+            <span className="ml-2 text-sm font-extrabold px-3 py-1 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'pendiente').length}</span>
           </button>
 
           <button
             aria-pressed={filters.aprobados}
             onClick={() => { setFilters({ ...filters, aprobados: !filters.aprobados }); setCurrentPage(1); }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${filters.aprobados ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
-            <CheckCircle className={`w-4 h-4 ${filters.aprobados ? 'text-white' : 'text-emerald-300'}`} />
+            className={`flex items-center gap-3 px-4 py-2 rounded-full text-base font-bold transition-all duration-150 focus:outline-none focus:ring-4 focus:ring-emerald-400 ${filters.aprobados ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-xl' : 'bg-white/5 text-white/70 border border-white/6'}`}>
+            <CheckCircle className={`w-5 h-5 ${filters.aprobados ? 'text-white' : 'text-emerald-300'}`} />
             <span className="truncate">Aprobados</span>
-            <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'aprobado').length}</span>
+            <span className="ml-2 text-sm font-extrabold px-3 py-1 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'aprobado').length}</span>
           </button>
 
           <button
             aria-pressed={filters.rechazados}
             onClick={() => { setFilters({ ...filters, rechazados: !filters.rechazados }); setCurrentPage(1); }}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-orange-400 ${filters.rechazados ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
-            <XCircle className={`w-4 h-4 ${filters.rechazados ? 'text-white' : 'text-orange-300'}`} />
+            className={`flex items-center gap-3 px-4 py-2 rounded-full text-base font-bold transition-all duration-150 focus:outline-none focus:ring-4 focus:ring-orange-400 ${filters.rechazados ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-xl' : 'bg-white/5 text-white/70 border border-white/6'}`}>
+            <XCircle className={`w-5 h-5 ${filters.rechazados ? 'text-white' : 'text-orange-300'}`} />
             <span className="truncate">Rechazados</span>
-            <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'rechazado').length}</span>
+            <span className="ml-2 text-sm font-extrabold px-3 py-1 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'rechazado').length}</span>
           </button>
           {/* Quick shortcuts: Todos / Ninguno near KPI pills */}
           <button
