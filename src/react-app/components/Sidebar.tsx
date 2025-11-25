@@ -1,4 +1,4 @@
-import { Receipt, Users, Database, FileSpreadsheet, Settings as SettingsIcon } from 'lucide-react';
+import { Receipt, Database, FileSpreadsheet, Settings as SettingsIcon } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/react-app/hooks/useAuth';
 import argentinaFlag from '@/react-app/assets/argentina.svg';
