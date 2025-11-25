@@ -10,6 +10,22 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+// Global error handler: ensure the worker always returns JSON on uncaught errors
+// This prevents the frontend from receiving HTML/Text that would break JSON.parse
+app.use('*', async (c, next) => {
+  try {
+    await next();
+  } catch (err: any) {
+    console.error('Unhandled worker error:', err);
+    try {
+      return c.json({ error: String(err) || 'Internal Server Error' }, 500);
+    } catch (e) {
+      // Fallback to text if json() itself fails for any reason
+      return c.text(String(err) || 'Internal Server Error', 500);
+    }
+  }
+});
+
 // ============================================================
 // RATE LIMITING - Protección contra DDoS
 // ============================================================
