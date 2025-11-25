@@ -366,6 +366,21 @@ export default function ExpensesTable({
             <span className="truncate">Rechazados</span>
             <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'rechazado').length}</span>
           </button>
+          {/* Quick shortcuts: Todos / Ninguno near KPI pills */}
+          <button
+            onClick={() => { setFilters({pendientes: true, aprobados: true, rechazados: true}); setCurrentPage(1); }}
+            className="px-2 sm:px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors shadow-sm ml-2"
+            title="Mostrar todos los estados"
+          >
+            Todos
+          </button>
+          <button
+            onClick={() => { setFilters({pendientes: false, aprobados: false, rechazados: false}); setCurrentPage(1); }}
+            className="px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded-full transition-colors border border-white/6 ml-2"
+            title="Quitar todos los filtros"
+          >
+            Ninguno
+          </button>
         </div>
 
         {onAdd && (
@@ -391,18 +406,6 @@ export default function ExpensesTable({
           {/* KPI buttons moved up into header */}
           
           <div className="flex gap-x-2 ml-auto items-center">
-            <button
-              onClick={() => {
-                setFilters({pendientes: true, aprobados: true, rechazados: true});
-                setCurrentPage(1);
-              }}
-              className="px-2 sm:px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors shadow-sm"
-            >
-              Todos
-            </button>
-            {/* Category filter (from DB) */}
-              {/* Category filter removed from grid per request */}
-
             {/* Currency filter (from DB) */}
             <select
               value={currencyFilter}
@@ -414,15 +417,6 @@ export default function ExpensesTable({
                 <option key={c.code} value={c.code}>{c.code} {c.name ? `- ${c.name}` : ''}</option>
               ))}
             </select>
-            <button
-              onClick={() => {
-                setFilters({pendientes: false, aprobados: false, rechazados: false});
-                setCurrentPage(1);
-              }}
-              className="px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded-full transition-colors border border-white/6"
-            >
-              Ninguno
-            </button>
           </div>
         </div>
         
