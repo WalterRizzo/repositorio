@@ -562,14 +562,14 @@ export default function ExpensesTable({
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <button onClick={() => onEdit(expense)} className="p-2 bg-indigo-600 text-white rounded-md"> <Edit3 className="w-4 h-4" /> </button>
-                    <button onClick={() => onDelete(expense.id)} className="p-2 bg-red-500 text-white rounded-md"> <Trash2 className="w-4 h-4" /> </button>
                     {userRole !== 'usuario' && (
                       <>
-                        <button onClick={() => handleApproveClick(expense.id)} className="p-2 bg-green-500 text-white rounded-md"> <CheckCircle className="w-4 h-4" /> </button>
-                        <button onClick={() => handleRejectClick(expense.id)} className="p-2 bg-orange-500 text-white rounded-md"> <XCircle className="w-4 h-4" /> </button>
+                        <button onClick={() => handleApproveClick(expense.id)} className="p-2 bg-green-500 text-white rounded-md" title="Aprobar"> <CheckCircle className="w-4 h-4" /> </button>
+                        <button onClick={() => handleRejectClick(expense.id)} className="p-2 bg-orange-500 text-white rounded-md" title="Rechazar"> <XCircle className="w-4 h-4" /> </button>
                       </>
                     )}
+                    <button onClick={() => onEdit(expense)} className="p-2 bg-indigo-600 text-white rounded-md" title="Editar"> <Edit3 className="w-4 h-4" /> </button>
+                    <button onClick={() => onDelete(expense.id)} className="p-2 bg-red-500 text-white rounded-md" title="Eliminar"> <Trash2 className="w-4 h-4" /> </button>
                   </div>
                 </div>
               </div>
@@ -779,24 +779,6 @@ export default function ExpensesTable({
                     </td>
                     <td className="px-2 py-2 whitespace-nowrap text-right text-xs sm:text-sm font-medium gap-x-2">
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 animate-fadeIn w-full">
-                        <button
-                            onClick={() => onEdit(expense)}
-                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 border-2 border-blue-300"
-                            title="Editar gasto"
-                            disabled={expense.status === 'aprobado'}
-                        >
-                          <Edit3 className="w-4 h-4" />
-                          <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
-                        </button>
-                        <button
-                            onClick={() => onDelete(expense.id)}
-                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-red-600 hover:to-pink-700 border-2 border-red-300"
-                            title="Eliminar gasto"
-                            disabled={expense.status === 'aprobado'}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
-                        </button>
                         {userRole !== 'usuario' && (
                           <>
                             <button
@@ -819,6 +801,24 @@ export default function ExpensesTable({
                             </button>
                           </>
                         )}
+                        <button
+                            onClick={() => onEdit(expense)}
+                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 border-2 border-blue-300"
+                            title="Editar gasto"
+                            disabled={expense.status === 'aprobado'}
+                        >
+                          <Edit3 className="w-4 h-4" />
+                          <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                        </button>
+                        <button
+                            onClick={() => onDelete(expense.id)}
+                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-red-600 hover:to-pink-700 border-2 border-red-300"
+                            title="Eliminar gasto"
+                            disabled={expense.status === 'aprobado'}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                        </button>
                       </div>
                     </td>
                   </tr>
