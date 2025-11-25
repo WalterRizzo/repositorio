@@ -89,34 +89,34 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
           <div className="text-center py-4">Cargando transacciones...</div>
         ) : filteredTransactions.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+              <table className="w-full text-[11px]">
               <thead>
                 <tr className="border-b">
-                  <th className="px-4 py-2 text-left">FECHA</th>
-                  <th className="px-4 py-2 text-left">USUARIO</th>
-                  <th className="px-4 py-2 text-left">TIPO</th>
-                  <th className="px-4 py-2 text-left">MONTO</th>
-                  <th className="px-4 py-2 text-left">SALDO ANTERIOR</th>
-                  <th className="px-4 py-2 text-left">SALDO NUEVO</th>
-                  <th className="px-4 py-2 text-left">DESCRIPCIÓN</th>
+                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">FECHA</th>
+                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">USUARIO</th>
+                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">TIPO</th>
+                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">MONTO</th>
+                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">SALDO ANTERIOR</th>
+                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">SALDO NUEVO</th>
+                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">DESCRIPCIÓN</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTransactions.map((tx: any, idx: number) => (
-                  <tr key={idx} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <td className="px-4 py-2">{(parseDbTimestampToDate(tx.fecha) || new Date()).toLocaleDateString()}</td>
-                    <td className="px-4 py-2">{tx.usuario || 'N/A'}</td>
-                    <td className="px-4 py-2">
+                    <tr key={idx} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="px-2 py-1">{(parseDbTimestampToDate(tx.fecha) || new Date()).toLocaleDateString()}</td>
+                      <td className="px-2 py-1 max-w-[160px] truncate">{tx.usuario || 'N/A'}</td>
+                      <td className="px-2 py-1">
                       <span className={`px-2 py-1 rounded text-xs font-bold ${
                         tx.tipo === 'carga' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
                       }`}>
                         {tx.tipo}
                       </span>
                     </td>
-                    <td className="px-4 py-2">{tx.moneda} {formatBalance(tx.monto, tx.moneda, 'en-US')}</td>
-                    <td className={`px-4 py-2 font-semibold ${getColorClass(tx.saldo_anterior)}`}>{tx.moneda} {formatBalance(tx.saldo_anterior, tx.moneda, 'en-US')}</td>
-                    <td className={`px-4 py-2 font-semibold ${getColorClass(tx.saldo_nuevo)}`}>{tx.moneda} {formatBalance(tx.saldo_nuevo, tx.moneda, 'en-US')}</td>
-                    <td className="px-4 py-2 text-xs">{tx.descripcion || '-'}</td>
+                    <td className="px-2 py-1">{tx.moneda} {formatBalance(tx.monto, tx.moneda, 'en-US')}</td>
+                    <td className={`px-2 py-1 font-semibold ${getColorClass(tx.saldo_anterior)}`}>{tx.moneda} {formatBalance(tx.saldo_anterior, tx.moneda, 'en-US')}</td>
+                    <td className={`px-2 py-1 font-semibold ${getColorClass(tx.saldo_nuevo)}`}>{tx.moneda} {formatBalance(tx.saldo_nuevo, tx.moneda, 'en-US')}</td>
+                    <td className="px-2 py-1 text-[10px] max-w-[220px] truncate">{tx.descripcion || '-'}</td>
                   </tr>
                 ))}
               </tbody>

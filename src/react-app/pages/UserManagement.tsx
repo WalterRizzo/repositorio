@@ -284,20 +284,20 @@ export default function UserManagement() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/5">
-                    <th className="px-4 py-3 text-left text-[10px] font-bold text-white/70 uppercase tracking-wider">
+                    <tr className="border-b border-white/5">
+                      <th className="px-2 py-2 text-left text-[9px] font-bold text-white/70 uppercase tracking-wider">
                       👤 USUARIO
                     </th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-left text-[9px] font-bold text-white/70 uppercase tracking-wider">
                       🎯 ROL
                     </th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-left text-[9px] font-bold text-white/70 uppercase tracking-wider">
                       💰 BALANCE
                     </th>
-                    <th className="px-4 py-3 text-left text-[10px] font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-left text-[9px] font-bold text-white/70 uppercase tracking-wider">
                       📅 CREACIÓN
                     </th>
-                    <th className="px-4 py-3 text-right text-[10px] font-bold text-white/70 uppercase tracking-wider">
+                    <th className="px-2 py-2 text-right text-[9px] font-bold text-white/70 uppercase tracking-wider">
                       ⚙️ ACCIONES
                     </th>
                   </tr>
@@ -305,27 +305,27 @@ export default function UserManagement() {
                 <tbody className="divide-y divide-white/5">
                   {users.map((userItem) => (
                     <tr key={userItem.user_id} className="hover:bg-white/5 transition-all duration-200 group">
-                      <td className="px-4 py-3">
+                        <td className="px-2 py-2">
                         <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-xs shadow-lg">
+                          <div className="w-6 h-6 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-[10px] shadow-lg">
                             {userItem.user_id.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-white truncate max-w-[220px] whitespace-nowrap">
+                            <div className="text-[11px] font-bold text-white truncate max-w-[160px] whitespace-nowrap">
                               {userItem.user_id}
                             </div>
-                            <div className="text-[10px] text-white/40">
+                            <div className="text-[9px] text-white/40">
                               ID: {userItem.user_id.substring(0, 12)}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         {editingUserId === userItem.user_id ? (
                           <select
                             value={editingUser?.role || ""}
                             onChange={(e) => setEditingUser(prev => prev ? { ...prev, role: e.target.value } : null)}
-                            className="w-full px-3 py-1.5 text-xs bg-white/5 border border-violet-500/20 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-white hover:bg-white/10 transition-colors"
+                            className="w-full px-2 py-1 text-[11px] bg-white/5 border border-violet-500/20 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-white hover:bg-white/10 transition-colors"
                           >
                             <option value="usuario" className="bg-gray-800">Usuario</option>
                             <option value="supervisor" className="bg-gray-800">Supervisor</option>
@@ -335,43 +335,43 @@ export default function UserManagement() {
                           getRoleBadge(userItem.role)
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         {editingUserId === userItem.user_id ? (
                           <input
                             type="number"
                             step="0.01"
                             value={editingUser?.balance || 0}
                             onChange={(e) => setEditingUser(prev => prev ? { ...prev, balance: parseFloat(e.target.value) || 0 } : null)}
-                            className="w-24 px-3 py-1.5 text-xs bg-white/5 border border-violet-500/20 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-white hover:bg-white/10 transition-colors"
+                              className="w-20 px-2 py-1 text-[11px] bg-white/5 border border-violet-500/20 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-violet-500 text-white hover:bg-white/10 transition-colors"
                           />
                         ) : (
-                          <span className={`text-xs font-bold px-3 py-1 rounded-full shadow-lg border-2 ${userItem.balance < 0 ? 'bg-gradient-to-r from-red-600 to-pink-500 text-white border-red-300 animate-pulse' : 'bg-gradient-to-r from-emerald-500 to-green-400 text-white border-green-300 animate-pulse'}`}> 
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shadow-lg border-2 ${userItem.balance < 0 ? 'bg-gradient-to-r from-red-600 to-pink-500 text-white border-red-300 animate-pulse' : 'bg-gradient-to-r from-emerald-500 to-green-400 text-white border-green-300 animate-pulse'}`}> 
                             {formatCurrency(userItem.balance)}
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="text-xs text-white/70">
+                      <td className="px-2 py-2">
+                        <div className="text-[10px] text-white/70">
                           {(() => {
                             const d = parseDbTimestampToDate(userItem.created_at);
                             return d ? d.toLocaleDateString('es-ES', { year: 'numeric', month: 'short', day: 'numeric' }) : userItem.created_at;
                           })()}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-2 animate-fadeIn">
+                      <td className="px-2 py-2">
+                          <div className="flex items-center justify-end gap-2 animate-fadeIn">
                           {editingUserId === userItem.user_id ? (
                             <>
                               <button
                                 onClick={saveEdit}
-                                className="p-1.5 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-all hover:scale-110"
+                                className="p-1 text-emerald-400 hover:bg-emerald-500/20 rounded-lg transition-all hover:scale-110"
                                 title="Guardar"
                               >
                                 <Save className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={cancelEdit}
-                                className="p-1.5 text-white/50 hover:bg-white/10 rounded-lg transition-all hover:scale-110"
+                                className="p-1 text-white/50 hover:bg-white/10 rounded-lg transition-all hover:scale-110"
                                 title="Cancelar"
                               >
                                 <X className="w-4 h-4" />
@@ -381,18 +381,18 @@ export default function UserManagement() {
                             <>
                               <button
                                 onClick={() => startEdit(userItem)}
-                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-violet-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 border-2 border-violet-300"
+                                className="group relative inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-r from-violet-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 border-2 border-violet-300"
                                 title="Editar"
                               >
-                                <Edit2 className="w-4 h-4" />
+                                <Edit2 className="w-3.5 h-3.5" />
                                 <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
                               </button>
                               <button
                                 onClick={() => deleteUser(userItem.user_id)}
-                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 border-2 border-rose-300"
+                                className="group relative inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 border-2 border-rose-300"
                                 title="Eliminar"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-3.5 h-3.5" />
                                 <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
                               </button>
                             </>
