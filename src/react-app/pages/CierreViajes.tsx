@@ -35,6 +35,10 @@ export default function CierreViajes() {
     deltasByCurrency: Record<string, number>;
   }>({ expensesByCurrency: {}, movementsByCurrency: {}, deltasByCurrency: {} });
 
+  // Pagination for movements preview (make it work like the Expenses pagination)
+  const [movementPage, setMovementPage] = useState<number>(1);
+  const movementRecordsPerPage = 5; // mirror expenses table behaviour
+
   useEffect(() => {
     // Fetch available users for the form select — small safe initial API call
     const loadUsers = async () => {
@@ -174,7 +178,16 @@ export default function CierreViajes() {
     if (!previewResult) return;
     const t = computeTotals(previewResult.expenses || [], previewResult.movements || [], selectedExpenseIds, selectedMovementIds);
     setTotals(t);
+    // reset movement pagination whenever preview results or selection change
+    setMovementPage(1);
   }, [selectedExpenseIds, selectedMovementIds, previewResult]);
+
+  // Derived movement pagination variables (used by UI below)
+  const _filteredAllMovements: PreviewMovement[] = (previewResult?.movements || []).filter((m:PreviewMovement) => !isSpuriousPendingReembolso((m as any).descripcion || (m as any).description));
+  const movementTotalMovements = _filteredAllMovements.length;
+  const movementTotalPages = Math.max(1, Math.ceil(movementTotalMovements / movementRecordsPerPage));
+  const movementStartIndex = (movementPage - 1) * movementRecordsPerPage;
+  const movementDisplay = _filteredAllMovements.slice(movementStartIndex, movementStartIndex + movementRecordsPerPage);
 
   if (authLoading || !user) {
     return (
@@ -316,17 +329,19 @@ export default function CierreViajes() {
                           </tr>
                         </thead>
                         <tbody>
-                          {previewResult ? previewResult.movements.filter((m:PreviewMovement) => !isSpuriousPendingReembolso((m as any).descripcion || (m as any).description)).map((m:PreviewMovement) => (
-                            <tr key={m.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                              <td className="px-3 py-2"><input type="checkbox" checked={selectedMovementIds.has(m.id)} onChange={() => toggleMovement(m.id)} className="w-4 h-4"/></td>
-                              <td className="px-3 py-2 text-gray-200">{m.fecha_transaccion ? new Date(m.fecha_transaccion).toLocaleString() : '-'}</td>
-                              <td className="px-3 py-2 text-gray-200">{m.tipo}</td>
-                              <td className={`px-3 py-2 ${m.tipo === 'carga' ? 'text-emerald-300' : 'text-rose-300'} font-semibold`}>{(m.tipo === 'carga' ? '+' : '-')}{formatBalance(m.monto, (m as any).currency)}</td>
-                              <td className="px-3 py-2 text-violet-200">{(m as any).currency || 'ARS'}</td>
-                              <td className="px-3 py-2 text-gray-200">{formatBalance(m.saldo_anterior, (m as any).currency)}</td>
-                              <td className="px-3 py-2 text-gray-200">{formatBalance(m.saldo_nuevo, (m as any).currency)}</td>
-                            </tr>
-                          )) : (
+                          {previewResult ? (
+                            movementDisplay.map((m:PreviewMovement) => (
+                              <tr key={m.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                                <td className="px-3 py-2"><input type="checkbox" checked={selectedMovementIds.has(m.id)} onChange={() => toggleMovement(m.id)} className="w-4 h-4"/></td>
+                                <td className="px-3 py-2 text-gray-200">{m.fecha_transaccion ? new Date(m.fecha_transaccion).toLocaleString() : '-'}</td>
+                                <td className="px-3 py-2 text-gray-200">{m.tipo}</td>
+                                <td className={`px-3 py-2 ${m.tipo === 'carga' ? 'text-emerald-300' : 'text-rose-300'} font-semibold`}>{(m.tipo === 'carga' ? '+' : '-')}{formatBalance(m.monto, (m as any).currency)}</td>
+                                <td className="px-3 py-2 text-violet-200">{(m as any).currency || 'ARS'}</td>
+                                <td className="px-3 py-2 text-gray-200">{formatBalance(m.saldo_anterior, (m as any).currency)}</td>
+                                <td className="px-3 py-2 text-gray-200">{formatBalance(m.saldo_nuevo, (m as any).currency)}</td>
+                              </tr>
+                            ))
+                          ) : (
                             <tr className="border-t border-white/5 hover:bg-white/5 transition-colors">
                               <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
                                 <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
@@ -340,6 +355,48 @@ export default function CierreViajes() {
                           )}
                         </tbody>
                       </table>
+
+                      {/* Pagination for movements preview (rendered outside the table) */}
+                      {movementTotalPages > 1 && (
+                        <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black text-white border-t gap-y-2 rounded-xl shadow-lg mb-2">
+                          <div className="text-xs sm:text-sm text-white font-semibold">
+                            Mostrando {movementStartIndex + 1} - {Math.min(movementStartIndex + movementRecordsPerPage, movementTotalMovements)} de {movementTotalMovements} movimientos
+                          </div>
+                          <div className="flex items-center gap-x-2">
+                            <button
+                              onClick={() => setMovementPage(1)}
+                              disabled={movementPage === 1}
+                              className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                            >
+                              « Primera
+                            </button>
+                            <button
+                              onClick={() => setMovementPage(Math.max(1, movementPage - 1))}
+                              disabled={movementPage === 1}
+                              className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                            >
+                              ‹ Anterior
+                            </button>
+                            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm font-bold">
+                              Página {movementPage} de {movementTotalPages}
+                            </span>
+                            <button
+                              onClick={() => setMovementPage(Math.min(movementTotalPages, movementPage + 1))}
+                              disabled={movementPage === movementTotalPages}
+                              className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                            >
+                              Siguiente ›
+                            </button>
+                            <button
+                              onClick={() => setMovementPage(movementTotalPages)}
+                              disabled={movementPage === movementTotalPages}
+                              className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                            >
+                              Última »
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
