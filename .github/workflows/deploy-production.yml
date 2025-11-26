@@ -1,0 +1,55 @@
+name: Deploy to Production (Cloudflare Workers)
+
+on:
+  push:
+    branches:
+      - 'produccion'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build_and_deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (tsc + vite)
+        run: npm run build
+
+      - name: Prepare Wrangler config
+        run: node scripts/ensure-wrangler-config.js
+
+      - name: Deploy to Cloudflare (Wrangler)
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: npx wrangler deploy --config ./wrangler.json
+
+      - name: Verification - fetch /expenses (sanity check)
+        run: |
+          sleep 2
+          curl -sSfL https://expense-tharsis-app.tharsis-gastos-app.workers.dev/expenses | grep -q "index-" && echo "OK: assets present" || (echo "WARNING: assets missing" && exit 1)
+
+      - name: Success
+        if: ${{ success() }}
+        run: echo "Production deploy completed."
