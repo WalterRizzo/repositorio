@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { useNotifications } from "@/react-app/hooks/useNotifications";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
-  import { Loader2, Receipt, Users, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Wallet } from "lucide-react";
+  import { Loader2, Receipt, Users, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Wallet, Key } from "lucide-react";
 import type { Expense, UserProfile } from "@/shared/types";
 import ExpensesTable from "@/react-app/components/ExpensesTable";
 import ExpenseForm from "@/react-app/components/ExpenseForm";
@@ -464,16 +464,33 @@ export default function Expenses() {
     }
   };
 
-  const handleReject = async (id: number) => {
+  const handleReject = async (id: number, reason?: string) => {
     if (!confirm("¿Rechazar este gasto?")) return;
+    // If caller provides a reason (e.g. child component modal), use it. Otherwise ask for one.
+    const reasonProvided = (reason && reason.trim() !== '') ? reason.trim() : window.prompt('Por favor, indica la razón del rechazo (obligatorio):');
+    if (!reasonProvided || reasonProvided.trim() === '') {
+      alert('Debes proporcionar una razón para el rechazo.');
+      return;
+    }
 
     try {
-      await fetch(`/api/expenses/${id}/reject`, {
+      const resp = await fetch(`/api/expenses/${id}/reject`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rejectionReason: reasonProvided.trim() })
       });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        const msg = err.error || `Error ${resp.status} al rechazar gasto`;
+        console.error('Reject failed:', msg);
+        alert(`❌ No se pudo rechazar: ${msg}`);
+        return;
+      }
+
+      const data = await resp.json().catch(() => ({}));
       await fetchExpenses();
-      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id } })); } catch(e){}
+      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id, expense: data.expense } })); } catch(e){}
       alert("Gasto rechazado exitosamente");
       // Notificación push al usuario
       if (isSupported && permission === "granted") {
@@ -486,9 +503,11 @@ export default function Expenses() {
           }
         );
       }
+      return true;
     } catch (error) {
       console.error("Error rechazando gasto:", error);
       alert("Error al rechazar el gasto");
+      return false;
     }
   };
 
@@ -935,7 +954,7 @@ export default function Expenses() {
   // pendingExpenses removed — counts computed inline where necessary
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
+    <div className="expenses-page flex min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
       <Sidebar />
       {/* Notificación de eliminación de gasto */}
       {showDeleteNotification && (
@@ -961,9 +980,9 @@ export default function Expenses() {
       <div className="flex-1 w-full">
         <Header userProfile={userProfile} />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-8xl mx-auto px-4 sm:px-6 py-8">
         {/* HEADER PROFESIONAL */}
-        <div className="mb-8 relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 p-6 shadow-lg border border-slate-600">
+        <div className="mb-8 relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 p-6 shadow-lg border border-slate-600 sticky top-20 z-40 backdrop-blur-sm">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
           <div className="relative z-10">
             <h1 className="text-3xl font-bold text-white mb-2">
@@ -1035,6 +1054,8 @@ export default function Expenses() {
                   </div>
                 </button>
               )}
+
+              {/* (Removed) Top KPI quick-action for 'Gestión de Usuarios' — using per-row actions in the Users table instead to avoid duplication */}
 
               {/* Pestaña Historial - Solo para admin/supervisor - OCULTO POR AHORA */}
               {false && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
@@ -1233,9 +1254,24 @@ export default function Expenses() {
                               <Wallet className="w-4 h-4" />
                             </button>
                           )}
+                          {/* Key action: Gestión de Usuarios — aparece junto a Eliminar solo para admin/supervisor */}
                           <button onClick={() => handleDeleteUser(user.user_id)} className="w-9 h-9 flex items-center justify-center rounded-full bg-rose-600/60 hover:bg-rose-600 text-white shadow hover:shadow-lg transition-transform transform hover:-translate-y-0.5" title="Eliminar usuario">
                             <Trash2 className="w-4 h-4" />
                           </button>
+                          {/* Key action moved AFTER Delete: Gestión de Usuarios — aparece después de Eliminar solo para admin/supervisor */}
+                          {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
+                            <button
+                              onClick={() => {
+                                try { navigate(`/settings?tab=users&user=${user.user_id}`); }
+                                catch (e) { window.location.href = `/settings?tab=users&user=${user.user_id}`; }
+                              }}
+                              title="Gestión de Usuarios"
+                              aria-label={`Gestión de Usuarios: ${user.name || user.user_id}`}
+                              className="w-9 h-9 flex items-center justify-center rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white shadow hover:shadow-lg transition-transform transform hover:-translate-y-0.5"
+                            >
+                              <Key className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1307,23 +1343,23 @@ export default function Expenses() {
                   <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
                 </div>
               ) : (
-                <div className="overflow-x-auto bg-black rounded-xl p-4 border border-gray-900" style={{background:'#000',borderColor:'#23272F'}}>
-                  <table className="w-full min-w-max magic-movements-table">
-                    <thead className="bg-black text-white">
+                <div className="overflow-x-auto bg-black rounded-xl p-4 border border-gray-900 grid-glow-container" style={{background:'#000',borderColor:'#23272F'}}>
+                  <table className="w-full table-fixed magic-movements-table">
+                    <thead className="bg-black text-white table-header-neon">
                       <tr>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">MONEDA</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📊 SALDO ANTERIOR</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📈 SALDO NUEVO</th>
-                        <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📝 DESCRIPCIÓN</th>
+                        <th style={{width:'12%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
+                        <th style={{width:'18%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
+                        <th style={{width:'10%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
+                        <th style={{width:'10%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
+                        <th style={{width:'8%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">MONEDA</th>
+                        <th style={{width:'12%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📊 SALDO ANTERIOR</th>
+                        <th style={{width:'12%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📈 SALDO NUEVO</th>
+                        <th style={{width:'18%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📝 DESCRIPCIÓN</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-700">
-                      {pageItems.map((movement) => (
-                          <tr key={movement.id} className="bg-black text-white">
+                      {pageItems.map((movement, i) => (
+                          <tr key={movement.id} className="bg-black text-white table-row-glow row-neon-left row-fade-in magic-movements-row" style={{ animationDelay: `${i * 45}ms` }}>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
                               {(() => {
                                 const d = parseDbTimestampToDate(movement.created_at);
@@ -1402,7 +1438,7 @@ export default function Expenses() {
                   )}
                   
                   {totalFiltered > recordsPerPage && (
-                    <div className="flex justify-between items-center mt-4 bg-black text-white rounded-xl px-3 py-2">
+                    <div className="flex justify-between items-center mt-4 bg-black text-white rounded-xl px-3 py-2 pager-shimmer">
                       <div className="text-sm text-gray-300">
                         Mostrando {Math.min((movementsPage - 1) * recordsPerPage + 1, totalFiltered)} - {Math.min(movementsPage * recordsPerPage, totalFiltered)} de {totalFiltered} movimientos
                       </div>
@@ -1479,9 +1515,9 @@ export default function Expenses() {
                 <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-max">
-                  <thead className="bg-gradient-to-r from-violet-600 to-purple-600">
+              <div className="overflow-x-auto grid-glow-container">
+                <table className="w-full table-fixed table-gradient-stripe">
+                  <thead className="bg-gradient-to-r from-violet-600 to-purple-600 table-header-neon">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
                       <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
@@ -1493,8 +1529,8 @@ export default function Expenses() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {pageItems.map((movement) => (
-                        <tr key={movement.id} className="hover:bg-violet-900/30 transition-all">
+                    {pageItems.map((movement, i) => (
+                        <tr key={movement.id} className="hover:bg-violet-900/30 transition-all table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
                             {(() => {
                               const d = parseDbTimestampToDate(movement.created_at);
@@ -1544,7 +1580,17 @@ export default function Expenses() {
                       ))}
                   </tbody>
                 </table>
-                
+                {/* admin movements pager (same style) */}
+                {totalFiltered > recordsPerPage && (
+                  <div className="flex justify-between items-center mt-4 bg-black text-white rounded-xl px-3 py-2 pager-shimmer">
+                    <div className="text-sm text-gray-300">Mostrando {Math.min((movementsPage - 1) * recordsPerPage + 1, totalFiltered)} - {Math.min(movementsPage * recordsPerPage, totalFiltered)} de {totalFiltered} movimientos</div>
+                    <div className="flex items-center space-x-2">
+                      <button onClick={() => setMovementsPage(Math.max(1, movementsPage - 1))} disabled={movementsPage === 1} className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm">← Anterior</button>
+                      <span className="px-3 py-1 bg-white/10 text-white rounded text-sm">Página {movementsPage} de {totalPages}</span>
+                      <button onClick={() => setMovementsPage(Math.min(totalPages, movementsPage + 1))} disabled={movementsPage >= totalPages} className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm">Siguiente →</button>
+                    </div>
+                  </div>
+                )}
                   {filteredMovements.length === 0 && (
                   <div className="text-center py-12">
                     <p className="text-gray-400 font-semibold">📭 No hay movimientos registrados</p>
