@@ -511,7 +511,7 @@ export default function SettingsPage() {
       <div className="flex-1 w-full">
         <Header userProfile={userProfile} />
       
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Configuración</h1>
@@ -809,7 +809,7 @@ export default function SettingsPage() {
 
         {/* GESTIÓN DE USUARIOS */}
         {activeTab === 'users' && (
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-7xl mx-auto">
             <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8">
               <div className="flex items-center space-x-3 mb-6">
                 <Key className="w-8 h-8 text-indigo-400" />

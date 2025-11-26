@@ -980,7 +980,7 @@ export default function Expenses() {
       <div className="flex-1 w-full">
         <Header userProfile={userProfile} />
       
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* HEADER PROFESIONAL */}
         <div className="mb-8 relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 p-6 shadow-lg border border-slate-600 sticky top-20 z-40 backdrop-blur-sm">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>

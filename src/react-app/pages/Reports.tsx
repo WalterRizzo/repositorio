@@ -321,7 +321,7 @@ export default function Reports() {
       <div className="flex-1 w-full">
         <Header userProfile={userProfile} />
       
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Reportes</h1>

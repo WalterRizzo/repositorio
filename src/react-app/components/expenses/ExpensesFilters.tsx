@@ -16,7 +16,7 @@ export default function ExpensesFilters({ query='', setQuery, onStateChange, onC
   const [showDetails, setShowDetails] = useState(false);
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+    <div className="w-full max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
       <div className="flex items-center w-full md:w-[640px]">
         <div className="flex items-center bg-white border border-slate-200 rounded-md px-3 py-1 w-full">
           <input value={query} onChange={(e) => setQuery?.(e.target.value)} placeholder="Buscar gastos, descripción, id..." className="bg-transparent outline-none text-sm text-slate-700 w-full" />

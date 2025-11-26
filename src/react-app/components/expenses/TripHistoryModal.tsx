@@ -44,7 +44,7 @@ export default function TripHistoryModal({ userId, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-6xl bg-black/80 rounded-2xl border border-white/5 shadow-2xl p-6 overflow-auto max-h-[85vh]">
+      <div className="w-full max-w-7xl bg-black/80 rounded-2xl border border-white/5 shadow-2xl p-6 overflow-auto max-h-[85vh]">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-white">Histórico de Cierres — usuario: {userId}</h3>
           <button onClick={onClose} aria-label="Cerrar" className="p-2 rounded-full hover:bg-white/5 transition"><X className="w-5 h-5 text-white/70" /></button>

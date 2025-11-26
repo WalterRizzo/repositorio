@@ -218,7 +218,7 @@ export default function CierreViajes() {
       <Sidebar />
       <div className="flex-1 w-full">
         <Header userProfile={user} />
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
           <h1 className="text-3xl font-bold text-white mb-4">Cierre de viajes</h1>
           <p className="text-gray-300 mb-6">Área de cierre de viajes y conciliación. Aquí se gestionarán cierres cerrados en tablas separadas (expenses_cierre, saldo_transacciones_cierre).</p>
 

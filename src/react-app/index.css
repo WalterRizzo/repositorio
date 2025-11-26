@@ -579,11 +579,13 @@
 /* Compact table helpers - smaller paddings and tighter rows for dense views */
 .table-condensed th {
   padding: 0.20rem 0.30rem; /* tighter header (more compact horizontally) */
-  font-size: 0.75rem; /* slightly smaller header */
+  /* keep padding but unify font-size to match global table rules */
+  font-size: 13px !important;
 }
 .table-condensed td {
   padding: 0.15rem 0.30rem; /* very compact cells */
-  font-size: 0.80rem; /* slightly smaller cell text for dense view */
+  /* unify table cell typography across grids */
+  font-size: 13px !important;
   vertical-align: middle;
   line-height: 1.05; /* make rows more compact vertically */
 }
@@ -724,6 +726,22 @@
 
 .animate-shake-intense {
   animation: shake-intense 0.6s ease-in-out;
+}
+
+/* =======================================
+   GLOBAL TABLE TYPOGRAPHY (UNIFORM)
+   - enforce same font family & size for ALL tables across the app
+   - uses !important to override in-component utilities that set tiny sizes
+   ======================================= */
+table, table th, table td {
+  font-family: inherit !important; /* use Inter (root) */
+  font-size: 13px !important;      /* consistent readable size */
+}
+
+/* also make the table headers bold and consistent */
+table th {
+  font-weight: 700 !important;
+  letter-spacing: 0.02em !important;
 }
 
 /* Lluvia de dinero */

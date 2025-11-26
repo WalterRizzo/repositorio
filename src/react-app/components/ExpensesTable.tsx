@@ -866,7 +866,7 @@ export default function ExpensesTable({
       {/* Modal de Preview de Excel */}
       {showExportPreview && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
             <div className="p-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -949,7 +949,7 @@ export default function ExpensesTable({
       {/* Modal de Razón de Rechazo */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-6xl w-full">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-7xl w-full">
             <div className="p-6 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-t-2xl">
               <div className="flex items-center space-x-3">
                 <XCircle className="w-8 h-8" />

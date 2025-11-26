@@ -237,7 +237,7 @@ export default function UserManagement() {
     <div className="min-h-screen">
       <Header userProfile={userProfile} />
       
-      <div className="max-w-6xl mx-auto px-6 py-8 animate-fadeIn">
+      <div className="max-w-7xl mx-auto px-6 py-8 animate-fadeIn">
         {/* MENSAJES */}
         {message && (
           <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-md animate-slideIn ${
