@@ -1344,7 +1344,8 @@ export default function Expenses() {
                 </div>
               ) : (
                 <div className="overflow-x-auto bg-black rounded-xl p-4 border border-gray-900 grid-glow-container" style={{background:'#000',borderColor:'#23272F'}}>
-                  <table className="w-full table-fixed magic-movements-table">
+                  {/* Use the shared table classes to match Expenses table visuals and ensure stable header alignment */}
+                  <table className="w-full min-w-full table-fixed table-gradient-stripe">
                     <thead className="bg-black text-white table-header-neon">
                       <tr>
                         <th style={{width:'12%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
@@ -1422,7 +1423,8 @@ export default function Expenses() {
                     </div>
                   )}
                   
-                  {totalFiltered > recordsPerPage && (
+                  {/* Always show pagination control to match Expenses table behaviour (keeps UI consistent even on a single page) */}
+                  {totalFiltered > 0 && (
                     <div className="flex justify-between items-center mt-4 bg-black text-white rounded-xl px-3 py-2 pager-shimmer">
                       <div className="text-sm text-gray-300">
                         Mostrando {Math.min((movementsPage - 1) * recordsPerPage + 1, totalFiltered)} - {Math.min(movementsPage * recordsPerPage, totalFiltered)} de {totalFiltered} movimientos
@@ -1580,7 +1582,8 @@ export default function Expenses() {
                   </tbody>
                 </table>
                 {/* admin movements pager (same style) */}
-                {totalFiltered > recordsPerPage && (
+                {/* admin movements pager (same style as expenses) */}
+                {totalFiltered > 0 && (
                   <div className="flex justify-between items-center mt-4 bg-black text-white rounded-xl px-3 py-2 pager-shimmer">
                     <div className="text-sm text-gray-300">Mostrando {Math.min((movementsPage - 1) * recordsPerPage + 1, totalFiltered)} - {Math.min(movementsPage * recordsPerPage, totalFiltered)} de {totalFiltered} movimientos</div>
                     <div className="flex items-center space-x-2">
