@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from 'react-router';
 import { Plus, Edit2, Trash2, Tag, FileText, Key, Save, X, Loader2, DollarSign } from "lucide-react";
 import { useAuth } from "@/react-app/hooks/useAuth";
 import Header from "@/react-app/components/Header";
@@ -85,6 +86,21 @@ export default function SettingsPage() {
     fetchCurrencies();
     fetchUsers();
   }, []);
+
+  // Allow opening a specific tab via query param, e.g. /settings?tab=users
+  const location = useLocation();
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(location.search || window.location.search);
+      const tab = params.get('tab');
+      if (tab === 'users') setActiveTab('users');
+      if (tab === 'categories') setActiveTab('categories');
+      if (tab === 'comprobantes') setActiveTab('comprobantes');
+      if (tab === 'currencies') setActiveTab('currencies');
+    } catch (e) {
+      // ignore
+    }
+  }, [location.search]);
 
   // Ensure plain users always see the 'users' tab (do not allow categories/comprobantes/currencies)
   useEffect(() => {
@@ -495,7 +511,7 @@ export default function SettingsPage() {
       <div className="flex-1 w-full">
         <Header userProfile={userProfile} />
       
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Configuración</h1>
@@ -793,7 +809,7 @@ export default function SettingsPage() {
 
         {/* GESTIÓN DE USUARIOS */}
         {activeTab === 'users' && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-7xl mx-auto">
             <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8">
               <div className="flex items-center space-x-3 mb-6">
                 <Key className="w-8 h-8 text-indigo-400" />

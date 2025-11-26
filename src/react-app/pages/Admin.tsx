@@ -229,19 +229,38 @@ export default function Admin() {
     }
   };
 
-  const handleReject = async (id: number) => {
+  const handleReject = async (id: number, reason?: string) => {
     if (!confirm("¿Rechazar este gasto?")) return;
+    const reasonProvided = (reason && reason.trim() !== '') ? reason.trim() : window.prompt('Por favor, indica la razón del rechazo (obligatorio):');
+    if (!reasonProvided || reasonProvided.trim() === '') {
+      alert('Debes proporcionar una razón para el rechazo.');
+      return;
+    }
 
     try {
-      await fetch(`/api/expenses/${id}/reject`, {
+      const resp = await fetch(`/api/expenses/${id}/reject`, {
         method: "PUT",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rejectionReason: reasonProvided.trim() })
       });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        const msg = err.error || `Error ${resp.status} al rechazar gasto`;
+        console.error('Reject failed:', msg);
+        alert(`❌ No se pudo rechazar: ${msg}`);
+        return;
+      }
+
+      const data = await resp.json().catch(() => ({}));
       await fetchExpenses();
-      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id } })); } catch(e){}
+      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id, expense: data.expense } })); } catch(e){}
       alert("Gasto rechazado exitosamente");
+      return true;
     } catch (error) {
       console.error("Error rechazando gasto:", error);
       alert("Error al rechazar el gasto");
+      return false;
     }
   };
 
@@ -261,7 +280,7 @@ export default function Admin() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Header userProfile={userProfile} />
       
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Panel de Administración</h1>
           <p className="text-gray-600 dark:text-gray-300">Gestionar gastos y usuarios</p>
@@ -331,9 +350,9 @@ export default function Admin() {
             </div>
 
             {/* Tabla de usuarios */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden app-table-container">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full app-table">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Usuario</th>
@@ -346,7 +365,7 @@ export default function Admin() {
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {users.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 app-table-row-hover">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">{user.user_id}</div>

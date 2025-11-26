@@ -172,7 +172,13 @@ export default function ExpenseForm({
       const res = await fetch('/api/formapagos');
       if (!res.ok) return;
       const data = await res.json();
-      if (Array.isArray(data)) setPaymentMethods(data);
+      if (Array.isArray(data)) {
+        setPaymentMethods(data);
+        // If the form doesn't have a sigla selected yet, auto-select the first available
+        if ((!formData.sigla || formData.sigla.trim() === '') && data.length > 0) {
+          setFormData(prev => ({ ...prev, sigla: String(data[0].sigla || '') }));
+        }
+      }
     } catch (err) {
       console.error('Error loading payment methods (formapagos)', err);
     }
@@ -201,6 +207,10 @@ export default function ExpenseForm({
       if (response.ok) {
         const data = await response.json();
         setTipoComprobantes(data);
+        // Auto-select a tipo_comprobante by default when creating a new expense
+        if ((!formData.tipo_comprobante_id || formData.tipo_comprobante_id === '') && Array.isArray(data) && data.length > 0) {
+          setFormData(prev => ({ ...prev, tipo_comprobante_id: String(data[0].id || '') }));
+        }
       }
     } catch (error) {
       console.error('Error al cargar tipos de comprobantes:', error);
@@ -484,6 +494,20 @@ export default function ExpenseForm({
 
     try {
       const amount = parseFloat(formData.amount);
+
+      // Payment method (sigla) must be provided
+      if (!formData.sigla || formData.sigla.trim() === '') {
+        setError('La forma de pago es obligatoria');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Tipo de comprobante obligatorio
+      if (!formData.tipo_comprobante_id || String(formData.tipo_comprobante_id).trim() === '') {
+        setError('El tipo de comprobante es obligatorio');
+        setIsSubmitting(false);
+        return;
+      }
       
       // No validamos saldo negativo, solo informamos
       if (formData.use_balance && amount > userBalance) {
@@ -584,7 +608,7 @@ export default function ExpenseForm({
     // make the 'Nuevo Gasto' modal noticeably wider on large screens so the right-side card
     // and attachments area have room and the layout looks balanced.
     ? 'w-full max-w-7xl px-6 sm:px-8 md:px-12 py-4 sm:py-6 rounded-2xl'
-    : 'w-full sm:max-w-xl md:max-w-3xl lg:max-w-6xl xl:max-w-7xl px-4 sm:px-10 md:px-12 py-4 sm:py-8 rounded-2xl';
+    : 'w-full sm:max-w-xl md:max-w-3xl lg:max-w-7xl xl:max-w-7xl px-4 sm:px-10 md:px-12 py-4 sm:py-8 rounded-2xl';
 
   // For 'new' (full-width) mode we want the form to take advantage of wide screens
   // and arrange fields in multiple columns to reduce vertical length.
@@ -829,6 +853,7 @@ export default function ExpenseForm({
               name="tipo_comprobante_id"
               value={formData.tipo_comprobante_id}
               onChange={handleChange}
+              required
               className="w-full px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-gray-700"
             >
               <option value="" className="bg-gray-800 text-white">Seleccionar tipo...</option>
@@ -1005,6 +1030,7 @@ export default function ExpenseForm({
               value={formData.sigla}
               onChange={handleChange}
               className="w-full px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-gray-700"
+              required
             >
               <option value="" className="bg-gray-800 text-white">Seleccionar forma de pago</option>
               {paymentMethods.map((m) => (

@@ -35,6 +35,10 @@ export default function CierreViajes() {
     deltasByCurrency: Record<string, number>;
   }>({ expensesByCurrency: {}, movementsByCurrency: {}, deltasByCurrency: {} });
 
+  // Pagination for movements preview (make it work like the Expenses pagination)
+  const [movementPage, setMovementPage] = useState<number>(1);
+  const movementRecordsPerPage = 5; // mirror expenses table behaviour
+
   useEffect(() => {
     // Fetch available users for the form select — small safe initial API call
     const loadUsers = async () => {
@@ -174,7 +178,16 @@ export default function CierreViajes() {
     if (!previewResult) return;
     const t = computeTotals(previewResult.expenses || [], previewResult.movements || [], selectedExpenseIds, selectedMovementIds);
     setTotals(t);
+    // reset movement pagination whenever preview results or selection change
+    setMovementPage(1);
   }, [selectedExpenseIds, selectedMovementIds, previewResult]);
+
+  // Derived movement pagination variables (used by UI below)
+  const _filteredAllMovements: PreviewMovement[] = (previewResult?.movements || []).filter((m:PreviewMovement) => !isSpuriousPendingReembolso((m as any).descripcion || (m as any).description));
+  const movementTotalMovements = _filteredAllMovements.length;
+  const movementTotalPages = Math.max(1, Math.ceil(movementTotalMovements / movementRecordsPerPage));
+  const movementStartIndex = (movementPage - 1) * movementRecordsPerPage;
+  const movementDisplay = _filteredAllMovements.slice(movementStartIndex, movementStartIndex + movementRecordsPerPage);
 
   if (authLoading || !user) {
     return (
@@ -205,7 +218,7 @@ export default function CierreViajes() {
       <Sidebar />
       <div className="flex-1 w-full">
         <Header userProfile={user} />
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
           <h1 className="text-3xl font-bold text-white mb-4">Cierre de viajes</h1>
           <p className="text-gray-300 mb-6">Área de cierre de viajes y conciliación. Aquí se gestionarán cierres cerrados en tablas separadas (expenses_cierre, saldo_transacciones_cierre).</p>
 
@@ -245,7 +258,7 @@ export default function CierreViajes() {
             {/* Always render the two preview cards (will show placeholders when there's no preview) */}
             <div className="mt-6 space-y-6">
                 {/* Expenses card (full width) */}
-                <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-indigo-900 via-violet-900 to-purple-700 shadow-lg">
+                <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-indigo-900 via-violet-900 to-purple-700 shadow-lg grid-glow-container app-table-container">
                   <div className="bg-black/60 rounded-2xl p-4 border border-white/5">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Gastos</h3>
@@ -253,32 +266,32 @@ export default function CierreViajes() {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left text-gray-300 table-auto">
-                        <thead>
-                            <tr className="text-xs text-gray-400 uppercase tracking-wide">
-                              <th className="pl-3 pr-2 py-2"></th>
-                              <th className="py-2">Fecha</th>
-                              <th className="py-2">Descripción</th>
-                              <th className="py-2">Monto</th>
-                              <th className="py-2">Moneda</th>
-                              <th className="py-2">Estado</th>
-                              <th className="py-2">Forma de Pago</th>
+                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe table-condensed app-table">
+                        <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
+                          <tr className="text-xs text-gray-400 uppercase tracking-wide">
+                              <th className="pl-3 pr-2 py-1"></th>
+                              <th className="py-1">Fecha</th>
+                              <th className="py-1">Descripción</th>
+                              <th className="py-1">Monto</th>
+                              <th className="py-1">Moneda</th>
+                              <th className="py-1">Estado</th>
+                              <th className="py-1">Forma de Pago</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {previewResult ? previewResult.expenses.map((ex:PreviewExpense) => (
-                            <tr key={ex.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                              <td className="px-3 py-2"><input type="checkbox" checked={selectedExpenseIds.has(ex.id)} onChange={() => toggleExpense(ex.id)} className="w-4 h-4"/></td>
-                              <td className="px-3 py-2 text-gray-200">{ex.expense_date}</td>
-                              <td className="px-3 py-2 text-white font-medium">{ex.description}</td>
-                              <td className="px-3 py-2 text-white font-semibold">{Number(ex.amount).toLocaleString()}</td>
-                              <td className="px-3 py-2 text-violet-200">{ex.currency}</td>
-                              <td className="px-3 py-2 text-sm font-semibold text-gray-300">{ex.status || '-'}</td>
-                              <td className="px-3 py-2 text-sm text-gray-200">{ex.sigla || '-'}</td>
+                          {previewResult ? previewResult.expenses.map((ex:PreviewExpense, idx) => (
+                            <tr key={ex.id} className="border-t border-white/5 hover:bg-white/5 transition-colors table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${idx * 40}ms` }}>
+                              <td className="px-2 py-1"><input type="checkbox" checked={selectedExpenseIds.has(ex.id)} onChange={() => toggleExpense(ex.id)} className="w-4 h-4"/></td>
+                              <td className="px-2 py-1 text-gray-200">{ex.expense_date}</td>
+                              <td className="px-2 py-1 text-white font-medium">{ex.description}</td>
+                              <td className="px-2 py-1 text-white font-semibold">{Number(ex.amount).toLocaleString()}</td>
+                              <td className="px-2 py-1 text-violet-200">{ex.currency}</td>
+                              <td className="px-2 py-1 text-sm font-semibold text-gray-300">{ex.status || '-'}</td>
+                              <td className="px-2 py-1 text-sm text-gray-200">{ex.sigla || '-'}</td>
                             </tr>
                           )) : (
                             <tr className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                              <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
+                              <td colSpan={7} className="px-4 py-3 text-center text-sm text-gray-400">
                                 <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
                                   <div>No hay gastos en la previsualización — usa <strong>Previsualizar</strong> para cargar datos</div>
                                   <div>
@@ -295,7 +308,7 @@ export default function CierreViajes() {
                 </div>
 
                 {/* Movements card */}
-                <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-cyan-900 via-teal-800 to-emerald-700 shadow-lg">
+                <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-cyan-900 via-teal-800 to-emerald-700 shadow-lg grid-glow-container app-table-container">
                   <div className="bg-black/60 rounded-2xl p-4 border border-white/5">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Movimientos de saldo</h3>
@@ -303,32 +316,34 @@ export default function CierreViajes() {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left text-gray-300 table-auto">
-                        <thead>
+                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe table-condensed app-table">
+                        <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                           <tr className="text-xs text-gray-400 uppercase tracking-wide">
-                            <th className="pl-3 pr-2 py-2"></th>
-                            <th className="py-2">Fecha</th>
-                            <th className="py-2">Tipo</th>
-                            <th className="py-2">Monto</th>
-                            <th className="py-2">Moneda</th>
-                            <th className="py-2">Saldo Antes</th>
-                            <th className="py-2">Saldo Nuevo</th>
+                            <th className="pl-3 pr-2 py-1"></th>
+                            <th className="py-1">Fecha</th>
+                            <th className="py-1">Tipo</th>
+                            <th className="py-1">Monto</th>
+                            <th className="py-1">Moneda</th>
+                            <th className="py-1">Saldo Antes</th>
+                            <th className="py-1">Saldo Nuevo</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {previewResult ? previewResult.movements.filter((m:PreviewMovement) => !isSpuriousPendingReembolso((m as any).descripcion || (m as any).description)).map((m:PreviewMovement) => (
-                            <tr key={m.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                              <td className="px-3 py-2"><input type="checkbox" checked={selectedMovementIds.has(m.id)} onChange={() => toggleMovement(m.id)} className="w-4 h-4"/></td>
-                              <td className="px-3 py-2 text-gray-200">{m.fecha_transaccion ? new Date(m.fecha_transaccion).toLocaleString() : '-'}</td>
-                              <td className="px-3 py-2 text-gray-200">{m.tipo}</td>
-                              <td className={`px-3 py-2 ${m.tipo === 'carga' ? 'text-emerald-300' : 'text-rose-300'} font-semibold`}>{(m.tipo === 'carga' ? '+' : '-')}{formatBalance(m.monto, (m as any).currency)}</td>
-                              <td className="px-3 py-2 text-violet-200">{(m as any).currency || 'ARS'}</td>
-                              <td className="px-3 py-2 text-gray-200">{formatBalance(m.saldo_anterior, (m as any).currency)}</td>
-                              <td className="px-3 py-2 text-gray-200">{formatBalance(m.saldo_nuevo, (m as any).currency)}</td>
-                            </tr>
-                          )) : (
+                          {previewResult ? (
+                            movementDisplay.map((m:PreviewMovement, idx) => (
+                              <tr key={m.id} className="border-t border-white/5 hover:bg-white/5 transition-colors table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${idx * 40}ms` }}>
+                                <td className="px-2 py-1"><input type="checkbox" checked={selectedMovementIds.has(m.id)} onChange={() => toggleMovement(m.id)} className="w-4 h-4"/></td>
+                                <td className="px-2 py-1 text-gray-200">{m.fecha_transaccion ? new Date(m.fecha_transaccion).toLocaleString() : '-'}</td>
+                                <td className="px-2 py-1 text-gray-200">{m.tipo}</td>
+                                <td className={`px-2 py-1 ${m.tipo === 'carga' ? 'text-emerald-300' : 'text-rose-300'} font-semibold`}>{(m.tipo === 'carga' ? '+' : '-')}{formatBalance(m.monto, (m as any).currency)}</td>
+                                <td className="px-2 py-1 text-violet-200">{(m as any).currency || 'ARS'}</td>
+                                <td className="px-2 py-1 text-gray-200">{formatBalance(m.saldo_anterior, (m as any).currency)}</td>
+                                <td className="px-2 py-1 text-gray-200">{formatBalance(m.saldo_nuevo, (m as any).currency)}</td>
+                              </tr>
+                            ))
+                          ) : (
                             <tr className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                              <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
+                              <td colSpan={7} className="px-4 py-3 text-center text-sm text-gray-400">
                                 <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
                                   <div>No hay movimientos de saldo en la previsualización — usa <strong>Previsualizar</strong> para cargar datos</div>
                                   <div>
@@ -340,6 +355,48 @@ export default function CierreViajes() {
                           )}
                         </tbody>
                       </table>
+
+                      {/* Pagination for movements preview (rendered outside the table) */}
+                      {movementTotalPages > 1 && (
+                        <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black text-white border-t gap-y-2 rounded-xl shadow-lg mb-2 pager-shimmer">
+                          <div className="text-xs sm:text-sm text-white font-semibold">
+                            Mostrando {movementStartIndex + 1} - {Math.min(movementStartIndex + movementRecordsPerPage, movementTotalMovements)} de {movementTotalMovements} movimientos
+                          </div>
+                          <div className="flex items-center gap-x-2">
+                            <button
+                              onClick={() => setMovementPage(1)}
+                              disabled={movementPage === 1}
+                              className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                            >
+                              « Primera
+                            </button>
+                            <button
+                              onClick={() => setMovementPage(Math.max(1, movementPage - 1))}
+                              disabled={movementPage === 1}
+                              className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                            >
+                              ‹ Anterior
+                            </button>
+                            <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm font-bold">
+                              Página {movementPage} de {movementTotalPages}
+                            </span>
+                            <button
+                              onClick={() => setMovementPage(Math.min(movementTotalPages, movementPage + 1))}
+                              disabled={movementPage === movementTotalPages}
+                              className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                            >
+                              Siguiente ›
+                            </button>
+                            <button
+                              onClick={() => setMovementPage(movementTotalPages)}
+                              disabled={movementPage === movementTotalPages}
+                              className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                            >
+                              Última »
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

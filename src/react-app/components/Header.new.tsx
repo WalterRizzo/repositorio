@@ -49,7 +49,7 @@ export default function Header({ userProfile, onSettingsClick }: HeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 bg-dark-900/95 backdrop-blur-xl border-b border-dark-800/50 shadow-xl">
-      <div className="max-w-[1920px] mx-auto px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo y Brand */}
           <div className="flex items-center space-x-10">

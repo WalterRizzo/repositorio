@@ -1,4 +1,4 @@
-import { Plus, Trash2, Receipt, Filter, Edit3, CheckCircle, XCircle, Sparkles, FileSpreadsheet, Clock } from "lucide-react";
+import { Plus, Trash2, Receipt, Edit3, CheckCircle, XCircle, Sparkles, FileSpreadsheet, Clock } from "lucide-react";
 import { useState, useRef } from "react";
 import BubbleTooltipPortal from "./BubbleTooltipPortal";
 import { getStatusBadgeClasses, getStatusLabel } from '@/react-app/utils/status';
@@ -18,7 +18,9 @@ interface ExpensesTableProps {
   // onApprove should return a boolean (or Promise<boolean>) indicating success so
   // the caller component can decide whether to show success animations/etc.
   onApprove?: (id: number) => Promise<boolean> | boolean;
-  onReject?: (id: number) => void;
+  // onReject may receive an optional rejection reason and can return a boolean/Promise<boolean>
+  // so callers can signal success (true) or failure (false/void).
+  onReject?: (id: number, reason?: string) => Promise<boolean | void> | boolean | void;
   userRole?: string;
   users?: any[];
   currentUserId?: string;
@@ -40,7 +42,6 @@ export default function ExpensesTable({
 }: ExpensesTableProps) {
   // Dynamic lists for filters (pull from server so grid uses DB values)
   const [currenciesList, setCurrenciesList] = useState<Array<{code: string; name?: string; symbol?: string}>>([]);
-
   // Selected filters
   // (category filter removed as per request)
   const [currencyFilter, setCurrencyFilter] = useState<string>('all');
@@ -209,13 +210,11 @@ export default function ExpensesTable({
     
     if (rejectingExpenseId && onReject) {
       try {
-        await fetch(`/api/expenses/${rejectingExpenseId}/reject`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rejectionReason: rejectionReason.trim() })
-        });
-        
-        onReject(rejectingExpenseId);
+        const ok = await onReject(rejectingExpenseId, rejectionReason.trim());
+        if (ok === false) {
+          alert('❌ No se pudo rechazar el gasto (ver detalles en consola).');
+          return;
+        }
         setShowRejectModal(false);
         setRejectionReason('');
         setRejectingExpenseId(null);
@@ -327,17 +326,56 @@ export default function ExpensesTable({
       </div>
     )}
   <div className="p-0 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-y-4 mb-4">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Lista de Gastos</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Total: {expenses.length} {expenses.length === 1 ? "gasto" : "gastos"}
-            {expenses.length > 5 && (
-              <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">
-                Mostrando solo los primeros 5
-              </span>
-            )}
-          </p>
+        <div className="sr-only">
+          {/* Title removed per UX: KPI pills are primary — keep markup hidden for accessibility if needed */}
+          <h2>Lista de Gastos</h2>
+          <p>Total: {expenses.length} {expenses.length === 1 ? "gasto" : "gastos"}</p>
         </div>
+        {/* KPI pills (moved here so they're aligned with title and New Expense) */}
+        <div className="flex items-center gap-3 sm:gap-4 mx-4">
+          <button
+            aria-pressed={filters.pendientes}
+            onClick={() => { setFilters({ ...filters, pendientes: !filters.pendientes }); setCurrentPage(1); }}
+            className={`flex items-center gap-3 px-4 py-2 rounded-full text-base font-bold transition-all duration-150 focus:outline-none focus:ring-4 focus:ring-indigo-500 ${filters.pendientes ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-xl' : 'bg-white/5 text-white/70 border border-white/6'}`}>
+            <Clock className={`w-5 h-5 ${filters.pendientes ? 'text-white' : 'text-indigo-300'}`} />
+            <span className="truncate">Pendientes</span>
+            <span className="ml-2 text-sm font-extrabold px-3 py-1 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'pendiente').length}</span>
+          </button>
+
+          <button
+            aria-pressed={filters.aprobados}
+            onClick={() => { setFilters({ ...filters, aprobados: !filters.aprobados }); setCurrentPage(1); }}
+            className={`flex items-center gap-3 px-4 py-2 rounded-full text-base font-bold transition-all duration-150 focus:outline-none focus:ring-4 focus:ring-emerald-400 ${filters.aprobados ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-xl' : 'bg-white/5 text-white/70 border border-white/6'}`}>
+            <CheckCircle className={`w-5 h-5 ${filters.aprobados ? 'text-white' : 'text-emerald-300'}`} />
+            <span className="truncate">Aprobados</span>
+            <span className="ml-2 text-sm font-extrabold px-3 py-1 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'aprobado').length}</span>
+          </button>
+
+          <button
+            aria-pressed={filters.rechazados}
+            onClick={() => { setFilters({ ...filters, rechazados: !filters.rechazados }); setCurrentPage(1); }}
+            className={`flex items-center gap-3 px-4 py-2 rounded-full text-base font-bold transition-all duration-150 focus:outline-none focus:ring-4 focus:ring-orange-400 ${filters.rechazados ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-xl' : 'bg-white/5 text-white/70 border border-white/6'}`}>
+            <XCircle className={`w-5 h-5 ${filters.rechazados ? 'text-white' : 'text-orange-300'}`} />
+            <span className="truncate">Rechazados</span>
+            <span className="ml-2 text-sm font-extrabold px-3 py-1 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'rechazado').length}</span>
+          </button>
+          {/* Quick shortcuts: Todos / Ninguno near KPI pills */}
+          <button
+            onClick={() => { setFilters({pendientes: true, aprobados: true, rechazados: true}); setCurrentPage(1); }}
+            className="px-2 sm:px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors shadow-sm ml-2"
+            title="Mostrar todos los estados"
+          >
+            Todos
+          </button>
+          <button
+            onClick={() => { setFilters({pendientes: false, aprobados: false, rechazados: false}); setCurrentPage(1); }}
+            className="px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded-full transition-colors border border-white/6 ml-2"
+            title="Quitar todos los filtros"
+          >
+            Ninguno
+          </button>
+        </div>
+
         {onAdd && (
           <button
             onClick={onAdd}
@@ -353,54 +391,13 @@ export default function ExpensesTable({
       {/* Filtros por estado */}
   <div className="px-3 sm:px-6 py-3 bg-gradient-to-br from-gray-900/60 to-gray-800/50 dark:from-gray-800/70 dark:to-gray-900/70 border border-white/5 rounded-2xl shadow-sm mb-4">
   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-y-3 sm:gap-y-0 sm:space-x-6">
-          <div className="flex items-center gap-x-2">
-            <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por estado:</span>
-          </div>
+          {/* 'Filtrar por estado' label removed per UX — KPI pills already handle status filtering */}
           
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Compact status pills */}
-            <button
-              aria-pressed={filters.pendientes}
-              onClick={() => { setFilters({ ...filters, pendientes: !filters.pendientes }); setCurrentPage(1); }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${filters.pendientes ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
-              <Clock className={`w-4 h-4 ${filters.pendientes ? 'text-white' : 'text-indigo-300'}`} />
-              <span className="truncate">Pendientes</span>
-              <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'pendiente').length}</span>
-            </button>
-
-            <button
-              aria-pressed={filters.aprobados}
-              onClick={() => { setFilters({ ...filters, aprobados: !filters.aprobados }); setCurrentPage(1); }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${filters.aprobados ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
-              <CheckCircle className={`w-4 h-4 ${filters.aprobados ? 'text-white' : 'text-emerald-300'}`} />
-              <span className="truncate">Aprobados</span>
-              <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'aprobado').length}</span>
-            </button>
-
-            <button
-              aria-pressed={filters.rechazados}
-              onClick={() => { setFilters({ ...filters, rechazados: !filters.rechazados }); setCurrentPage(1); }}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-orange-400 ${filters.rechazados ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow' : 'bg-white/5 text-white/70 border border-white/5'}`}>
-              <XCircle className={`w-4 h-4 ${filters.rechazados ? 'text-white' : 'text-orange-300'}`} />
-              <span className="truncate">Rechazados</span>
-              <span className="ml-1 text-xs font-bold px-2 py-0.5 bg-white/10 rounded-full">{expenses.filter(e => e.status === 'rechazado').length}</span>
-            </button>
-          </div>
+          {/* Left-aligned filters: currency first */}
           
-          <div className="flex gap-x-2 ml-auto items-center">
-            <button
-              onClick={() => {
-                setFilters({pendientes: true, aprobados: true, rechazados: true});
-                setCurrentPage(1);
-              }}
-              className="px-2 sm:px-3 py-1 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-full transition-colors shadow-sm"
-            >
-              Todos
-            </button>
-            {/* Category filter (from DB) */}
-              {/* Category filter removed from grid per request */}
-
+          {/* KPI buttons moved up into header */}
+          
+          <div className="flex gap-x-2 items-center">
             {/* Currency filter (from DB) */}
             <select
               value={currencyFilter}
@@ -412,22 +409,13 @@ export default function ExpensesTable({
                 <option key={c.code} value={c.code}>{c.code} {c.name ? `- ${c.name}` : ''}</option>
               ))}
             </select>
-            <button
-              onClick={() => {
-                setFilters({pendientes: false, aprobados: false, rechazados: false});
-                setCurrentPage(1);
-              }}
-              className="px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded-full transition-colors border border-white/6"
-            >
-              Ninguno
-            </button>
           </div>
         </div>
         
         {/* Filtros por fecha */}
   <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center gap-y-2 sm:space-x-4">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">📅 Filtrar por fecha:</span>
-          <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2">
             <label className="text-xs text-gray-600 dark:text-gray-400">Desde:</label>
             <input
               type="date"
@@ -439,7 +427,7 @@ export default function ExpensesTable({
               className="px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
             />
           </div>
-          <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2">
             <label className="text-xs text-gray-600 dark:text-gray-400">Hasta:</label>
             <input
               type="date"
@@ -517,8 +505,8 @@ export default function ExpensesTable({
           {/* Mobile stacked cards - force mobile when `forceMobileView` is true */}
           {forceMobileView ? (
             <div className="w-full space-y-3">
-              {displayExpenses.map((expense) => (
-              <div key={expense.id} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm">
+              {displayExpenses.map((expense, idx) => (
+              <div key={expense.id} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm animate-fadeIn row-fade-in hover-lift table-row-glow row-neon-left" style={{ animationDelay: `${idx * 55}ms` }}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
@@ -562,14 +550,15 @@ export default function ExpensesTable({
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <button onClick={() => onEdit(expense)} className="p-2 bg-indigo-600 text-white rounded-md"> <Edit3 className="w-4 h-4" /> </button>
-                    <button onClick={() => onDelete(expense.id)} className="p-2 bg-red-500 text-white rounded-md"> <Trash2 className="w-4 h-4" /> </button>
                     {userRole !== 'usuario' && (
                       <>
-                        <button onClick={() => handleApproveClick(expense.id)} className="p-2 bg-green-500 text-white rounded-md"> <CheckCircle className="w-4 h-4" /> </button>
-                        <button onClick={() => handleRejectClick(expense.id)} className="p-2 bg-orange-500 text-white rounded-md"> <XCircle className="w-4 h-4" /> </button>
+                        <button onClick={() => handleApproveClick(expense.id)} className="p-2 bg-green-500 text-white rounded-md" title="Aprobar"> <CheckCircle className="w-4 h-4" /> </button>
+                        <button onClick={() => handleRejectClick(expense.id)} className="p-2 bg-orange-500 text-white rounded-md" title="Rechazar"> <XCircle className="w-4 h-4" /> </button>
                       </>
                     )}
+                    <button onClick={() => onEdit(expense)} className="p-2 bg-indigo-600 text-white rounded-md" title="Editar"> <Edit3 className="w-4 h-4" /> </button>
+                    <button onClick={() => onDelete(expense.id)} className="p-2 bg-red-500 text-white rounded-md" title="Eliminar"> <Trash2 className="w-4 h-4" /> </button>
+                    {/* (Removed) user management quick access — management belongs in the Users grid */}
                   </div>
                 </div>
               </div>
@@ -587,9 +576,9 @@ export default function ExpensesTable({
 
           {/* Desktop table (show from lg up) - hide entirely when forcing mobile view */}
           {!forceMobileView && (
-            <div className="hidden lg:block overflow-x-auto w-full">
-            <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900">
-              <thead className="bg-gray-50 dark:bg-gray-700">
+            <div className="hidden lg:block overflow-x-auto w-full grid-glow-container app-table-container">
+            <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-condensed app-table">
+              <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                 <tr>
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Fecha</th>
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Categoría</th>
@@ -604,21 +593,21 @@ export default function ExpensesTable({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-                {displayExpenses.map((expense) => (
-                  <tr key={expense.id}>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-left">{new Date(expense.expense_date).toLocaleDateString()}</td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-left">{expense.category}</td>
-                    <td className="px-1 py-2 text-[11px] max-w-[90px] truncate text-left" title={expense.description}>{expense.description.length > 40 ? expense.description.slice(0, 37) + '...' : expense.description}</td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-left">
+                {displayExpenses.map((expense, idx) => (
+                  <tr key={expense.id} className="table-row-glow row-neon-left row-fade-in app-table-row-hover" style={{ animationDelay: `${idx * 35}ms` }}>
+                    <td className="px-1 py-1 whitespace-nowrap text-[11px] text-left">{new Date(expense.expense_date).toLocaleDateString()}</td>
+                    <td className="px-1 py-1 whitespace-nowrap text-[11px] text-left">{expense.category}</td>
+                    <td className="px-1 py-1 text-[11px] max-w-[90px] truncate text-left" title={expense.description}>{expense.description.length > 40 ? expense.description.slice(0, 37) + '...' : expense.description}</td>
+                    <td className="px-1 py-1 whitespace-nowrap text-[11px] text-left">
                       <div>
                         <span className="font-medium">{expense.user_name || 'N/A'}</span>
                         <span className="block text-[10px] text-gray-500 dark:text-gray-400">{expense.user_email || ''}</span>
                       </div>
                     </td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-right font-bold" style={{ color: expense.amount < 0 ? '#FF0000' : undefined }}>{formatCurrency(expense.amount, expense.currency)}</td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">{expense.currency}</td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">{expense.sigla || '-'}</td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">
+                    <td className="px-1 py-1 whitespace-nowrap text-[11px] text-right font-bold" style={{ color: expense.amount < 0 ? '#FF0000' : undefined }}>{formatCurrency(expense.amount, expense.currency)}</td>
+                    <td className="px-1 py-1 whitespace-nowrap text-[11px] text-center">{expense.currency}</td>
+                    <td className="px-1 py-1 whitespace-nowrap text-[11px] text-center">{expense.sigla || '-'}</td>
+                    <td className="px-1 py-1 whitespace-nowrap text-[11px] text-center">
                       <div className="relative group flex justify-center items-center">
                         <span className={`px-1 py-0.5 text-[10px] font-semibold rounded-full ${getStatusBadgeClasses(expense.status as any)}`}>
                           {getStatusLabel(expense.status as any)}
@@ -661,8 +650,8 @@ export default function ExpensesTable({
       )}
                       </div>
                     </td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">
-                      <div className="flex items-center justify-center gap-1 min-h-[40px]">
+                    <td className="px-1 py-1 whitespace-nowrap text-[11px] text-center">
+                      <div className="flex items-center justify-center gap-1 min-h-[24px]">
                         {/* Mostrar hasta 3 miniaturas */}
                         {expense.attachments && expense.attachments.length > 0 ? (
                           <>
@@ -677,7 +666,7 @@ export default function ExpensesTable({
                                 <img
                                   src={attachment.url || `/api/files/${attachment.filename}`}
                                   alt={attachment.originalName || "Archivo adjunto"}
-                                  className="w-8 h-8 object-cover rounded border border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform cursor-zoom-in shadow-sm"
+                                  className="w-6 h-6 object-cover rounded border border-gray-200 dark:border-gray-600 hover:scale-105 transition-transform cursor-zoom-in shadow-sm"
                                   onMouseEnter={(e) => {
                                     const rect = (e.target as HTMLElement).getBoundingClientRect();
                                     setHoverPreview({ url: attachment.url || `/api/files/${attachment.filename}`, left: rect.right + 8, top: rect.top - 6 });
@@ -699,7 +688,7 @@ export default function ExpensesTable({
                             {expense.attachments.length > 3 && (
                               <button
                                 type="button"
-                                className="w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded border border-blue-300 ml-1 hover:bg-blue-200 transition"
+                                className="w-5 h-5 flex items-center justify-center bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded border border-blue-300 ml-1 hover:bg-blue-200 transition"
                                 onClick={() => setPreviewAttachments(expense.attachments)}
                                 title={`Ver todos los archivos (${expense.attachments.length})`}
                               >
@@ -718,7 +707,7 @@ export default function ExpensesTable({
                             <img
                               src={`/api/files/${expense.receipt_photo_url}`}
                               alt="Recibo"
-                              className="w-10 h-10 object-cover rounded-lg border border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform cursor-zoom-in shadow-sm"
+                              className="w-6 h-6 object-cover rounded-lg border border-gray-200 dark:border-gray-600 hover:scale-105 transition-transform cursor-zoom-in shadow-sm"
                               onMouseEnter={(e) => {
                                 const rect = (e.target as HTMLElement).getBoundingClientRect();
                                 setHoverPreview({ url: `/api/files/${expense.receipt_photo_url}`, left: rect.right + 8, top: rect.top - 6 });
@@ -736,8 +725,8 @@ export default function ExpensesTable({
                             />
                           </a>
                         ) : (
-                          <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                            <Receipt className="w-5 h-5 text-gray-400" />
+                          <div className="w-6 h-6 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                            <Receipt className="w-4 h-4 text-gray-400" />
                           </div>
                         )}
                       </div>
@@ -777,31 +766,13 @@ export default function ExpensesTable({
                         </div>
                       )}
                     </td>
-                    <td className="px-2 py-2 whitespace-nowrap text-right text-xs sm:text-sm font-medium gap-x-2">
+                    <td className="px-2 py-1 whitespace-nowrap text-right text-xs sm:text-sm font-medium gap-x-2">
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 animate-fadeIn w-full">
-                        <button
-                            onClick={() => onEdit(expense)}
-                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 border-2 border-blue-300"
-                            title="Editar gasto"
-                            disabled={expense.status === 'aprobado'}
-                        >
-                          <Edit3 className="w-4 h-4" />
-                          <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
-                        </button>
-                        <button
-                            onClick={() => onDelete(expense.id)}
-                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-red-600 hover:to-pink-700 border-2 border-red-300"
-                            title="Eliminar gasto"
-                            disabled={expense.status === 'aprobado'}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
-                        </button>
                         {userRole !== 'usuario' && (
                           <>
                             <button
                                 onClick={() => handleApproveClick(expense.id)}
-                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-emerald-600 hover:to-green-700 border-2 border-green-300"
+                                className="group relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 hover:from-emerald-600 hover:to-green-700 border-2 border-green-300"
                                 title="Aprobar gasto"
                                 disabled={expense.status === 'aprobado'}
                             >
@@ -810,7 +781,7 @@ export default function ExpensesTable({
                             </button>
                             <button
                                 onClick={() => handleRejectClick(expense.id)}
-                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-yellow-400 to-red-500 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-yellow-500 hover:to-red-600 border-2 border-yellow-300"
+                                className="group relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-yellow-400 to-red-500 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 hover:from-yellow-500 hover:to-red-600 border-2 border-yellow-300"
                                 title="Rechazar gasto"
                                 disabled={expense.status === 'aprobado'}
                             >
@@ -819,6 +790,26 @@ export default function ExpensesTable({
                             </button>
                           </>
                         )}
+                        <button
+                            onClick={() => onEdit(expense)}
+                            className="group relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 border-2 border-blue-300"
+                            title="Editar gasto"
+                            disabled={expense.status === 'aprobado'}
+                        >
+                          <Edit3 className="w-4 h-4" />
+                          <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                        </button>
+                        <button
+                            onClick={() => onDelete(expense.id)}
+                            className="group relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 hover:from-red-600 hover:to-pink-700 border-2 border-red-300"
+                            title="Eliminar gasto"
+                            disabled={expense.status === 'aprobado'}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                        </button>
+
+                        {/* Removed 'Gestión de Usuarios' quick-action from expenses grid — user management actions belong in Users grid */}
                       </div>
                     </td>
                   </tr>
@@ -830,7 +821,7 @@ export default function ExpensesTable({
           
           {/* Controles de paginación */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black text-white border-t gap-y-2 rounded-xl shadow-lg mb-2">
+            <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black text-white border-t gap-y-2 rounded-xl shadow-lg mb-2 pager-shimmer">
               <div className="text-xs sm:text-sm text-white font-semibold">
                 Mostrando {startIndex + 1} - {Math.min(startIndex + recordsPerPage, filteredExpenses.length)} de {filteredExpenses.length} gastos
               </div>
@@ -875,7 +866,7 @@ export default function ExpensesTable({
       {/* Modal de Preview de Excel */}
       {showExportPreview && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
             <div className="p-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -903,13 +894,13 @@ export default function ExpensesTable({
                 Mostrando los primeros 5 registros de {filteredExpenses.length}
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-700">
+                <table className="w-full text-sm table-condensed app-table">
+                  <thead className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-700 table-header-neon">
                     <tr>
-                      <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">ID</th>
-                      <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Usuario</th>
-                      <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Descripción</th>
-                      <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Monto</th>
+                      <th className="px-1 py-1 text-left font-bold text-gray-700 dark:text-gray-300">ID</th>
+                      <th className="px-1 py-1 text-left font-bold text-gray-700 dark:text-gray-300">Usuario</th>
+                      <th className="px-1 py-1 text-left font-bold text-gray-700 dark:text-gray-300">Descripción</th>
+                      <th className="px-1 py-1 text-left font-bold text-gray-700 dark:text-gray-300">Monto</th>
                       <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Categoría</th>
                       <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Fecha</th>
                       <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Estado</th>
@@ -917,11 +908,11 @@ export default function ExpensesTable({
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredExpenses.slice(0, 10).map((expense) => (
-                      <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.id}</td>
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.user_name || 'N/A'}</td>
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.description}</td>
-                        <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{formatCurrency(expense.amount, expense.currency)}</td>
+                        <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 app-table-row-hover">
+                        <td className="px-1 py-1 text-gray-900 dark:text-gray-100">{expense.id}</td>
+                        <td className="px-1 py-1 text-gray-900 dark:text-gray-100">{expense.user_name || 'N/A'}</td>
+                        <td className="px-1 py-1 text-gray-900 dark:text-gray-100">{expense.description}</td>
+                        <td className="px-1 py-1 text-gray-900 dark:text-gray-100">{formatCurrency(expense.amount, expense.currency)}</td>
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.category}</td>
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{new Date(expense.expense_date).toLocaleDateString('es-AR')}</td>
                         <td className="px-4 py-3">
@@ -958,7 +949,7 @@ export default function ExpensesTable({
       {/* Modal de Razón de Rechazo */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-7xl w-full">
             <div className="p-6 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-t-2xl">
               <div className="flex items-center space-x-3">
                 <XCircle className="w-8 h-8" />
