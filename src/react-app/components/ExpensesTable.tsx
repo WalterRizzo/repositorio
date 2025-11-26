@@ -18,7 +18,9 @@ interface ExpensesTableProps {
   // onApprove should return a boolean (or Promise<boolean>) indicating success so
   // the caller component can decide whether to show success animations/etc.
   onApprove?: (id: number) => Promise<boolean> | boolean;
-  onReject?: (id: number) => void;
+  // onReject may receive an optional rejection reason and can return a boolean/Promise<boolean>
+  // so callers can signal success (true) or failure (false/void).
+  onReject?: (id: number, reason?: string) => Promise<boolean | void> | boolean | void;
   userRole?: string;
   users?: any[];
   currentUserId?: string;
@@ -209,13 +211,11 @@ export default function ExpensesTable({
     
     if (rejectingExpenseId && onReject) {
       try {
-        await fetch(`/api/expenses/${rejectingExpenseId}/reject`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rejectionReason: rejectionReason.trim() })
-        });
-        
-        onReject(rejectingExpenseId);
+        const ok = await onReject(rejectingExpenseId, rejectionReason.trim());
+        if (ok === false) {
+          alert('❌ No se pudo rechazar el gasto (ver detalles en consola).');
+          return;
+        }
         setShowRejectModal(false);
         setRejectionReason('');
         setRejectingExpenseId(null);
@@ -416,7 +416,7 @@ export default function ExpensesTable({
         {/* Filtros por fecha */}
   <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center gap-y-2 sm:space-x-4">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">📅 Filtrar por fecha:</span>
-          <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2">
             <label className="text-xs text-gray-600 dark:text-gray-400">Desde:</label>
             <input
               type="date"
@@ -428,7 +428,7 @@ export default function ExpensesTable({
               className="px-2 py-1 text-xs border rounded dark:bg-gray-600 dark:border-gray-500 dark:text-white"
             />
           </div>
-          <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2">
             <label className="text-xs text-gray-600 dark:text-gray-400">Hasta:</label>
             <input
               type="date"
@@ -506,8 +506,8 @@ export default function ExpensesTable({
           {/* Mobile stacked cards - force mobile when `forceMobileView` is true */}
           {forceMobileView ? (
             <div className="w-full space-y-3">
-              {displayExpenses.map((expense) => (
-              <div key={expense.id} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm">
+              {displayExpenses.map((expense, idx) => (
+              <div key={expense.id} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm animate-fadeIn row-fade-in hover-lift table-row-glow row-neon-left" style={{ animationDelay: `${idx * 55}ms` }}>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
@@ -559,6 +559,7 @@ export default function ExpensesTable({
                     )}
                     <button onClick={() => onEdit(expense)} className="p-2 bg-indigo-600 text-white rounded-md" title="Editar"> <Edit3 className="w-4 h-4" /> </button>
                     <button onClick={() => onDelete(expense.id)} className="p-2 bg-red-500 text-white rounded-md" title="Eliminar"> <Trash2 className="w-4 h-4" /> </button>
+                    {/* (Removed) user management quick access — management belongs in the Users grid */}
                   </div>
                 </div>
               </div>
@@ -576,9 +577,9 @@ export default function ExpensesTable({
 
           {/* Desktop table (show from lg up) - hide entirely when forcing mobile view */}
           {!forceMobileView && (
-            <div className="hidden lg:block overflow-x-auto w-full">
+            <div className="hidden lg:block overflow-x-auto w-full grid-glow-container">
             <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900">
-              <thead className="bg-gray-50 dark:bg-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                 <tr>
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Fecha</th>
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Categoría</th>
@@ -593,8 +594,8 @@ export default function ExpensesTable({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-                {displayExpenses.map((expense) => (
-                  <tr key={expense.id}>
+                {displayExpenses.map((expense, idx) => (
+                  <tr key={expense.id} className="table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${idx * 35}ms` }}>
                     <td className="px-1 py-2 whitespace-nowrap text-[11px] text-left">{new Date(expense.expense_date).toLocaleDateString()}</td>
                     <td className="px-1 py-2 whitespace-nowrap text-[11px] text-left">{expense.category}</td>
                     <td className="px-1 py-2 text-[11px] max-w-[90px] truncate text-left" title={expense.description}>{expense.description.length > 40 ? expense.description.slice(0, 37) + '...' : expense.description}</td>
@@ -808,6 +809,8 @@ export default function ExpensesTable({
                           <Trash2 className="w-4 h-4" />
                           <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
                         </button>
+
+                        {/* Removed 'Gestión de Usuarios' quick-action from expenses grid — user management actions belong in Users grid */}
                       </div>
                     </td>
                   </tr>
@@ -819,7 +822,7 @@ export default function ExpensesTable({
           
           {/* Controles de paginación */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black text-white border-t gap-y-2 rounded-xl shadow-lg mb-2">
+            <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black text-white border-t gap-y-2 rounded-xl shadow-lg mb-2 pager-shimmer">
               <div className="text-xs sm:text-sm text-white font-semibold">
                 Mostrando {startIndex + 1} - {Math.min(startIndex + recordsPerPage, filteredExpenses.length)} de {filteredExpenses.length} gastos
               </div>
@@ -893,7 +896,7 @@ export default function ExpensesTable({
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-700">
+                  <thead className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-700 table-header-neon">
                     <tr>
                       <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">ID</th>
                       <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Usuario</th>

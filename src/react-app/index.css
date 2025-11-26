@@ -367,6 +367,93 @@
   perspective: 1000px;
 }
 
+/* ==============================
+   GRID & TABLE VISUAL EFFECTS
+   ============================== */
+
+@keyframes gradient-slide {
+  0% { transform: translateX(-50%); opacity: 0.6; }
+  50% { transform: translateX(0%); opacity: 1; }
+  100% { transform: translateX(50%); opacity: 0.6; }
+}
+
+@keyframes row-fade-slide {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.grid-glow-container {
+  position: relative;
+  overflow: visible;
+  border-radius: 1rem;
+}
+
+.grid-glow-container::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  border-radius: 1rem;
+  background: linear-gradient(90deg, rgba(139,92,246,0.18), rgba(99,102,241,0.12), rgba(168,85,247,0.14));
+  filter: blur(12px);
+  opacity: 0.85;
+  transform: translateZ(0);
+  pointer-events: none;
+}
+
+.table-header-neon {
+  background: linear-gradient(90deg, rgba(99,102,241,0.12), rgba(168,85,247,0.08));
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  box-shadow: inset 0 -6px 20px rgba(0,0,0,0.25);
+}
+
+.table-row-glow {
+  position: relative; z-index: 1; overflow: visible;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.table-row-glow:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.45), 0 0 18px rgba(99,102,241,0.08);
+  background: linear-gradient(90deg, rgba(255,255,255,0.01), rgba(99,102,241,0.03));
+}
+
+.row-neon-left {
+  position: relative;
+}
+.row-neon-left::before {
+  content: '';
+  position: absolute; left: 0; top: 10%; bottom: 10%; width: 4px; border-radius: 4px;
+  background: linear-gradient(180deg, rgba(99,102,241,0.9), rgba(168,85,247,0.9));
+  opacity: 0; transform: scaleY(0.9);
+  transition: opacity 180ms, transform 180ms;
+}
+.row-neon-left:hover::before { opacity: 1; transform: scaleY(1); }
+
+.table-ribbon {
+  position: absolute; right: 10px; top: -12px; z-index: 2;
+  background: linear-gradient(90deg,#7c3aed,#6d28d9); color: white; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+}
+
+.row-fade-in {
+  animation: row-fade-slide 260ms ease-out both;
+}
+
+.table-gradient-stripe tr:nth-child(odd) td { background: linear-gradient(90deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02)); }
+.table-gradient-stripe tr:nth-child(even) td { background: none; }
+
+/* small shimmering effect on table footers/pagers */
+.pager-shimmer {
+  position: relative; overflow: hidden;
+}
+.pager-shimmer::before {
+  content: '';
+  position: absolute; left: -30%; top: 0; bottom: 0; width: 60%; transform: skewX(-15deg);
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 100%);
+  animation: gradient-slide 1.6s linear infinite;
+  opacity: 0.6;
+}
+
+
 /* Animación de confetti cayendo */
 @keyframes confetti {
   0% {
@@ -570,6 +657,37 @@
     opacity: 0;
     transform: scaleX(0.5);
   }
+}
+
+/* EMERGENCY: hide any 'Gestión de Usuarios' quick-action that incorrectly appears INSIDE the Expenses TABLE rows
+   Keep the small KPI quick-action (top of the page / tab area) visible — it intentionally opens Settings → Users.
+
+   We scope the defensive selectors to the table elements (rows / actions cells) ONLY so the button in the
+   top KPI/tab area (which is outside the table) won't be hidden by this emergency rule. */
+.expenses-page .expenses-grid-root [title="Gestión de Usuarios"],
+.expenses-page .expenses-grid-root [title*="Gestión"],
+.expenses-page .expenses-grid-root [title*="Gestion"],
+.expenses-page .expenses-grid-root [aria-label*="Gestión"],
+.expenses-page .expenses-grid-root [aria-label*="Gestion"],
+.expenses-page .expenses-grid-root [data-tip*="Gestión"],
+.expenses-page .expenses-grid-root [data-tip*="Gestion"] {
+  display: none !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Also defensively hide any key-shaped action buttons inside table actions cells */
+.expenses-page .expenses-grid-root .actions [title*="Gestión"],
+.expenses-page .expenses-grid-root .actions [aria-label*="Gestión"],
+.expenses-page .expenses-grid-root .actions .key-action,
+.expenses-page .expenses-grid-root .actions .key-btn {
+  display: none !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
 }
 
 .animate-lightning {

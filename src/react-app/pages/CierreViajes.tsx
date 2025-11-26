@@ -258,7 +258,7 @@ export default function CierreViajes() {
             {/* Always render the two preview cards (will show placeholders when there's no preview) */}
             <div className="mt-6 space-y-6">
                 {/* Expenses card (full width) */}
-                <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-indigo-900 via-violet-900 to-purple-700 shadow-lg">
+                <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-indigo-900 via-violet-900 to-purple-700 shadow-lg grid-glow-container">
                   <div className="bg-black/60 rounded-2xl p-4 border border-white/5">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Gastos</h3>
@@ -266,9 +266,9 @@ export default function CierreViajes() {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left text-gray-300 table-auto">
-                        <thead>
-                            <tr className="text-xs text-gray-400 uppercase tracking-wide">
+                      <table className="w-full text-sm text-left text-gray-300 table-auto table-gradient-stripe">
+                        <thead className="table-header-neon">
+                          <tr className="text-xs text-gray-400 uppercase tracking-wide">
                               <th className="pl-3 pr-2 py-2"></th>
                               <th className="py-2">Fecha</th>
                               <th className="py-2">Descripción</th>
@@ -279,8 +279,8 @@ export default function CierreViajes() {
                           </tr>
                         </thead>
                         <tbody>
-                          {previewResult ? previewResult.expenses.map((ex:PreviewExpense) => (
-                            <tr key={ex.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                          {previewResult ? previewResult.expenses.map((ex:PreviewExpense, idx) => (
+                            <tr key={ex.id} className="border-t border-white/5 hover:bg-white/5 transition-colors table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${idx * 40}ms` }}>
                               <td className="px-3 py-2"><input type="checkbox" checked={selectedExpenseIds.has(ex.id)} onChange={() => toggleExpense(ex.id)} className="w-4 h-4"/></td>
                               <td className="px-3 py-2 text-gray-200">{ex.expense_date}</td>
                               <td className="px-3 py-2 text-white font-medium">{ex.description}</td>
@@ -308,7 +308,7 @@ export default function CierreViajes() {
                 </div>
 
                 {/* Movements card */}
-                <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-cyan-900 via-teal-800 to-emerald-700 shadow-lg">
+                <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-cyan-900 via-teal-800 to-emerald-700 shadow-lg grid-glow-container">
                   <div className="bg-black/60 rounded-2xl p-4 border border-white/5">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Movimientos de saldo</h3>
@@ -316,8 +316,8 @@ export default function CierreViajes() {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left text-gray-300 table-auto">
-                        <thead>
+                      <table className="w-full text-sm text-left text-gray-300 table-auto table-gradient-stripe">
+                        <thead className="table-header-neon">
                           <tr className="text-xs text-gray-400 uppercase tracking-wide">
                             <th className="pl-3 pr-2 py-2"></th>
                             <th className="py-2">Fecha</th>
@@ -330,8 +330,8 @@ export default function CierreViajes() {
                         </thead>
                         <tbody>
                           {previewResult ? (
-                            movementDisplay.map((m:PreviewMovement) => (
-                              <tr key={m.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                            movementDisplay.map((m:PreviewMovement, idx) => (
+                              <tr key={m.id} className="border-t border-white/5 hover:bg-white/5 transition-colors table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${idx * 40}ms` }}>
                                 <td className="px-3 py-2"><input type="checkbox" checked={selectedMovementIds.has(m.id)} onChange={() => toggleMovement(m.id)} className="w-4 h-4"/></td>
                                 <td className="px-3 py-2 text-gray-200">{m.fecha_transaccion ? new Date(m.fecha_transaccion).toLocaleString() : '-'}</td>
                                 <td className="px-3 py-2 text-gray-200">{m.tipo}</td>
@@ -358,7 +358,7 @@ export default function CierreViajes() {
 
                       {/* Pagination for movements preview (rendered outside the table) */}
                       {movementTotalPages > 1 && (
-                        <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black text-white border-t gap-y-2 rounded-xl shadow-lg mb-2">
+                        <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-black text-white border-t gap-y-2 rounded-xl shadow-lg mb-2 pager-shimmer">
                           <div className="text-xs sm:text-sm text-white font-semibold">
                             Mostrando {movementStartIndex + 1} - {Math.min(movementStartIndex + movementRecordsPerPage, movementTotalMovements)} de {movementTotalMovements} movimientos
                           </div>
