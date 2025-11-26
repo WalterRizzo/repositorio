@@ -63,7 +63,7 @@ export default function ExpensesKPI({ expenses, compact = false }: { expenses: E
 
   return (
     // keep KPI compact but not overlapping the header
-    <section className="w-full max-w-8xl mx-auto mb-3 px-6 mt-2 md:mt-4">
+    <section className="w-full max-w-6xl mx-auto mb-3 px-6 mt-2 md:mt-4">
       {/* edge-to-edge floating glass surface */}
       <div className="relative overflow-hidden glass-premium floating-surface edge-to-edge">
         {/* neon edge removed — KPI is minimal and clean */}

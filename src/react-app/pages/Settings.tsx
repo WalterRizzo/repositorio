@@ -809,7 +809,7 @@ export default function SettingsPage() {
 
         {/* GESTIÓN DE USUARIOS */}
         {activeTab === 'users' && (
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-6xl mx-auto">
             <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8">
               <div className="flex items-center space-x-3 mb-6">
                 <Key className="w-8 h-8 text-indigo-400" />

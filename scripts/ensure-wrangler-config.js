@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+import * as fs from 'fs';
+import path from 'path';
 
 const dotWrangler = path.join(process.cwd(), '.wrangler', 'deploy');
 const cfgFile = path.join(dotWrangler, 'config.json');

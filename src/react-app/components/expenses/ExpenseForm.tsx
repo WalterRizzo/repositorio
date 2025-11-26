@@ -603,8 +603,8 @@ export default function ExpenseForm({
   // Narrower modal for a cleaner UX on large screens
   // make a bit wider so right-side card (saldo disponible) isn't cut on medium+ screens
   const modalSizeClass = isNew
-    ? 'w-full max-w-8xl px-6 sm:px-8 md:px-12 py-4 sm:py-6 rounded-2xl'
-    : 'w-full sm:max-w-xl md:max-w-3xl lg:max-w-6xl xl:max-w-8xl px-4 sm:px-10 md:px-12 py-4 sm:py-8 rounded-2xl';
+    ? 'w-full max-w-6xl px-6 sm:px-8 md:px-12 py-4 sm:py-6 rounded-2xl'
+    : 'w-full sm:max-w-xl md:max-w-3xl lg:max-w-6xl xl:max-w-6xl px-4 sm:px-10 md:px-12 py-4 sm:py-8 rounded-2xl';
 
   // For 'new' (full-width) mode we want the form to take advantage of wide screens
   // and arrange fields in multiple columns to reduce vertical length.

@@ -980,7 +980,7 @@ export default function Expenses() {
       <div className="flex-1 w-full">
         <Header userProfile={userProfile} />
       
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {/* HEADER PROFESIONAL */}
         <div className="mb-8 relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 p-6 shadow-lg border border-slate-600 sticky top-20 z-40 backdrop-blur-sm">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
@@ -1178,7 +1178,7 @@ export default function Expenses() {
         )}
 
         {activeTab === 'users' && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 w-full px-0 py-0 shadow-sm border border-gray-200 dark:border-gray-700">
             {/* Información de paginación - Usuarios */}
             <div className="mb-4 flex justify-between items-center">
               <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -1207,17 +1207,17 @@ export default function Expenses() {
 
             {/* Tabla de usuarios */}
             <div className="overflow-x-auto">
-              <table className="w-full rounded-xl border-2 border-purple-500 shadow-lg">
+              <table className="w-full border-2 border-purple-500 shadow-lg table-condensed">
                 <thead className="bg-gradient-to-r from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-700 dark:via-gray-700 dark:to-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       👤 Usuario
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       🎯 Rol
                     </th>
                       {/* Balance column hidden per UX — open 'Ver Saldos' to view all balances */}
-                    <th className="px-6 py-3 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       ⚙️ Acciones
                     </th>
                   </tr>
@@ -1226,8 +1226,8 @@ export default function Expenses() {
                   {users
                     .slice((usersPage - 1) * recordsPerPage, usersPage * recordsPerPage)
                     .map((user) => (
-                    <tr key={user.user_id} className="group transition-all duration-200">
-                      <td className="px-6 py-4 align-top">
+                      <tr key={user.user_id} className="group transition-all duration-200">
+                      <td className="px-4 py-1 align-top">
                         <div className="flex items-center space-x-4">
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-pink-500 flex items-center justify-center text-white font-extrabold text-sm shadow-2xl">
                             {String(user.user_id || user.name || '?').charAt(0).toUpperCase()}
@@ -1345,23 +1345,23 @@ export default function Expenses() {
               ) : (
                 <div className="overflow-x-auto bg-black rounded-xl p-4 border border-gray-900 grid-glow-container" style={{background:'#000',borderColor:'#23272F'}}>
                   {/* Use the shared table classes to match Expenses table visuals and ensure stable header alignment */}
-                  <table className="w-full min-w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe">
+                  <table className="w-full min-w-full border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed">
                     <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                       <tr>
-                        <th style={{width:'12%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
-                        <th style={{width:'18%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
-                        <th style={{width:'10%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
-                        <th style={{width:'10%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
-                        <th style={{width:'8%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">MONEDA</th>
-                        <th style={{width:'12%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📊 SALDO ANTERIOR</th>
-                        <th style={{width:'12%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📈 SALDO NUEVO</th>
-                        <th style={{width:'18%'}} className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📝 DESCRIPCIÓN</th>
+                        <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
+                        <th style={{width:'18%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
+                        <th style={{width:'10%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
+                        <th style={{width:'10%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
+                        <th style={{width:'8%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">MONEDA</th>
+                        <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📊 SALDO ANTERIOR</th>
+                        <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📈 SALDO NUEVO</th>
+                        <th style={{width:'18%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📝 DESCRIPCIÓN</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
                       {pageItems.map((movement, i) => (
                           <tr key={movement.id} className="table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${i * 45}ms` }}>
-                              <td className="px-1 py-2 whitespace-nowrap text-[11px] text-gray-700 dark:text-gray-200 font-semibold">
+                              <td className="px-1 py-1 whitespace-nowrap text-[11px] text-gray-700 dark:text-gray-200 font-semibold">
                               {(() => {
                                 const d = parseDbTimestampToDate(movement.created_at);
                                 return d ? d.toLocaleString('es-AR', {
@@ -1374,7 +1374,7 @@ export default function Expenses() {
                                 }).replace(',', '') : movement.created_at;
                               })()}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-xs sm:text-sm text-gray-700 dark:text-gray-200 font-semibold">
+                            <td className="px-2 py-1 whitespace-nowrap text-xs sm:text-sm text-gray-700 dark:text-gray-200 font-semibold">
                               {movement.user_name}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
@@ -1388,7 +1388,7 @@ export default function Expenses() {
                                 {movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste'}
                               </span>
                             </td>
-                            <td className="px-1 py-2 whitespace-nowrap text-[11px] text-gray-700 dark:text-gray-200">
+                            <td className="px-1 py-1 whitespace-nowrap text-[11px] text-gray-700 dark:text-gray-200">
                               <span className={`text-sm font-black ${
                                 movement.type === 'carga' 
                                   ? 'text-green-400' 
@@ -1397,18 +1397,18 @@ export default function Expenses() {
                                 {movement.type === 'carga' ? '+' : ''}{movement.amount}
                               </span>
                             </td>
-                            <td className="px-1 py-2 whitespace-nowrap">
+                            <td className="px-1 py-1 whitespace-nowrap">
                               <span className="text-sm font-black text-gray-300">
                                 {movement.currency}
                               </span>
                             </td>
-                            <td className={`px-1 py-2 whitespace-nowrap text-[11px] font-semibold ${Number(movement.balance_before) < 0 ? 'text-rose-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
+                            <td className={`px-1 py-1 whitespace-nowrap text-[11px] font-semibold ${Number(movement.balance_before) < 0 ? 'text-rose-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
                               ${Number(movement.balance_before).toFixed(2)}
                             </td>
-                            <td className={`px-1 py-2 whitespace-nowrap text-[11px] font-black ${Number(movement.balance_after) < 0 ? 'text-rose-500' : 'text-green-500'}`}>
+                            <td className={`px-1 py-1 whitespace-nowrap text-[11px] font-black ${Number(movement.balance_after) < 0 ? 'text-rose-500' : 'text-green-500'}`}>
                               ${Number(movement.balance_after).toFixed(2)}
                             </td>
-                            <td className="px-4 py-3 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                            <td className="px-2 py-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                               {movement.description}
                             </td>
                           </tr>
@@ -1520,19 +1520,19 @@ export default function Expenses() {
                   <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed">
                   <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                       <tr>
-                      <th className="px-1 py-2 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
-                      <th className="px-1 py-2 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
-                      <th className="px-1 py-2 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
-                      <th className="px-1 py-2 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
-                      <th className="px-1 py-2 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📊 SALDO ANTERIOR</th>
-                      <th className="px-1 py-2 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📈 SALDO NUEVO</th>
-                      <th className="px-1 py-2 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📝 DESCRIPCIÓN</th>
+                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
+                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
+                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
+                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
+                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📊 SALDO ANTERIOR</th>
+                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📈 SALDO NUEVO</th>
+                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📝 DESCRIPCIÓN</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
                     {pageItems.map((movement, i) => (
                         <tr key={movement.id} className="hover:bg-violet-900/30 transition-all table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
-                          <td className="px-1 py-2 whitespace-nowrap text-[11px] text-gray-700 dark:text-gray-200 font-semibold">
+                          <td className="px-1 py-1 whitespace-nowrap text-[11px] text-gray-700 dark:text-gray-200 font-semibold">
                             {(() => {
                               const d = parseDbTimestampToDate(movement.created_at);
                               return d ? d.toLocaleString('es-AR', {
@@ -1545,10 +1545,10 @@ export default function Expenses() {
                               }).replace(',', '') : movement.created_at;
                             })()}
                           </td>
-                          <td className="px-1 py-2 whitespace-nowrap text-[11px] text-gray-700 dark:text-gray-200 font-semibold">
+                          <td className="px-1 py-1 whitespace-nowrap text-[11px] text-gray-700 dark:text-gray-200 font-semibold">
                             {movement.user_name}
                           </td>
-                          <td className="px-1 py-2 whitespace-nowrap text-xs sm:text-sm">
+                          <td className="px-1 py-1 whitespace-nowrap text-xs sm:text-sm">
                             <span className={`inline-flex px-3 py-1 text-xs font-black rounded-xl ${
                               movement.type === 'carga' 
                                 ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
@@ -1559,7 +1559,7 @@ export default function Expenses() {
                               {movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste'}
                             </span>
                           </td>
-                          <td className="px-1 py-2 whitespace-nowrap">
+                          <td className="px-1 py-1 whitespace-nowrap">
                             <span className={`text-sm font-black ${
                               movement.type === 'carga' 
                                 ? 'text-green-400' 
@@ -1568,13 +1568,13 @@ export default function Expenses() {
                               {movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}
                             </span>
                           </td>
-                            <td className={`px-1 py-2 whitespace-nowrap text-[11px] sm:text-[11px] font-semibold ${Number(movement.balance_before) < 0 ? 'text-rose-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
+                            <td className={`px-1 py-1 whitespace-nowrap text-[11px] sm:text-[11px] font-semibold ${Number(movement.balance_before) < 0 ? 'text-rose-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
                               ${Number(movement.balance_before).toFixed(2)}
                             </td>
-                            <td className={`px-1 py-2 whitespace-nowrap text-[11px] sm:text-[11px] font-black ${Number(movement.balance_after) < 0 ? 'text-rose-500' : 'text-green-500'}`}>
+                            <td className={`px-1 py-1 whitespace-nowrap text-[11px] sm:text-[11px] font-black ${Number(movement.balance_after) < 0 ? 'text-rose-500' : 'text-green-500'}`}>
                               ${Number(movement.balance_after).toFixed(2)}
                             </td>
-                          <td className="px-1 py-2 text-[11px] sm:text-[11px] text-gray-600 dark:text-gray-300">
+                          <td className="px-1 py-1 text-[11px] sm:text-[11px] text-gray-600 dark:text-gray-300">
                             {movement.description}
                           </td>
                         </tr>

@@ -578,16 +578,17 @@
 
 /* Compact table helpers - smaller paddings and tighter rows for dense views */
 .table-condensed th {
-  padding: 0.45rem 0.6rem; /* ~px-1 py-2 */
-  font-size: 0.78rem; /* slightly smaller header */
+  padding: 0.20rem 0.30rem; /* tighter header (more compact horizontally) */
+  font-size: 0.75rem; /* slightly smaller header */
 }
 .table-condensed td {
-  padding: 0.45rem 0.6rem; /* smaller cells */
-  font-size: 0.875rem; /* ~14px / text-[11px] equivalent */
+  padding: 0.15rem 0.30rem; /* very compact cells */
+  font-size: 0.80rem; /* slightly smaller cell text for dense view */
   vertical-align: middle;
+  line-height: 1.05; /* make rows more compact vertically */
 }
-.table-condensed .px-1 { padding-left: 0.45rem !important; padding-right: 0.45rem !important; }
-.table-condensed .py-2 { padding-top: 0.45rem !important; padding-bottom: 0.45rem !important; }
+.table-condensed .px-1 { padding-left: 0.25rem !important; padding-right: 0.25rem !important; }
+.table-condensed .py-2 { padding-top: 0.15rem !important; padding-bottom: 0.15rem !important; }
 
 /* Bounce lento */
 @keyframes bounce-slow {

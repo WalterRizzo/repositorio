@@ -266,32 +266,32 @@ export default function CierreViajes() {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe">
+                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe table-condensed">
                         <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                           <tr className="text-xs text-gray-400 uppercase tracking-wide">
-                              <th className="pl-3 pr-2 py-2"></th>
-                              <th className="py-2">Fecha</th>
-                              <th className="py-2">Descripción</th>
-                              <th className="py-2">Monto</th>
-                              <th className="py-2">Moneda</th>
-                              <th className="py-2">Estado</th>
-                              <th className="py-2">Forma de Pago</th>
+                              <th className="pl-3 pr-2 py-1"></th>
+                              <th className="py-1">Fecha</th>
+                              <th className="py-1">Descripción</th>
+                              <th className="py-1">Monto</th>
+                              <th className="py-1">Moneda</th>
+                              <th className="py-1">Estado</th>
+                              <th className="py-1">Forma de Pago</th>
                           </tr>
                         </thead>
                         <tbody>
                           {previewResult ? previewResult.expenses.map((ex:PreviewExpense, idx) => (
                             <tr key={ex.id} className="border-t border-white/5 hover:bg-white/5 transition-colors table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${idx * 40}ms` }}>
-                              <td className="px-3 py-2"><input type="checkbox" checked={selectedExpenseIds.has(ex.id)} onChange={() => toggleExpense(ex.id)} className="w-4 h-4"/></td>
-                              <td className="px-3 py-2 text-gray-200">{ex.expense_date}</td>
-                              <td className="px-3 py-2 text-white font-medium">{ex.description}</td>
-                              <td className="px-3 py-2 text-white font-semibold">{Number(ex.amount).toLocaleString()}</td>
-                              <td className="px-3 py-2 text-violet-200">{ex.currency}</td>
-                              <td className="px-3 py-2 text-sm font-semibold text-gray-300">{ex.status || '-'}</td>
-                              <td className="px-3 py-2 text-sm text-gray-200">{ex.sigla || '-'}</td>
+                              <td className="px-2 py-1"><input type="checkbox" checked={selectedExpenseIds.has(ex.id)} onChange={() => toggleExpense(ex.id)} className="w-4 h-4"/></td>
+                              <td className="px-2 py-1 text-gray-200">{ex.expense_date}</td>
+                              <td className="px-2 py-1 text-white font-medium">{ex.description}</td>
+                              <td className="px-2 py-1 text-white font-semibold">{Number(ex.amount).toLocaleString()}</td>
+                              <td className="px-2 py-1 text-violet-200">{ex.currency}</td>
+                              <td className="px-2 py-1 text-sm font-semibold text-gray-300">{ex.status || '-'}</td>
+                              <td className="px-2 py-1 text-sm text-gray-200">{ex.sigla || '-'}</td>
                             </tr>
                           )) : (
                             <tr className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                              <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
+                              <td colSpan={7} className="px-4 py-3 text-center text-sm text-gray-400">
                                 <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
                                   <div>No hay gastos en la previsualización — usa <strong>Previsualizar</strong> para cargar datos</div>
                                   <div>
@@ -316,34 +316,34 @@ export default function CierreViajes() {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe">
+                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe table-condensed">
                         <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                           <tr className="text-xs text-gray-400 uppercase tracking-wide">
-                            <th className="pl-3 pr-2 py-2"></th>
-                            <th className="py-2">Fecha</th>
-                            <th className="py-2">Tipo</th>
-                            <th className="py-2">Monto</th>
-                            <th className="py-2">Moneda</th>
-                            <th className="py-2">Saldo Antes</th>
-                            <th className="py-2">Saldo Nuevo</th>
+                            <th className="pl-3 pr-2 py-1"></th>
+                            <th className="py-1">Fecha</th>
+                            <th className="py-1">Tipo</th>
+                            <th className="py-1">Monto</th>
+                            <th className="py-1">Moneda</th>
+                            <th className="py-1">Saldo Antes</th>
+                            <th className="py-1">Saldo Nuevo</th>
                           </tr>
                         </thead>
                         <tbody>
                           {previewResult ? (
                             movementDisplay.map((m:PreviewMovement, idx) => (
                               <tr key={m.id} className="border-t border-white/5 hover:bg-white/5 transition-colors table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${idx * 40}ms` }}>
-                                <td className="px-3 py-2"><input type="checkbox" checked={selectedMovementIds.has(m.id)} onChange={() => toggleMovement(m.id)} className="w-4 h-4"/></td>
-                                <td className="px-3 py-2 text-gray-200">{m.fecha_transaccion ? new Date(m.fecha_transaccion).toLocaleString() : '-'}</td>
-                                <td className="px-3 py-2 text-gray-200">{m.tipo}</td>
-                                <td className={`px-3 py-2 ${m.tipo === 'carga' ? 'text-emerald-300' : 'text-rose-300'} font-semibold`}>{(m.tipo === 'carga' ? '+' : '-')}{formatBalance(m.monto, (m as any).currency)}</td>
-                                <td className="px-3 py-2 text-violet-200">{(m as any).currency || 'ARS'}</td>
-                                <td className="px-3 py-2 text-gray-200">{formatBalance(m.saldo_anterior, (m as any).currency)}</td>
-                                <td className="px-3 py-2 text-gray-200">{formatBalance(m.saldo_nuevo, (m as any).currency)}</td>
+                                <td className="px-2 py-1"><input type="checkbox" checked={selectedMovementIds.has(m.id)} onChange={() => toggleMovement(m.id)} className="w-4 h-4"/></td>
+                                <td className="px-2 py-1 text-gray-200">{m.fecha_transaccion ? new Date(m.fecha_transaccion).toLocaleString() : '-'}</td>
+                                <td className="px-2 py-1 text-gray-200">{m.tipo}</td>
+                                <td className={`px-2 py-1 ${m.tipo === 'carga' ? 'text-emerald-300' : 'text-rose-300'} font-semibold`}>{(m.tipo === 'carga' ? '+' : '-')}{formatBalance(m.monto, (m as any).currency)}</td>
+                                <td className="px-2 py-1 text-violet-200">{(m as any).currency || 'ARS'}</td>
+                                <td className="px-2 py-1 text-gray-200">{formatBalance(m.saldo_anterior, (m as any).currency)}</td>
+                                <td className="px-2 py-1 text-gray-200">{formatBalance(m.saldo_nuevo, (m as any).currency)}</td>
                               </tr>
                             ))
                           ) : (
                             <tr className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                              <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400">
+                              <td colSpan={7} className="px-4 py-3 text-center text-sm text-gray-400">
                                 <div className="max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
                                   <div>No hay movimientos de saldo en la previsualización — usa <strong>Previsualizar</strong> para cargar datos</div>
                                   <div>

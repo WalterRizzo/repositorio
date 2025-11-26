@@ -56,25 +56,25 @@ export default function TripHistoryModal({ userId, onClose }: Props) {
         <div className="mt-4 space-y-6">
           <div>
             <div className="text-sm text-gray-400 mb-2">Gastos archivados</div>
-            <div className="overflow-x-auto bg-black/50 rounded-lg p-3 border border-white/5">
-              <table className="w-full text-sm text-left text-gray-300 table-auto">
+              <div className="overflow-x-auto bg-black/50 rounded-lg p-3 border border-white/5">
+              <table className="w-full text-sm text-left text-gray-300 table-auto table-condensed">
                 <thead>
                   <tr className="text-xs text-gray-400 uppercase tracking-wide">
-                    <th className="py-2">Fecha</th>
-                    <th className="py-2">Descripción</th>
-                    <th className="py-2">Monto</th>
-                    <th className="py-2">Moneda</th>
-                    <th className="py-2">ID Ori.</th>
+                    <th className="py-1">Fecha</th>
+                    <th className="py-1">Descripción</th>
+                    <th className="py-1">Monto</th>
+                    <th className="py-1">Moneda</th>
+                    <th className="py-1">ID Ori.</th>
                   </tr>
                 </thead>
                 <tbody>
                   {expenses.map(e => (
                     <tr key={e.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="px-3 py-2 text-gray-200">{e.expense_date}</td>
-                      <td className="px-3 py-2 text-white">{e.description}</td>
-                      <td className="px-3 py-2 text-white font-semibold">{formatBalance(e.amount, e.currency)}</td>
-                      <td className="px-3 py-2 text-violet-200">{e.currency}</td>
-                      <td className="px-3 py-2 text-gray-300">{e.id}</td>
+                      <td className="px-2 py-1 text-gray-200">{e.expense_date}</td>
+                      <td className="px-2 py-1 text-white">{e.description}</td>
+                      <td className="px-2 py-1 text-white font-semibold">{formatBalance(e.amount, e.currency)}</td>
+                      <td className="px-2 py-1 text-violet-200">{e.currency}</td>
+                      <td className="px-2 py-1 text-gray-300">{e.id}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -84,27 +84,27 @@ export default function TripHistoryModal({ userId, onClose }: Props) {
 
           <div>
             <div className="text-sm text-gray-400 mb-2">Movimientos archivados</div>
-            <div className="overflow-x-auto bg-black/50 rounded-lg p-3 border border-white/5">
-              <table className="w-full text-sm text-left text-gray-300 table-auto">
+              <div className="overflow-x-auto bg-black/50 rounded-lg p-3 border border-white/5">
+              <table className="w-full text-sm text-left text-gray-300 table-auto table-condensed">
                 <thead>
                   <tr className="text-xs text-gray-400 uppercase tracking-wide">
-                    <th className="py-2">Fecha</th>
-                    <th className="py-2">Tipo</th>
-                    <th className="py-2">Monto</th>
-                    <th className="py-2">Saldo Antes</th>
-                    <th className="py-2">Saldo Nuevo</th>
-                    <th className="py-2">ID Ori.</th>
+                    <th className="py-1">Fecha</th>
+                    <th className="py-1">Tipo</th>
+                    <th className="py-1">Monto</th>
+                    <th className="py-1">Saldo Antes</th>
+                    <th className="py-1">Saldo Nuevo</th>
+                    <th className="py-1">ID Ori.</th>
                   </tr>
                 </thead>
                 <tbody>
                   {movements.map(m => (
                     <tr key={m.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="px-3 py-2 text-gray-200">{m.fecha_transaccion ? (parseDbTimestampToDate(m.fecha_transaccion) || new Date()).toLocaleString() : '-'}</td>
-                      <td className="px-3 py-2 text-gray-200">{m.tipo}</td>
-                      <td className={`px-3 py-2 ${m.tipo === 'carga' ? 'text-emerald-300' : 'text-rose-300'} font-semibold`}>{formatBalance(m.monto, (m as any).currency)}</td>
-                      <td className="px-3 py-2 text-gray-200">{formatBalance(m.saldo_anterior, (m as any).currency)}</td>
-                      <td className="px-3 py-2 text-gray-200">{formatBalance(m.saldo_nuevo, (m as any).currency)}</td>
-                      <td className="px-3 py-2 text-gray-300">{m.id}</td>
+                      <td className="px-2 py-1 text-gray-200">{m.fecha_transaccion ? (parseDbTimestampToDate(m.fecha_transaccion) || new Date()).toLocaleString() : '-'}</td>
+                      <td className="px-2 py-1 text-gray-200">{m.tipo}</td>
+                      <td className={`px-2 py-1 ${m.tipo === 'carga' ? 'text-emerald-300' : 'text-rose-300'} font-semibold`}>{formatBalance(m.monto, (m as any).currency)}</td>
+                      <td className="px-2 py-1 text-gray-200">{formatBalance(m.saldo_anterior, (m as any).currency)}</td>
+                      <td className="px-2 py-1 text-gray-200">{formatBalance(m.saldo_nuevo, (m as any).currency)}</td>
+                      <td className="px-2 py-1 text-gray-300">{m.id}</td>
                     </tr>
                   ))}
                 </tbody>

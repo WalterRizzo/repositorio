@@ -88,8 +88,8 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
         {transactionsLoading ? (
           <div className="text-center py-4">Cargando transacciones...</div>
         ) : filteredTransactions.length > 0 ? (
-          <div className="overflow-x-auto">
-              <table className="w-full text-[11px]">
+            <div className="overflow-x-auto">
+              <table className="w-full text-[11px] table-condensed">
               <thead>
                 <tr className="border-b">
                     <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">FECHA</th>
@@ -107,7 +107,7 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
                       <td className="px-2 py-1">{(parseDbTimestampToDate(tx.fecha) || new Date()).toLocaleDateString()}</td>
                       <td className="px-2 py-1 max-w-[160px] truncate">{tx.usuario || 'N/A'}</td>
                       <td className="px-2 py-1">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${
+                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
                         tx.tipo === 'carga' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
                       }`}>
                         {tx.tipo}
