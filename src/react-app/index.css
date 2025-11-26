@@ -576,6 +576,19 @@
   animation: pulse-glow 1s ease-in-out infinite;
 }
 
+/* Compact table helpers - smaller paddings and tighter rows for dense views */
+.table-condensed th {
+  padding: 0.45rem 0.6rem; /* ~px-1 py-2 */
+  font-size: 0.78rem; /* slightly smaller header */
+}
+.table-condensed td {
+  padding: 0.45rem 0.6rem; /* smaller cells */
+  font-size: 0.875rem; /* ~14px / text-[11px] equivalent */
+  vertical-align: middle;
+}
+.table-condensed .px-1 { padding-left: 0.45rem !important; padding-right: 0.45rem !important; }
+.table-condensed .py-2 { padding-top: 0.45rem !important; padding-bottom: 0.45rem !important; }
+
 /* Bounce lento */
 @keyframes bounce-slow {
   0%, 100% {

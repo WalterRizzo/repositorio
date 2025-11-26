@@ -266,8 +266,8 @@ export default function CierreViajes() {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left text-gray-300 table-auto table-gradient-stripe">
-                        <thead className="table-header-neon">
+                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe">
+                        <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                           <tr className="text-xs text-gray-400 uppercase tracking-wide">
                               <th className="pl-3 pr-2 py-2"></th>
                               <th className="py-2">Fecha</th>
@@ -316,8 +316,8 @@ export default function CierreViajes() {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm text-left text-gray-300 table-auto table-gradient-stripe">
-                        <thead className="table-header-neon">
+                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe">
+                        <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                           <tr className="text-xs text-gray-400 uppercase tracking-wide">
                             <th className="pl-3 pr-2 py-2"></th>
                             <th className="py-2">Fecha</th>

@@ -42,7 +42,6 @@ export default function ExpensesTable({
 }: ExpensesTableProps) {
   // Dynamic lists for filters (pull from server so grid uses DB values)
   const [currenciesList, setCurrenciesList] = useState<Array<{code: string; name?: string; symbol?: string}>>([]);
-
   // Selected filters
   // (category filter removed as per request)
   const [currencyFilter, setCurrencyFilter] = useState<string>('all');
@@ -950,7 +949,7 @@ export default function ExpensesTable({
       {/* Modal de Razón de Rechazo */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-5xl w-full">
             <div className="p-6 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-t-2xl">
               <div className="flex items-center space-x-3">
                 <XCircle className="w-8 h-8" />
