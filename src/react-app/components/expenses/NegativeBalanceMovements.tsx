@@ -45,7 +45,14 @@ export default function NegativeBalanceMovements({ currency, show, onClose }: Ne
     <div className="mt-6">
       <div className="mb-2 text-rose-400 font-bold text-lg">Movimientos que generaron el saldo negativo:</div>
       <div className="overflow-x-auto app-table-container">
-        <table className="w-full rounded-xl border-2 border-rose-500 table-condensed app-table">
+        <table className="w-full rounded-xl border-2 border-rose-500 table-condensed app-table table-fixed">
+          <colgroup>
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '45%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '12%' }} />
+          </colgroup>
           <thead className="bg-rose-50">
               <tr>
               <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase">Fecha</th>
@@ -65,7 +72,7 @@ export default function NegativeBalanceMovements({ currency, show, onClose }: Ne
                 <tr key={m.id} className="app-table-row-hover">
                   <td className="px-2 py-1 text-xs text-rose-700">{(() => { const d = parseDbTimestampToDate(m.created_at); return d ? d.toLocaleString() : m.created_at; })()}</td>
                   <td className="px-2 py-1 text-xs font-bold text-rose-600">{m.type}</td>
-                  <td className="px-2 py-1 text-xs text-rose-700">{m.description}</td>
+                  <td className="px-2 py-1 text-xs text-rose-700 col-desc" title={m.description}>{m.description}</td>
                   <td className="px-2 py-1 text-xs font-bold text-rose-600">{m.amount.toLocaleString('es-AR', { style: 'currency', currency: m.currency })}</td>
                   <td className="px-2 py-1 text-xs text-rose-700">{m.user_name || '-'}</td>
                 </tr>

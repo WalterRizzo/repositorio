@@ -454,6 +454,25 @@
   border-bottom: 1px solid rgba(255,255,255,0.02);
 }
 
+/* Column-specific helpers used by many grids */
+.app-table.table-fixed {
+  table-layout: fixed; /* ensures columns respect widths and text-overflow works */
+}
+
+.app-table td.col-desc {
+  white-space: nowrap;       /* keep single-line for compactness */
+  overflow: hidden;         /* clip overflow */
+  text-overflow: ellipsis;  /* visually truncate long descriptions */
+  max-width: 36ch;          /* reasonable visual width */
+}
+
+@media (max-width: 720px) {
+  .app-table td.col-desc {
+    white-space: normal;
+    max-width: none;
+  }
+}
+
 .app-table-row-hover:hover {
   background: rgba(99,102,241,0.06); /* subtle hover */
   transform: translateY(-1px);
