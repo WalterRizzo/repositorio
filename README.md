@@ -138,14 +138,21 @@ npm run dev
 La aplicación estará disponible en `http://localhost:5173`
 
 #### Producción
+Use the repository-root Wrangler configuration to guarantee you deploy the intended worker (we've updated the repo so the recommended command always uses the root `wrangler.json`):
+
 ```bash
 # Opción 1: Script automatizado (Windows)
 .\deploy-production.ps1
 
-# Opción 2: Manual
+# Opción 2: Manual — recommended and enforced here
 npm run build
-npx wrangler deploy
+npx wrangler deploy --config ./wrangler.json
+
+# OR use the npm helper script
+npm run deploy:prod
 ```
+
+Note: the internal `.wrangler/deploy/config.json` now points at the repository's `wrangler.json` so `npx wrangler deploy` executed from CI or developer machines will use the root config by default.
 
 ### 📊 Estructura del Proyecto
 
