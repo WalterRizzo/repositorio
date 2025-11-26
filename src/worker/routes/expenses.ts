@@ -119,6 +119,11 @@ export function registerExpenseRoutes(app: any) {
     try {
       const user = c.get('user');
       const expense = await c.req.json();
+
+      // Enforce payment method present
+      if (!expense.sigla || String(expense.sigla).trim() === '') {
+        return c.json({ error: 'La forma de pago es obligatoria' }, 400);
+      }
       // Determine whether this expense should deduct from balance.
       // We no longer consult tipo_comprobantes.descuenta_saldo to avoid runtime schema mismatches.
       // Instead, use the formapago.sigla -> afectaSaldo flag when provided; default to 1.

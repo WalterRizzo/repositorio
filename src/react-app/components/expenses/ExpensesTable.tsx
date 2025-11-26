@@ -18,7 +18,9 @@ interface ExpensesTableProps {
   // onApprove should return a boolean (or Promise<boolean>) indicating success so
   // the caller component can decide whether to show success animations/etc.
   onApprove?: (id: number) => Promise<boolean> | boolean;
-  onReject?: (id: number) => void;
+  // onReject may receive an optional rejection reason and can return a boolean/Promise<boolean>
+  // so callers can signal success (true) or failure (false/void).
+  onReject?: (id: number, reason?: string) => Promise<boolean | void> | boolean | void;
   userRole?: string;
   users?: any[];
   currentUserId?: string;
@@ -209,13 +211,13 @@ export default function ExpensesTable({
     
     if (rejectingExpenseId && onReject) {
       try {
-        await fetch(`/api/expenses/${rejectingExpenseId}/reject`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ rejectionReason: rejectionReason.trim() })
-        });
-        
-        onReject(rejectingExpenseId);
+        // Let parent perform the actual network call so we keep a single source of truth for state updates
+        const ok = await onReject(rejectingExpenseId, rejectionReason.trim());
+        if (ok === false) {
+          // Parent reported failure — do not show success animations
+          alert('❌ No se pudo rechazar el gasto (ver detalles en consola).');
+          return;
+        }
         setShowRejectModal(false);
         setRejectionReason('');
         setRejectingExpenseId(null);
@@ -317,7 +319,7 @@ export default function ExpensesTable({
   const displayExpenses = filteredExpenses.slice(startIndex, startIndex + recordsPerPage);
 
   return (
-  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden w-full px-4 sm:px-8 py-4 sm:py-6">
+  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden w-full px-4 sm:px-8 py-4 sm:py-6 expenses-grid-root">
     {/* Floating zoom preview for hovered attachment thumbnails (pointer-events none so it won't block hover) */}
     {hoverPreview && (
       <div style={{ position: 'fixed', left: hoverPreview.left, top: hoverPreview.top, zIndex: 9999, pointerEvents: 'none' }}>

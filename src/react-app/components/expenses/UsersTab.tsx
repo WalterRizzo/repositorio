@@ -6,6 +6,8 @@ function getColorClass(value: any) {
   return 'text-gray-300';
 }
 import { useState, useEffect } from "react";
+import { useNavigate } from 'react-router';
+import { Key } from 'lucide-react';
 import { formatBalance, isSpuriousPendingReembolso } from '@/react-app/utils/format';
 import { parseDbTimestampToDate } from '@/react-app/utils/dates';
 
@@ -17,6 +19,7 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
+  const navigate = useNavigate();
   const [selectedUserFilter, setSelectedUserFilter] = useState('');
 
   useEffect(() => {
@@ -99,6 +102,7 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
                   <th className="px-4 py-2 text-left">SALDO ANTERIOR</th>
                   <th className="px-4 py-2 text-left">SALDO NUEVO</th>
                   <th className="px-4 py-2 text-left">DESCRIPCIÓN</th>
+                  <th className="px-4 py-2 text-right">ACCIONES</th>
                 </tr>
               </thead>
               <tbody>
@@ -117,6 +121,28 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
                     <td className={`px-4 py-2 font-semibold ${getColorClass(tx.saldo_anterior)}`}>{tx.moneda} {formatBalance(tx.saldo_anterior, tx.moneda, 'en-US')}</td>
                     <td className={`px-4 py-2 font-semibold ${getColorClass(tx.saldo_nuevo)}`}>{tx.moneda} {formatBalance(tx.saldo_nuevo, tx.moneda, 'en-US')}</td>
                     <td className="px-4 py-2 text-xs">{tx.descripcion || '-'}</td>
+                    <td className="px-4 py-2 text-right">
+                      <div className="inline-flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            // Navigate to users settings and select the user related to this transaction
+                            try {
+                              const id = tx.user_id ?? tx.usuario_id ?? tx.user ?? tx.usuario;
+                              // fallback: navigate to users tab without specific user if id is not present
+                              if (id) navigate(`/settings?tab=users&user=${encodeURIComponent(String(id))}`);
+                              else navigate('/settings?tab=users');
+                            } catch(e) {
+                              navigate('/settings?tab=users');
+                            }
+                          }}
+                          title="Gestión de Usuarios"
+                          aria-label="Gestión de Usuarios"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white shadow hover:shadow-lg transition-transform hover:scale-105 border-2 border-orange-300"
+                        >
+                          <Key className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

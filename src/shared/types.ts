@@ -56,7 +56,7 @@ export const ExpenseSchema = z.object({
   attachments: z.array(AttachmentSchema).default([]), // Múltiples archivos
   currency: z.string().default("ARS"),
   tipo_comprobante_id: z.number().nullable().optional(),
-  sigla: z.string().nullable().optional(),
+  sigla: z.string().min(1, "La forma de pago es obligatoria"),
   created_at: z.string(),
   updated_at: z.string(),
   // Información del usuario que cargó el gasto (viene del JOIN)
@@ -84,7 +84,8 @@ export const CreateExpenseSchema = z.object({
   category: z.string().min(1, "La categoría es requerida"),
   expense_date: z.string().min(1, "La fecha es requerida"),
   use_balance: z.boolean().default(false),
-  sigla: z.string().nullable().optional(),
+  tipo_comprobante_id: z.number().int().positive("El tipo de comprobante es obligatorio"),
+  sigla: z.string().min(1, "La forma de pago es obligatoria"),
 });
 
 export type CreateExpense = z.infer<typeof CreateExpenseSchema>;

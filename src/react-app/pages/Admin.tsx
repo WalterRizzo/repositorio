@@ -229,19 +229,38 @@ export default function Admin() {
     }
   };
 
-  const handleReject = async (id: number) => {
+  const handleReject = async (id: number, reason?: string) => {
     if (!confirm("¿Rechazar este gasto?")) return;
+    const reasonProvided = (reason && reason.trim() !== '') ? reason.trim() : window.prompt('Por favor, indica la razón del rechazo (obligatorio):');
+    if (!reasonProvided || reasonProvided.trim() === '') {
+      alert('Debes proporcionar una razón para el rechazo.');
+      return;
+    }
 
     try {
-      await fetch(`/api/expenses/${id}/reject`, {
+      const resp = await fetch(`/api/expenses/${id}/reject`, {
         method: "PUT",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rejectionReason: reasonProvided.trim() })
       });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        const msg = err.error || `Error ${resp.status} al rechazar gasto`;
+        console.error('Reject failed:', msg);
+        alert(`❌ No se pudo rechazar: ${msg}`);
+        return;
+      }
+
+      const data = await resp.json().catch(() => ({}));
       await fetchExpenses();
-      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id } })); } catch(e){}
+      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id, expense: data.expense } })); } catch(e){}
       alert("Gasto rechazado exitosamente");
+      return true;
     } catch (error) {
       console.error("Error rechazando gasto:", error);
       alert("Error al rechazar el gasto");
+      return false;
     }
   };
 
