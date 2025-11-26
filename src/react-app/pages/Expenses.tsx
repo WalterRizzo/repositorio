@@ -1359,7 +1359,7 @@ export default function Expenses() {
                     </thead>
                     <tbody className="divide-y divide-gray-700">
                       {pageItems.map((movement, i) => (
-                          <tr key={movement.id} className="bg-black text-white table-row-glow row-neon-left row-fade-in magic-movements-row" style={{ animationDelay: `${i * 45}ms` }}>
+                          <tr key={movement.id} className="bg-black text-white table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${i * 45}ms` }}>
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-white font-semibold">
                               {(() => {
                                 const d = parseDbTimestampToDate(movement.created_at);
@@ -1414,22 +1414,7 @@ export default function Expenses() {
                         ))}
                     </tbody>
                   </table>
-                  <style>{`
-                    .magic-movements-table {
-                      border-radius: 0.75rem;
-                      border: 2px solid #a855f7;
-                      box-shadow: 0 4px 24px 0 #a855f7a0;
-                      transition: box-shadow 0.3s ease;
-                    }
-                    .magic-movements-row {
-                      transition: box-shadow 0.3s, background 0.3s, transform 0.3s;
-                    }
-                    .magic-movements-row:hover {
-                      box-shadow: 0 0 16px 2px #a855f7cc, 0 2px 8px 0 #9333ea99;
-                      background: linear-gradient(90deg, #a855f7 0%, #9333ea 100%);
-                      transform: scale(1.01);
-                    }
-                  `}</style>
+                  {/* Use global shared table classes. Removed heavy inline gradient hover styles to keep visuals consistent across grids */}
                   
                   {filteredMovements.length === 0 && (
                     <div className="text-center py-12">
@@ -1444,11 +1429,18 @@ export default function Expenses() {
                       </div>
                       <div className="flex items-center space-x-2">
                         <button
+                          onClick={() => setMovementsPage(1)}
+                          disabled={movementsPage === 1}
+                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                        >
+                          « Primera
+                        </button>
+                        <button
                           onClick={() => setMovementsPage(Math.max(1, movementsPage - 1))}
                           disabled={movementsPage === 1}
-                          className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm"
+                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                         >
-                          ← Anterior
+                          ‹ Anterior
                         </button>
                         <span className="px-3 py-1 bg-white/10 text-white rounded text-sm">
                           Página {movementsPage} de {totalPages}
@@ -1456,9 +1448,16 @@ export default function Expenses() {
                         <button
                           onClick={() => setMovementsPage(Math.min(totalPages, movementsPage + 1))}
                           disabled={movementsPage >= totalPages}
-                          className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm"
+                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
                         >
-                          Siguiente →
+                          Siguiente ›
+                        </button>
+                        <button
+                          onClick={() => setMovementsPage(totalPages)}
+                          disabled={movementsPage >= totalPages}
+                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                        >
+                          Última »
                         </button>
                       </div>
                     </div>
