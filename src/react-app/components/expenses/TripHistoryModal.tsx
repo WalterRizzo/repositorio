@@ -57,7 +57,7 @@ export default function TripHistoryModal({ userId, onClose }: Props) {
           <div>
             <div className="text-sm text-gray-400 mb-2">Gastos archivados</div>
               <div className="overflow-x-auto bg-black/50 rounded-lg p-3 border border-white/5">
-              <table className="w-full text-sm text-left text-gray-300 table-auto table-condensed">
+                <table className="w-full text-sm text-left text-gray-300 table-auto table-condensed app-table">
                 <thead>
                   <tr className="text-xs text-gray-400 uppercase tracking-wide">
                     <th className="py-1">Fecha</th>
@@ -69,7 +69,7 @@ export default function TripHistoryModal({ userId, onClose }: Props) {
                 </thead>
                 <tbody>
                   {expenses.map(e => (
-                    <tr key={e.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                      <tr key={e.id} className="border-t border-white/5 hover:bg-white/5 transition-colors app-table-row-hover">
                       <td className="px-2 py-1 text-gray-200">{e.expense_date}</td>
                       <td className="px-2 py-1 text-white">{e.description}</td>
                       <td className="px-2 py-1 text-white font-semibold">{formatBalance(e.amount, e.currency)}</td>
@@ -85,7 +85,7 @@ export default function TripHistoryModal({ userId, onClose }: Props) {
           <div>
             <div className="text-sm text-gray-400 mb-2">Movimientos archivados</div>
               <div className="overflow-x-auto bg-black/50 rounded-lg p-3 border border-white/5">
-              <table className="w-full text-sm text-left text-gray-300 table-auto table-condensed">
+                  <table className="w-full text-sm text-left text-gray-300 table-auto table-condensed app-table">
                 <thead>
                   <tr className="text-xs text-gray-400 uppercase tracking-wide">
                     <th className="py-1">Fecha</th>
@@ -98,7 +98,7 @@ export default function TripHistoryModal({ userId, onClose }: Props) {
                 </thead>
                 <tbody>
                   {movements.map(m => (
-                    <tr key={m.id} className="border-t border-white/5 hover:bg-white/5 transition-colors">
+                      <tr key={m.id} className="border-t border-white/5 hover:bg-white/5 transition-colors app-table-row-hover">
                       <td className="px-2 py-1 text-gray-200">{m.fecha_transaccion ? (parseDbTimestampToDate(m.fecha_transaccion) || new Date()).toLocaleString() : '-'}</td>
                       <td className="px-2 py-1 text-gray-200">{m.tipo}</td>
                       <td className={`px-2 py-1 ${m.tipo === 'carga' ? 'text-emerald-300' : 'text-rose-300'} font-semibold`}>{formatBalance(m.monto, (m as any).currency)}</td>

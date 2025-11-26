@@ -289,14 +289,14 @@ export default function UserManagement() {
               </button>
             </div>
           ) : (
-              <div className="overflow-x-auto grid-glow-container">
+              <div className="overflow-x-auto grid-glow-container app-table-container">
                 {/* pagination calculations */}
                 {(() => {
                   // create derived pagination variables so JSX is simpler
                   return null;
                 })()}
               {/* Keep the page wide but make the table itself narrower and centered so rows look compact */}
-              <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed">
+              <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed app-table">
                 <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                       <tr className="border-b border-white/5 table-row-glow table-header-neon">
                         <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
@@ -321,7 +321,7 @@ export default function UserManagement() {
                     const startIndex = (userPage - 1) * usersPerPage;
                     const displayUsers = users.slice(startIndex, startIndex + usersPerPage);
                     return displayUsers.map((userItem, idx) => (
-                        <tr key={userItem.user_id} className="hover:bg-white/5 transition-all duration-200 group table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${idx * 30}ms` }}>
+                        <tr key={userItem.user_id} className="hover:bg-white/5 transition-all duration-200 group table-row-glow row-neon-left row-fade-in app-table-row-hover" style={{ animationDelay: `${idx * 30}ms` }}>
                         <td className="px-1 py-1">
                         <div className="flex items-center space-x-3">
                           <div className="w-6 h-6 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-[10px] shadow-lg">

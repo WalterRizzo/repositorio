@@ -91,8 +91,8 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
         {transactionsLoading ? (
           <div className="text-center py-4">Cargando transacciones...</div>
         ) : filteredTransactions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm table-condensed">
+          <div className="overflow-x-auto app-table-container">
+            <table className="w-full text-sm table-condensed app-table">
               <thead>
                 <tr className="border-b">
                   <th className="px-2 py-1 text-left">FECHA</th>
@@ -107,7 +107,7 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
               </thead>
               <tbody>
                 {filteredTransactions.map((tx: any, idx: number) => (
-                  <tr key={idx} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                  <tr key={idx} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800 app-table-row-hover">
                     <td className="px-2 py-1">{(parseDbTimestampToDate(tx.fecha) || new Date()).toLocaleDateString()}</td>
                     <td className="px-2 py-1 max-w-[160px] truncate">{tx.usuario || 'N/A'}</td>
                     <td className="px-2 py-1">

@@ -258,7 +258,7 @@ export default function CierreViajes() {
             {/* Always render the two preview cards (will show placeholders when there's no preview) */}
             <div className="mt-6 space-y-6">
                 {/* Expenses card (full width) */}
-                <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-indigo-900 via-violet-900 to-purple-700 shadow-lg grid-glow-container">
+                <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-indigo-900 via-violet-900 to-purple-700 shadow-lg grid-glow-container app-table-container">
                   <div className="bg-black/60 rounded-2xl p-4 border border-white/5">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Gastos</h3>
@@ -266,7 +266,7 @@ export default function CierreViajes() {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe table-condensed">
+                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe table-condensed app-table">
                         <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                           <tr className="text-xs text-gray-400 uppercase tracking-wide">
                               <th className="pl-3 pr-2 py-1"></th>
@@ -308,7 +308,7 @@ export default function CierreViajes() {
                 </div>
 
                 {/* Movements card */}
-                <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-cyan-900 via-teal-800 to-emerald-700 shadow-lg grid-glow-container">
+                <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-cyan-900 via-teal-800 to-emerald-700 shadow-lg grid-glow-container app-table-container">
                   <div className="bg-black/60 rounded-2xl p-4 border border-white/5">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Movimientos de saldo</h3>
@@ -316,7 +316,7 @@ export default function CierreViajes() {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe table-condensed">
+                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe table-condensed app-table">
                         <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                           <tr className="text-xs text-gray-400 uppercase tracking-wide">
                             <th className="pl-3 pr-2 py-1"></th>

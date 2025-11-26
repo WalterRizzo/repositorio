@@ -589,8 +589,8 @@ export default function ExpensesTable({
 
           {/* Desktop table (show from lg up) - hide entirely when forcing mobile view */}
           {!forceMobileView && (
-            <div className="hidden lg:block overflow-x-auto w-full">
-            <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-condensed">
+            <div className="hidden lg:block overflow-x-auto w-full app-table-container">
+            <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-condensed app-table">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
                   <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Fecha</th>
@@ -607,7 +607,7 @@ export default function ExpensesTable({
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
                 {displayExpenses.map((expense) => (
-                  <tr key={expense.id}>
+                  <tr key={expense.id} className="app-table-row-hover">
                     <td className="px-1 py-1 whitespace-nowrap text-[11px] text-left">{new Date(expense.expense_date).toLocaleDateString()}</td>
                     <td className="px-1 py-1 whitespace-nowrap text-[11px] text-left">{expense.category}</td>
                     <td className="px-1 py-1 text-[11px] max-w-[90px] truncate text-left" title={expense.description}>{expense.description.length > 40 ? expense.description.slice(0, 37) + '...' : expense.description}</td>
@@ -905,7 +905,7 @@ export default function ExpensesTable({
                 Mostrando los primeros 5 registros de {filteredExpenses.length}
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm app-table">
                   <thead className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-700 dark:to-gray-700">
                     <tr>
                       <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">ID</th>
@@ -919,7 +919,7 @@ export default function ExpensesTable({
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredExpenses.slice(0, 10).map((expense) => (
-                      <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 app-table-row-hover">
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.id}</td>
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.user_name || 'N/A'}</td>
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.description}</td>

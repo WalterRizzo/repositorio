@@ -44,8 +44,8 @@ export default function NegativeBalanceMovements({ currency, show, onClose }: Ne
   return (
     <div className="mt-6">
       <div className="mb-2 text-rose-400 font-bold text-lg">Movimientos que generaron el saldo negativo:</div>
-      <div className="overflow-x-auto">
-        <table className="w-full rounded-xl border-2 border-rose-500 table-condensed">
+      <div className="overflow-x-auto app-table-container">
+        <table className="w-full rounded-xl border-2 border-rose-500 table-condensed app-table">
           <thead className="bg-rose-50">
               <tr>
               <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase">Fecha</th>
@@ -62,7 +62,7 @@ export default function NegativeBalanceMovements({ currency, show, onClose }: Ne
               <tr><td colSpan={5} className="text-center py-3 text-rose-400">No hay movimientos registrados</td></tr>
             ) : (
               movements.map((m) => (
-                <tr key={m.id}>
+                <tr key={m.id} className="app-table-row-hover">
                   <td className="px-2 py-1 text-xs text-rose-700">{(() => { const d = parseDbTimestampToDate(m.created_at); return d ? d.toLocaleString() : m.created_at; })()}</td>
                   <td className="px-2 py-1 text-xs font-bold text-rose-600">{m.type}</td>
                   <td className="px-2 py-1 text-xs text-rose-700">{m.description}</td>

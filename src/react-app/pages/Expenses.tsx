@@ -1206,8 +1206,8 @@ export default function Expenses() {
             </div>
 
             {/* Tabla de usuarios */}
-            <div className="overflow-x-auto">
-              <table className="w-full border-2 border-purple-500 shadow-lg table-condensed">
+            <div className="overflow-x-auto app-table-container">
+              <table className="w-full border-2 border-purple-500 shadow-lg table-condensed app-table">
                 <thead className="bg-gradient-to-r from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-700 dark:via-gray-700 dark:to-gray-700">
                   <tr>
                     <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
@@ -1345,7 +1345,7 @@ export default function Expenses() {
               ) : (
                 <div className="overflow-x-auto bg-black rounded-xl p-4 border border-gray-900 grid-glow-container" style={{background:'#000',borderColor:'#23272F'}}>
                   {/* Use the shared table classes to match Expenses table visuals and ensure stable header alignment */}
-                  <table className="w-full min-w-full border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed">
+                  <table className="w-full min-w-full border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed app-table">
                     <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                       <tr>
                         <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
@@ -1517,7 +1517,7 @@ export default function Expenses() {
               </div>
             ) : (
               <div className="overflow-x-auto grid-glow-container">
-                  <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed">
+                  <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed app-table">
                   <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                       <tr>
                       <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
@@ -1677,7 +1677,7 @@ export default function Expenses() {
                   {dbaResults.error ? (
                     <div className="text-red-400 font-bold">❌ Error: {dbaResults.error}</div>
                   ) : Array.isArray(dbaResults.results) && dbaResults.results.length > 0 ? (
-                    <table className="w-full text-xs text-left text-gray-300">
+                    <table className="w-full text-xs text-left text-gray-300 app-table">
                       <thead>
                         <tr>
                           {Object.keys(dbaResults.results[0]).map((col) => (
@@ -1711,7 +1711,7 @@ export default function Expenses() {
                     ) : cierreError ? (
                       <div className="text-red-400 font-bold">Error: {cierreError}</div>
                     ) : Array.isArray(closedExpenses) && closedExpenses.length > 0 ? (
-                      <table className="w-full text-sm text-left text-gray-300">
+                      <table className="w-full text-sm text-left text-gray-300 app-table">
                         <thead>
                           <tr>
                             <th className="px-2 py-1">id</th>
@@ -1751,7 +1751,7 @@ export default function Expenses() {
                     ) : cierreError ? (
                       <div className="text-red-400 font-bold">Error: {cierreError}</div>
                     ) : Array.isArray(closedMovements) && closedMovements.length > 0 ? (
-                      <table className="w-full text-sm text-left text-gray-300">
+                      <table className="w-full text-sm text-left text-gray-300 app-table">
                         <thead>
                           <tr>
                             <th className="px-2 py-1">id</th>
@@ -1888,7 +1888,7 @@ export default function Expenses() {
                       </span>
                     </div>
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                      <table className="w-full text-sm app-table">
                         <thead className="bg-gradient-to-r from-violet-600 to-purple-600">
                           <tr>
                             {Object.keys(dbaResults.results[0]).map((key) => (
