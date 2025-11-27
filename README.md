@@ -197,6 +197,29 @@ pwsh ./scripts/protect-production-branch.ps1
 
 Los scripts aplicarían reglas simples: exigir los status checks (build), exigir 1 aprobación en PRs y aplicar la política a administradores.
 
+### Entorno protegido y secrets por entorno (recomendado)
+
+Para evitar despliegues accidentales y minimizar riesgos, es recomendable mover los secrets de deploy al entorno de GitHub `production` y proteger dicho entorno con revisiones/manual approvals.
+
+Pasos rápidos:
+
+1. Crea el entorno `production` en GitHub (Settings → Environments → New environment → `production`).
+2. Añade los secretos de deploy a ese entorno (CF_API_TOKEN, CF_ACCOUNT_ID) — o usa los scripts incluidos:
+
+    PowerShell:
+    ```powershell
+    pwsh ./scripts/setup-wrangler-env-secrets.ps1
+    ```
+
+    Bash / WSL / macOS:
+    ```bash
+    ./scripts/setup-wrangler-env-secrets.sh
+    ```
+
+3. Configura reglas de protección del entorno (`Required reviewers`) para que cualquier deploy al entorno `production` necesite aprobación manual por parte de una persona o un equipo.
+
+Con esto habilitamos que el job `Deploy to Production (Wrangler)` en CI use `environment: production` — por seguridad el deploy quedará bloqueado hasta que un aprobador lo permita.
+
 ### 📊 Estructura del Proyecto
 
 Este repositorio ya no contiene despliegues automáticos con Wrangler. Para desplegar en producción sigue uno de estos caminos (elige el que prefieras):
