@@ -1210,12 +1210,8 @@ export default function Expenses() {
               <table className="w-full border-2 border-purple-500 shadow-lg table-condensed app-table">
                 <thead className="bg-gradient-to-r from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-700 dark:via-gray-700 dark:to-gray-700">
                   <tr>
-                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                      👤 Usuario
-                    </th>
-                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                      🎯 Rol
-                    </th>
+                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider"><span className="header-icon">👤</span><span className="header-label">Usuario</span></th>
+                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider"><span className="header-icon">🎯</span><span className="header-label">Rol</span></th>
                       {/* Balance column hidden per UX — open 'Ver Saldos' to view all balances */}
                     <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       ⚙️ Acciones
@@ -1348,14 +1344,14 @@ export default function Expenses() {
                   <table className="w-full min-w-full border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed app-table">
                     <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                       <tr>
-                        <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
-                        <th style={{width:'18%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
-                        <th style={{width:'10%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
-                        <th style={{width:'10%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
-                        <th style={{width:'8%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">MONEDA</th>
-                        <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📊 SALDO ANTERIOR</th>
-                        <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📈 SALDO NUEVO</th>
-                        <th style={{width:'18%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap">📝 DESCRIPCIÓN</th>
+                        <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📅</span><span className="header-label">FECHA</span></th>
+                          <th style={{width:'18%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">👤</span><span className="header-label">USUARIO</span></th>
+                          <th style={{width:'10%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">🎯</span><span className="header-label">TIPO</span></th>
+                          <th style={{width:'10%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">💰</span><span className="header-label">MONTO</span></th>
+                          <th style={{width:'8%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">💱</span><span className="header-label">MONEDA</span></th>
+                          <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📊</span><span className="header-label">SALDO ANTERIOR</span></th>
+                          <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📈</span><span className="header-label">SALDO NUEVO</span></th>
+                          <th style={{width:'18%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📝</span><span className="header-label">DESCRIPCIÓN</span></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
@@ -1524,9 +1520,9 @@ export default function Expenses() {
                       <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
                       <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
                       <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
-                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📊 SALDO ANTERIOR</th>
-                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📈 SALDO NUEVO</th>
-                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📝 DESCRIPCIÓN</th>
+                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📊</span><span className="header-label">SALDO ANTERIOR</span></th>
+                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📈</span><span className="header-label">SALDO NUEVO</span></th>
+                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📝</span><span className="header-label">DESCRIPCIÓN</span></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-600">

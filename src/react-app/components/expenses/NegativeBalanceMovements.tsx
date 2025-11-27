@@ -55,11 +55,11 @@ export default function NegativeBalanceMovements({ currency, show, onClose }: Ne
           </colgroup>
           <thead className="bg-rose-50">
               <tr>
-              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase">Fecha</th>
-              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase">Tipo</th>
-              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase">Descripción</th>
-              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase">Monto</th>
-              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase">Usuario</th>
+              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase"><span className="header-icon">📅</span><span className="header-label">Fecha</span></th>
+              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase"><span className="header-icon">🎯</span><span className="header-label">Tipo</span></th>
+              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase"><span className="header-icon">📝</span><span className="header-label">Descripción</span></th>
+              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase"><span className="header-icon">💰</span><span className="header-label">Monto</span></th>
+              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase"><span className="header-icon">👤</span><span className="header-label">Usuario</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-rose-200">
