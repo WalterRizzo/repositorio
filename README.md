@@ -137,11 +137,19 @@ Opciones sugeridas:
 - Usar plataformas de hosting estático (Netlify, Vercel) y configurar `npm run build` como paso de build
 - Crear un job de CI que tome `npm run build` y publique los assets a tu host (S3, FTP, Cloudflare, etc.)
 
-#### Despliegue automático a Cloudflare Pages (sin Wrangler)
+#### Despliegue automático a Cloudflare Workers con Wrangler (producción — rama `produccion`)
 
 Si quieres desplegar automáticamente a **Cloudflare Pages** desde GitHub, la configuración que añadimos al workflow usa la acción oficial de Pages. Requisitos y pasos:
 
-1. Crea un proyecto en Cloudflare Pages y apunta su sitio al nombre que quieras.
+1. Para publicar el Worker desde CI usaremos Wrangler. Objetivo: desplegar **solo** desde la rama `produccion`.
+2. Genera un API Token en tu cuenta Cloudflare con permisos apropiados (Workers > Edit, Account > Workers Scripts as needed).
+3. Identifica tu `accountId` en el panel de Cloudflare (se muestra en el dashboard / Overview).
+4. Crea los secretos en GitHub (Settings > Secrets & variables > Actions) para habilitar deploy automático:
+    - `CF_API_TOKEN` — token API con permisos para publicar workers
+    - `CF_ACCOUNT_ID` — tu Cloudflare Account ID
+5. He añadido scripts para ayudarte a configurar esos secrets automáticamente (usa GitHub CLI `gh`):
+    - `scripts/setup-wrangler-secrets.ps1` (PowerShell)
+    - `scripts/setup-wrangler-secrets.sh` (bash / macOS / WSL)
 
 #### Configurar secrets automáticamente desde tu máquina (opcional)
 
@@ -171,9 +179,9 @@ Notas:
     - `CF_PAGES_API_TOKEN` — el token API que generaste
     - `CF_ACCOUNT_ID` — tu Cloudflare Account ID
     - `CF_PAGES_PROJECT` — el nombre del proyecto de Pages
-5. El workflow se ejecuta en cada push a la rama `produccion` y, si los secretos están presentes, hará `npm ci`, `npm run build` y desplegará el contenido de `./dist` a Pages.
+6. El workflow ahora está configurado para que cada push a la rama `produccion` haga `npm ci`, `npm run build` y, **si** los secrets `CF_API_TOKEN` y `CF_ACCOUNT_ID` existen, publique el Worker con Wrangler (solo `produccion` puede publicar en producción — así evitamos despliegues accidentales desde ramas de feature).
 
-Si no quieres usar Pages, puedes mantener despliegue manual o elegir otro destino (S3/CloudFront, Netlify, Vercel). El paso de CI está diseñado para ser opcional — sólo se ejecutará si los secretos están configurados.
+Si prefieres un flujo diferente (Pages, S3, Netlify, Vercel), puedo adaptarlo, pero por ahora la pipeline oficial para producción usa **Wrangler** y solo desplegará desde `produccion`.
 
 ### 📊 Estructura del Proyecto
 

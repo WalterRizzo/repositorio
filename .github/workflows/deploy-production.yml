@@ -1,4 +1,4 @@
-name: Deploy to Production (DEPRECATED - Wrangler removed)
+name: Deploy to Production (Wrangler)
 
 on:
   push:
@@ -37,19 +37,19 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
-      - name: Deploy to Cloudflare Pages (optional)
-        if: ${{ secrets.CF_PAGES_API_TOKEN != '' && secrets.CF_ACCOUNT_ID != '' && secrets.CF_PAGES_PROJECT != '' }}
-        uses: cloudflare/pages-action@v1
-        with:
-          apiToken: ${{ secrets.CF_PAGES_API_TOKEN }}
-          accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          projectName: ${{ secrets.CF_PAGES_PROJECT }}
-          directory: './dist'
-
-      - name: No Pages deploy configured (info)
-        if: ${{ secrets.CF_PAGES_API_TOKEN == '' || secrets.CF_ACCOUNT_ID == '' || secrets.CF_PAGES_PROJECT == '' }}
+      - name: Deploy to Cloudflare Worker using Wrangler (production-only)
+        if: ${{ secrets.CF_API_TOKEN != '' && secrets.CF_ACCOUNT_ID != '' }}
         run: |
-          echo "Cloudflare Pages not configured — set CF_PAGES_API_TOKEN, CF_ACCOUNT_ID and CF_PAGES_PROJECT in repository secrets to enable automatic deploys."
+          echo "Publishing worker with Wrangler (production env)"
+          npm run deploy:prod
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+
+      - name: No Wrangler deploy configured (info)
+        if: ${{ secrets.CF_API_TOKEN == '' || secrets.CF_ACCOUNT_ID == '' }}
+        run: |
+          echo "Cloudflare Wrangler deploy not configured — set CF_API_TOKEN and CF_ACCOUNT_ID in repository secrets to enable automatic worker deploys."
 
       - name: Verification - optional
-        run: echo "Build completed. If deploy credentials were provided the static site was sent to Cloudflare Pages. Otherwise no remote deployment was executed."
+        run: echo "Build completed. If Wrangler credentials were provided the worker publish was attempted. Otherwise no remote deployment was executed."
