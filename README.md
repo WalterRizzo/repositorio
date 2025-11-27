@@ -79,15 +79,13 @@ npx tu_herramienta_cli secret put MOCHA_USERS_SERVICE_API_KEY
 
 ### 3. Ejecutar migraciones de base de datos
 ```bash
-# Ejecutar migraciones en local
-npx wrangler d1 execute expense-app-db --local --file=./migrations/1.sql
-npx wrangler d1 execute expense-app-db --local --file=./migrations/2.sql
-npx wrangler d1 execute expense-app-db --local --file=./migrations/3.sql
+# Ejecutar migraciones en local (ejemplo genérico)
+# usa la herramienta de DB/D1 que prefieras para ejecutar SQL localmente
+# ejemplo: db-cli exec --file=./migrations/1.sql
 
-# Ejecutar migraciones en producción
-npx wrangler d1 execute expense-app-db --remote --file=./migrations/1.sql
-npx wrangler d1 execute expense-app-db --remote --file=./migrations/2.sql  
-npx wrangler d1 execute expense-app-db --remote --file=./migrations/3.sql
+# Ejecutar migraciones en producción (ejemplo genérico)
+# adapta a la CLI / panel de tu proveedor para ejecutar cada SQL en orden
+```
 
 #### Nota importante: `formapago` / `sigla`
 
@@ -95,8 +93,7 @@ La aplicación utiliza una tabla `formapago` y la columna `sigla` en `expenses` 
 Si no ves la tabla `formapago` en tu instancia, aplica la migración 22:
 
 ```bash
-npx wrangler d1 execute expense-app-db --local --file=./migrations/22.sql
-npx wrangler d1 execute expense-app-db --remote --file=./migrations/22.sql
+# Ejecuta ./migrations/22.sql con la herramienta SQL/DB que utilices en local o producción
 ```
 
 Ejecuta las migraciones usando tu herramienta preferida para D1 / SQLite / tu DB en local o producción.
@@ -132,21 +129,13 @@ npm run dev
 Ejecuta ./migrations/22.sql con la herramienta SQL/DB que utilices en local o producción.
 
 #### Producción
-Use the repository-root Wrangler configuration to guarantee you deploy the intended worker (we've updated the repo so the recommended command always uses the root `wrangler.json`):
+Este repositorio ha eliminado la integración con Wrangler/Cloudflare CLI. Para producción, adopta un flujo de despliegue específico según tu plataforma.
 
-```bash
-# Opción 1: Script automatizado (Windows)
-npx tu_herramienta_cli secret put MOCHA_USERS_SERVICE_API_URL
-npx tu_herramienta_cli secret put MOCHA_USERS_SERVICE_API_KEY
-npx tu_herramienta_cli secret put JWT_SECRET
-npm run build
-npx wrangler deploy --config ./wrangler.json
+Opciones sugeridas:
 
-# OR use the npm helper script
-npm run deploy:prod
-```
-
-Note: the internal `.wrangler/deploy/config.json` now points at the repository's `wrangler.json` so `npx wrangler deploy` executed from CI or developer machines will use the root config by default.
+- Subir los archivos en `dist/client` a un bucket/cdn (S3 + CloudFront, Cloudflare R2, etc.)
+- Usar plataformas de hosting estático (Netlify, Vercel) y configurar `npm run build` como paso de build
+- Crear un job de CI que tome `npm run build` y publique los assets a tu host (S3, FTP, Cloudflare, etc.)
 
 ### 📊 Estructura del Proyecto
 
@@ -211,10 +200,9 @@ migrations/             # Migraciones de base de datos
 
 ```bash
 npm run dev          # Desarrollo local
-npm run build        # Construir para producción  
+npm run build        # Construir para producción
 npm run lint         # Linter de código
-npm run cf-typegen   # Generar tipos de Cloudflare
-npm run check        # Verificar build + dry-run deploy
+npm run check        # Verificar build (sin deploy automatico)
 ```
 
 ### 🐛 Solución de Problemas
@@ -225,18 +213,19 @@ npm run check        # Verificar build + dry-run deploy
 - Revisa que el JWT_SECRET esté configurado en producción
 
 #### Error de base de datos
-- Ejecuta las migraciones en orden: `npx wrangler d1 execute expense-app-db --remote --file=./migrations/1.sql`
-- Verifica que el database_id en wrangler.json coincida con tu base de datos D1
-- Confirma que la base de datos esté creada en Cloudflare Dashboard
+- Ejecuta las migraciones en orden usando la herramienta de DB que prefieras: `./migrations/1.sql`, `./migrations/2.sql`, etc.
+- Asegúrate de que el `database_id` o configuración de tu DB remota coincida con la instancia donde se ejecutan las migraciones
+- Confirma que la base de datos esté creada en tu proveedor y que tienes permisos para ejecutar las migraciones
 
 #### No puedo acceder como administrador
 - El primer usuario registrado obtiene automáticamente permisos de admin
-- Si necesitas resetear roles, usa: `npx wrangler d1 execute expense-app-db --remote --command="UPDATE users SET role = 'admin' WHERE email = 'tu-email@dominio.com';"`
+- Si necesitas resetear roles, ejecuta la consulta SQL equivalente en tu herramienta de DB:
+    `UPDATE users SET role = 'admin' WHERE email = 'tu-email@dominio.com';`
 
 #### Error de deployment
-- Confirma autenticación: `npx wrangler whoami`
-- Verifica todas las variables: `npx wrangler secret list`
-- Revisa logs en tiempo real: `npx wrangler tail`
+- Verifica la autenticación y permisos para la plataforma que uses (S3, Cloudflare, Netlify, Vercel, etc.)
+- Confirma que las variables/secretos están configurados en el entorno de producción
+- Revisa los logs de la plataforma destino (Cloud provider / hosting panel / CDN) para diagnosticar fallos del deploy
 
 ### 📞 Soporte
 
