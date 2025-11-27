@@ -1408,7 +1408,7 @@ export default function Expenses() {
                             <td className={`px-1 py-1 whitespace-nowrap text-[11px] font-black ${Number(movement.balance_after) < 0 ? 'text-rose-500' : 'text-green-500'}`}>
                               ${Number(movement.balance_after).toFixed(2)}
                             </td>
-                            <td className="px-2 py-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                            <td className="px-2 py-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 col-desc" title={movement.description}>
                               {movement.description}
                             </td>
                           </tr>
@@ -1574,7 +1574,7 @@ export default function Expenses() {
                             <td className={`px-1 py-1 whitespace-nowrap text-[11px] sm:text-[11px] font-black ${Number(movement.balance_after) < 0 ? 'text-rose-500' : 'text-green-500'}`}>
                               ${Number(movement.balance_after).toFixed(2)}
                             </td>
-                          <td className="px-1 py-1 text-[11px] sm:text-[11px] text-gray-600 dark:text-gray-300">
+                          <td className="px-1 py-1 text-[11px] sm:text-[11px] text-gray-600 dark:text-gray-300 col-desc" title={movement.description}>
                             {movement.description}
                           </td>
                         </tr>
