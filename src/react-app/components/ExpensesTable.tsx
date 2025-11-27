@@ -552,38 +552,43 @@ export default function ExpensesTable({
                     </td>
                     <td className="px-2 py-1 whitespace-nowrap text-right text-xs font-medium space-x-2">
                       <div className="flex items-center justify-end gap-2 animate-fadeIn">
-                        <button
-                          onClick={() => onEdit(expense)}
-                          className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 border-2 border-blue-300"
-                          title="Editar gasto"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                          <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
-                        </button>
-                        <button
-                          onClick={() => onDelete(expense.id)}
-                          className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-red-600 hover:to-pink-700 border-2 border-red-300"
-                          title="Eliminar gasto"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
-                        </button>
-                        <button
-                          onClick={() => handleApproveClick(expense.id)}
-                          className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-emerald-600 hover:to-green-700 border-2 border-green-300"
-                          title="Aprobar gasto"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          <Sparkles className="absolute -top-1 -right-1 w-3 h-3 text-yellow-300 opacity-0 group-hover:opacity-100 transition-all duration-300 animate-pulse" />
-                        </button>
-                        <button
-                          onClick={() => handleRejectClick(expense.id)}
-                          className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-yellow-400 to-red-500 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-yellow-500 hover:to-red-600 border-2 border-yellow-300"
-                          title="Rechazar gasto"
-                        >
-                          <XCircle className="w-4 h-4" />
-                          <div className="absolute inset-0 rounded-full border-2 border-red-300 opacity-0 group-hover:opacity-50 group-hover:animate-ping"></div>
-                        </button>
+                          <button
+                            onClick={() => onEdit(expense)}
+                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 border-2 border-blue-300"
+                            title="Editar gasto"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                          </button>
+                          <button
+                            onClick={() => onDelete(expense.id)}
+                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-red-600 hover:to-pink-700 border-2 border-red-300"
+                            title="Eliminar gasto"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                          </button>
+                          {/* Solo mostrar aprobar/rechazar si el rol NO es usuario */}
+                          {userRole !== 'usuario' && (
+                            <>
+                              <button
+                                onClick={() => handleApproveClick(expense.id)}
+                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-emerald-600 hover:to-green-700 border-2 border-green-300"
+                                title="Aprobar gasto"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                                <Sparkles className="absolute -top-1 -right-1 w-3 h-3 text-yellow-300 opacity-0 group-hover:opacity-100 transition-all duration-300 animate-pulse" />
+                              </button>
+                              <button
+                                onClick={() => handleRejectClick(expense.id)}
+                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-yellow-400 to-red-500 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-yellow-500 hover:to-red-600 border-2 border-yellow-300"
+                                title="Rechazar gasto"
+                              >
+                                <XCircle className="w-4 h-4" />
+                                <div className="absolute inset-0 rounded-full border-2 border-red-300 opacity-0 group-hover:opacity-50 group-hover:animate-ping"></div>
+                              </button>
+                            </>
+                          )}
                       </div>
                     </td>
                   </tr>

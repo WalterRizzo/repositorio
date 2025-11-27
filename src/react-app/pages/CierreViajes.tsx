@@ -222,7 +222,7 @@ export default function CierreViajes() {
           <h1 className="text-3xl font-bold text-white mb-4">Cierre de viajes</h1>
           <p className="text-gray-300 mb-6">Área de cierre de viajes y conciliación. Aquí se gestionarán cierres cerrados en tablas separadas (expenses_cierre, saldo_transacciones_cierre).</p>
 
-          <div className="bg-black p-6 rounded-2xl">
+          <div className="bg-gradient-to-br from-gray-900/50 to-slate-900/40 p-6 rounded-2xl border border-violet-700/10">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
               <div>
                 <label className="text-xs text-gray-400">Usuario</label>
@@ -259,35 +259,35 @@ export default function CierreViajes() {
             <div className="mt-6 space-y-6">
                 {/* Expenses card (full width) */}
                 <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-indigo-900 via-violet-900 to-purple-700 shadow-lg grid-glow-container app-table-container">
-                  <div className="bg-black rounded-2xl p-4">
+                  <div className="bg-black/60 rounded-2xl p-4 border border-white/5">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Gastos</h3>
                       <div className="text-sm text-gray-300">{(previewResult?.expenses?.length ?? 0)} items — {selectedExpenseIds.size} seleccionados</div>
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full app-table">
-                        <thead>
-                          <tr>
-                              <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider"></th>
-                              <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Fecha</th>
-                              <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Descripción</th>
-                              <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Monto</th>
-                              <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Moneda</th>
-                              <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Estado</th>
-                              <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Forma de Pago</th>
+                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe table-condensed app-table">
+                        <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
+                          <tr className="text-xs text-gray-400 uppercase tracking-wide">
+                              <th className="pl-3 pr-2 py-1"></th>
+                              <th className="py-1">Fecha</th>
+                              <th className="py-1">Descripción</th>
+                              <th className="py-1">Monto</th>
+                              <th className="py-1">Moneda</th>
+                              <th className="py-1">Estado</th>
+                              <th className="py-1">Forma de Pago</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-700">
+                        <tbody>
                           {previewResult ? previewResult.expenses.map((ex:PreviewExpense, idx) => (
-                            <tr key={ex.id} className="hover:bg-violet-900/30 transition-all text-xs font-bold text-white" style={{ animationDelay: `${idx * 40}ms` }}>
-                              <td className="px-4 py-3"><input type="checkbox" checked={selectedExpenseIds.has(ex.id)} onChange={() => toggleExpense(ex.id)} className="w-4 h-4"/></td>
-                              <td className="px-4 py-3 whitespace-nowrap">{ex.expense_date}</td>
-                              <td className="px-4 py-3 max-w-[220px] truncate" title={ex.description}>{ex.description && ex.description.length > 60 ? ex.description.slice(0, 57) + '...' : ex.description}</td>
-                              <td className="px-4 py-3 whitespace-nowrap">{Number(ex.amount).toLocaleString()}</td>
-                              <td className="px-4 py-3 whitespace-nowrap">{ex.currency}</td>
-                              <td className="px-4 py-3 whitespace-nowrap">{ex.status || '-'}</td>
-                              <td className="px-4 py-3 whitespace-nowrap">{ex.sigla || '-'}</td>
+                            <tr key={ex.id} className="border-t border-white/5 hover:bg-white/5 transition-colors table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${idx * 40}ms` }}>
+                              <td className="px-2 py-1"><input type="checkbox" checked={selectedExpenseIds.has(ex.id)} onChange={() => toggleExpense(ex.id)} className="w-4 h-4"/></td>
+                              <td className="px-2 py-1 text-gray-200">{ex.expense_date}</td>
+                              <td className="px-2 py-1 text-white font-medium">{ex.description}</td>
+                              <td className="px-2 py-1 text-white font-semibold">{Number(ex.amount).toLocaleString()}</td>
+                              <td className="px-2 py-1 text-violet-200">{ex.currency}</td>
+                              <td className="px-2 py-1 text-sm font-semibold text-gray-300">{ex.status || '-'}</td>
+                              <td className="px-2 py-1 text-sm text-gray-200">{ex.sigla || '-'}</td>
                             </tr>
                           )) : (
                             <tr className="border-t border-white/5 hover:bg-white/5 transition-colors">
@@ -309,36 +309,36 @@ export default function CierreViajes() {
 
                 {/* Movements card */}
                 <div className="w-full rounded-3xl p-1 bg-gradient-to-r from-cyan-900 via-teal-800 to-emerald-700 shadow-lg grid-glow-container app-table-container">
-                  <div className="bg-black rounded-2xl p-4">
+                  <div className="bg-black/60 rounded-2xl p-4 border border-white/5">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Movimientos de saldo</h3>
                       <div className="text-sm text-gray-300">{(previewResult?.movements?.length ?? 0)} items — {selectedMovementIds.size} seleccionados</div>
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full app-table">
-                        <thead>
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider"></th>
-                            <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Fecha</th>
-                            <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Tipo</th>
-                            <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Monto</th>
-                            <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Moneda</th>
-                            <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Saldo Antes</th>
-                            <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Saldo Nuevo</th>
+                      <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-auto table-gradient-stripe table-condensed app-table">
+                        <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
+                          <tr className="text-xs text-gray-400 uppercase tracking-wide">
+                            <th className="pl-3 pr-2 py-1"></th>
+                            <th className="py-1">Fecha</th>
+                            <th className="py-1">Tipo</th>
+                            <th className="py-1">Monto</th>
+                            <th className="py-1">Moneda</th>
+                            <th className="py-1">Saldo Antes</th>
+                            <th className="py-1">Saldo Nuevo</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-700">
+                        <tbody>
                           {previewResult ? (
                             movementDisplay.map((m:PreviewMovement, idx) => (
-                              <tr key={m.id} className="hover:bg-violet-900/30 transition-all text-xs font-bold text-white" style={{ animationDelay: `${idx * 40}ms` }}>
-                                <td className="px-4 py-3"><input type="checkbox" checked={selectedMovementIds.has(m.id)} onChange={() => toggleMovement(m.id)} className="w-4 h-4"/></td>
-                                <td className="px-4 py-3 whitespace-nowrap">{m.fecha_transaccion ? new Date(m.fecha_transaccion).toLocaleString() : '-'}</td>
-                                <td className="px-4 py-3 whitespace-nowrap">{m.tipo}</td>
-                                <td className={`px-4 py-3 whitespace-nowrap ${m.tipo === 'carga' ? 'text-emerald-300' : 'text-rose-300'} font-semibold`}>{(m.tipo === 'carga' ? '+' : '-')}{formatBalance(m.monto, (m as any).currency)}</td>
-                                <td className="px-4 py-3 whitespace-nowrap">{(m as any).currency || 'ARS'}</td>
-                                <td className="px-4 py-3 whitespace-nowrap">{formatBalance(m.saldo_anterior, (m as any).currency)}</td>
-                                <td className="px-4 py-3 whitespace-nowrap">{formatBalance(m.saldo_nuevo, (m as any).currency)}</td>
+                              <tr key={m.id} className="border-t border-white/5 hover:bg-white/5 transition-colors table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${idx * 40}ms` }}>
+                                <td className="px-2 py-1"><input type="checkbox" checked={selectedMovementIds.has(m.id)} onChange={() => toggleMovement(m.id)} className="w-4 h-4"/></td>
+                                <td className="px-2 py-1 text-gray-200">{m.fecha_transaccion ? new Date(m.fecha_transaccion).toLocaleString() : '-'}</td>
+                                <td className="px-2 py-1 text-gray-200">{m.tipo}</td>
+                                <td className={`px-2 py-1 ${m.tipo === 'carga' ? 'text-emerald-300' : 'text-rose-300'} font-semibold`}>{(m.tipo === 'carga' ? '+' : '-')}{formatBalance(m.monto, (m as any).currency)}</td>
+                                <td className="px-2 py-1 text-violet-200">{(m as any).currency || 'ARS'}</td>
+                                <td className="px-2 py-1 text-gray-200">{formatBalance(m.saldo_anterior, (m as any).currency)}</td>
+                                <td className="px-2 py-1 text-gray-200">{formatBalance(m.saldo_nuevo, (m as any).currency)}</td>
                               </tr>
                             ))
                           ) : (
