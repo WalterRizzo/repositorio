@@ -648,12 +648,14 @@ app.put('/api/expenses/:id', authMiddleware(), async (c) => {
       return c.json({ error: 'No se puede editar un gasto que ya ha sido aprobado' }, 400);
     }
 
-    // If rejected -> owner can edit any field; after edit the status becomes 'pendiente'
-    const isRejected = currentExpense[0].status === 'rechazado';
-    const newStatus = isRejected ? 'pendiente' : currentExpense[0].status;
+    // Owner may fully edit when expense is 'pendiente' or 'rechazado'. Only 'aprobado' is blocked above.
+    const currentStatus = currentExpense[0].status;
+    const isRejected = currentStatus === 'rechazado';
+    const isPending = currentStatus === 'pendiente';
+    const newStatus = isRejected ? 'pendiente' : currentStatus;
 
-    // If not rejected, keep legacy behaviour: only allow category + description changes
-    if (!isRejected) {
+    // If not pending nor rejected, keep legacy behaviour: only allow category + description changes
+    if (!isRejected && !isPending) {
       const allowedFields = new Set(['category', 'description']);
       const providedFields = Object.keys(expenseData || {});
       const forbidden = providedFields.filter(k => !allowedFields.has(k));
@@ -673,7 +675,7 @@ app.put('/api/expenses/:id', authMiddleware(), async (c) => {
       return c.json(results[0]);
     }
 
-    // From this point we are editing a rejected expense by its owner and can modify full fields.
+    // From this point we are editing a rejected OR pending expense by its owner and can modify full fields.
     // Gather original values to handle balance adjustments
     const { results: fullExpenseRes } = await c.env.DB.prepare('SELECT * FROM expenses WHERE id = ?').bind(expenseId).all();
     const original = fullExpenseRes[0] as any;
