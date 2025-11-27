@@ -12,10 +12,6 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // ============================================================
 // RATE LIMITING - Protección contra DDoS
-// Small constant to help identify which worker build/version responded to requests.
-// This value is updated at build/deploy time (cache-bust) so clients can verify they hit
-// the most recent deployed worker. Keep it short and human-friendly.
-const WORKER_BUILD = '0.0.4';
 // ============================================================
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
@@ -195,7 +191,6 @@ const loginRateLimit = async (c: any, next: any) => {
 
 // Login endpoint
 app.post("/api/auth/login", loginRateLimit, async (c) => {
-  try {
   const body = await c.req.json();
 
   const identifier = body.identifier || body.email;
@@ -329,51 +324,11 @@ app.post("/api/auth/login", loginRateLimit, async (c) => {
     maxAge: 7 * 24 * 60 * 60, // 7 días
   });
 
-    return c.json({ 
-      success: true, 
-      user: userData,
-      token 
-    });
-  } catch (error: any) {
-    console.error('❌ Error in /api/auth/login:', error);
-    const safeBody: any = { error: 'Internal Server Error', message: String(error?.message || error) };
-    try {
-      const includeStack = String((c.env as any).DEBUG || '').toLowerCase() === 'true';
-      if (includeStack) safeBody.stack = error?.stack || null;
-    } catch (e) { /* ignore */ }
-    return c.json(safeBody, 500);
-  }
-});
-
-// Admin-only endpoint to unlock all users (reset failed_login_attempts, locked_until, last_failed_login)
-app.post('/api/admin/unlock-users', authMiddleware(), async (c) => {
-  try {
-    const user = c.get('user') as User | undefined;
-
-    // Temporary one-time unlock token (use only for emergency unlocks and remove after use)
-    // NOTE: We'll remove this bypass after executing the unlock to keep the endpoint admin-only.
-    const ONE_TIME_UNLOCK_KEY = 'TEMP_UNLOCK_KEY_20251125_4f2b';
-    let allowed = false;
-    try {
-      const body = await c.req.json().catch(() => ({}));
-      if (body && body.key === ONE_TIME_UNLOCK_KEY) allowed = true;
-    } catch {}
-
-    if (!allowed && (!user || (user.role !== 'admin' && user.role !== 'supervisor'))) {
-      return c.json({ error: 'No autorizado' }, 403);
-    }
-
-    // Reset failed attempts and locks for all users
-    await c.env.DB.prepare(
-      'UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_failed_login = NULL WHERE failed_login_attempts > 0 OR locked_until IS NOT NULL'
-    ).run();
-
-    // Unfortunately D1 returns success/changes in varying shapes; attempt to return a simple success result
-    return c.json({ success: true, message: 'Usuarios desbloqueados (si existían bloqueos)' });
-  } catch (error) {
-    console.error('Error desbloqueando usuarios:', error);
-    return c.json({ error: String(error) }, 500);
-  }
+  return c.json({ 
+    success: true, 
+    user: userData,
+    token 
+  });
 });
 
 // Register endpoint
@@ -440,14 +395,6 @@ app.post("/api/auth/register", async (c) => {
     token 
   });
 });
-
-// Debug endpoint to allow clients to verify which worker build/version is responding.
-// Use this from a browser or curl to quickly confirm whether clients are reaching the latest deployed worker.
-app.get('/api/debug/version', async (c) => {
-  return c.json({ worker: WORKER_BUILD, now: new Date().toISOString() });
-});
-
-// Debug detail endpoints removed — these were temporary and have been deleted for security.
 
 // Logout
 app.post('/api/auth/logout', async (c) => {
@@ -586,11 +533,6 @@ app.post('/api/expenses', authMiddleware(), async (c) => {
   try {
     const user = c.get("user")! as User;
     const expense = await c.req.json();
-
-    // Require payment method (sigla)
-    if (!expense.sigla || String(expense.sigla).trim() === '') {
-      return c.json({ error: 'La forma de pago es obligatoria' }, 400);
-    }
     
     console.log('Creating expense for user:', user.id, 'Data:', expense);
 
@@ -692,9 +634,7 @@ app.put('/api/expenses/:id', authMiddleware(), async (c) => {
     ).bind(expenseId).all();
 
     if (currentExpense.length === 0) {
-      const debugPayload = { worker: WORKER_BUILD, expenseId, now: new Date().toISOString() };
-      console.warn('DELETE /api/expenses/:id - expense not found', debugPayload);
-      return c.json({ error: 'Gasto no encontrado', debug: debugPayload }, 404);
+      return c.json({ error: 'Gasto no encontrado' }, 404);
     }
 
     // Permission checks
@@ -743,17 +683,6 @@ app.put('/api/expenses/:id', authMiddleware(), async (c) => {
     const newUseBalance = expenseData.use_balance ? 1 : 0;
     const newCurrency = expenseData.currency || original.currency || 'ARS';
     const newSigla = expenseData.sigla || original.sigla || null;
-    const newTipo = typeof expenseData.tipo_comprobante_id !== 'undefined' && expenseData.tipo_comprobante_id !== null ? Number(expenseData.tipo_comprobante_id) : original.tipo_comprobante_id || null;
-
-    // Payment method must not be empty after edit
-    if (!newSigla || String(newSigla).trim() === '') {
-      return c.json({ error: 'La forma de pago es obligatoria' }, 400);
-    }
-
-    // Tipo comprobante must be present
-    if (!newTipo || String(newTipo).trim() === '') {
-      return c.json({ error: 'El tipo de comprobante es obligatorio' }, 400);
-    }
 
     // Determine whether the new payment method actually affects balance (afectaSaldo)
     let newAfectaSaldo = 1;
@@ -1133,13 +1062,9 @@ app.put('/api/expenses/:id/reject', authMiddleware(), async (c) => {
               await c.env.DB.prepare('DELETE FROM balance_transactions WHERE user_id = ? AND amount = ? AND type = ?').bind(expense.user_id, reembolsoAmount, 'descuento').run();
             } catch (err) { /* non-fatal */ }
 
-            // Instead of deleting the expense, mark it as 'rechazado' (don't delete) and record the rejection reason
-            const { results: updated } = await c.env.DB.prepare(
-              'UPDATE expenses SET status = ?, updated_at = CURRENT_TIMESTAMP, rejection_reason = ?, rejected_by = ?, rejected_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING *'
-            ).bind('rechazado', rejectionReason, user.name, expenseId).all();
-            if (updated && updated.length > 0) {
-              return c.json({ success: true, expense: updated[0], refunded: 0, message: 'Transacción pendiente/rechazada eliminada y gasto marcado como RECHAZADO (no eliminado).' });
-            }
+            // Solo elimina la transacción pendiente/rechazada, pero NO elimina el gasto. Actualiza el estado a 'rechazado'.
+            await c.env.DB.prepare('UPDATE expenses SET status = ?, rejection_reason = ?, rejected_by = ?, rejected_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind('rechazado', rejectionReason, user.name, expenseId).run();
+            return c.json({ success: true, message: 'Transacción pendiente/rechazada eliminada y gasto marcado como rechazado.' });
           }
         } catch (err) {
           console.warn('Error buscando/limpiando transacción pendiente en saldo_transacciones:', err);
@@ -1170,14 +1095,9 @@ app.put('/api/expenses/:id/reject', authMiddleware(), async (c) => {
       }
 
       if (!(approvedMatching && approvedMatching.length > 0)) {
-        // If there's no approved matching discount, DO NOT create any refund and do NOT delete the expense.
-        // Instead mark the expense as pending so it is retained for auditing / further action.
-        const { results: updated } = await c.env.DB.prepare(
-          'UPDATE expenses SET status = ?, updated_at = CURRENT_TIMESTAMP, rejection_reason = ?, rejected_by = ?, rejected_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING *'
-        ).bind('rechazado', rejectionReason, user.name, expenseId).all();
-        if (updated && updated.length > 0) {
-          return c.json({ success: true, expense: updated[0], refunded: 0, message: 'No existe descuento aprobado para este gasto — gasto marcado como RECHAZADO (no eliminado).' });
-        }
+        // Si no hay descuento aprobado, simplemente marcar el gasto como rechazado y NO crear reembolso ni eliminar el gasto.
+        await c.env.DB.prepare('UPDATE expenses SET status = ?, rejection_reason = ?, rejected_by = ?, rejected_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind('rechazado', rejectionReason, user.name, expenseId).run();
+        return c.json({ success: true, message: 'Gasto marcado como rechazado. No existe descuento aprobado, no se creó reembolso.' });
       }
 
       // If we reached this point, there is an approved descuento matching this expense — proceed to refund behavior.
@@ -1284,23 +1204,15 @@ app.delete('/api/expenses/:id', authMiddleware(), async (c) => {
       return c.json({ error: 'Gasto no encontrado' }, 404);
     }
     
-    // Verificar que el gasto pertenezca al usuario o que el usuario tenga rol elevado (admin/supervisor)
-    const { results: profileRows } = await c.env.DB.prepare('SELECT role FROM user_profiles WHERE user_id = ?').bind(user.id).all();
-    const profileRole = profileRows.length > 0 ? profileRows[0].role : null;
-    const actorIsElevated = (user && (user.role === 'admin' || user.role === 'supervisor')) || (['admin','supervisor'].includes(String(profileRole)));
-
-    if (currentExpense[0].user_id !== user.id && !actorIsElevated) {
-      const debugPayload = { worker: WORKER_BUILD, expenseId, currentStatus: currentExpense[0].status, requestedBy: user.id, requesterRole: user.role, requesterProfileRole: profileRole, now: new Date().toISOString() };
-      console.warn('DELETE /api/expenses/:id - forbidden', debugPayload);
-      return c.json({ error: 'No tienes permiso para eliminar este gasto', debug: debugPayload }, 403);
+    // Verificar que el gasto pertenezca al usuario
+    if (currentExpense[0].user_id !== user.id) {
+      return c.json({ error: 'No tienes permiso para eliminar este gasto' }, 403);
     }
     
-    // Allow deletion for expenses that are still 'pendiente' OR already 'rechazado'.
-    // We disallow deletion for 'aprobado' (approved) expenses.
-    if (currentExpense[0].status === 'aprobado') {
-      const debugPayload = { worker: WORKER_BUILD, expenseId, currentStatus: currentExpense[0].status, requestedBy: user.id, now: new Date().toISOString() };
-      console.warn('DELETE /api/expenses/:id - denied because approved', debugPayload);
-      return c.json({ error: 'No se puede eliminar un gasto que ya ha sido aprobado', debug: debugPayload }, 400);
+    if (currentExpense[0].status !== 'pendiente') {
+      return c.json({ 
+        error: 'No se puede eliminar un gasto que ya ha sido aprobado o rechazado' 
+      }, 400);
     }
     
     // Obtener detalles completos del gasto antes de eliminarlo
@@ -1309,16 +1221,9 @@ app.delete('/api/expenses/:id', authMiddleware(), async (c) => {
     ).bind(expenseId).all();
     
     const expense = expenseDetails[0] as any;
-    // Extra server-side debug metadata to help trace client errors in production
-    const requestOrigin = c.req.header('CF-Connecting-IP') || c.req.header('X-Real-IP') || c.req.header('x-forwarded-for') || 'unknown';
-    const debugMeta = { worker: WORKER_BUILD, expenseId, currentStatus: currentExpense[0].status, requestedBy: user.id, origin: requestOrigin, now: new Date().toISOString() };
-    console.log('DELETE /api/expenses/:id - processing', debugMeta);
     
-    // Si el gasto usaba saldo y estaba PENDIENTE — realizar reembolso por eliminación.
-    // IMPORTANT: if the expense is already 'rechazado' we skip the deletion refund to avoid double
-    // crediting (reject flow may already have performed refund logic). Only apply the refund here
-    // when the current status is 'pendiente'.
-    if (expense.use_balance && currentExpense[0].status === 'pendiente') {
+    // Si el gasto usaba saldo, devolver el dinero a TODAS las tablas + registro transaccional
+    if (expense.use_balance) {
       const reembolsoAmount = Number(expense.amount) || 0;
       const currency = expense.currency || 'ARS';
       
@@ -1392,26 +1297,21 @@ app.delete('/api/expenses/:id', authMiddleware(), async (c) => {
     ).bind(expenseId).all();
 
     if (results.length === 0) {
-      // This case should be rare — the expense existed earlier but was removed between queries
-      const debugPayload = { ...debugMeta, note: 'deleted-lookup-mismatch' };
-      console.warn('DELETE /api/expenses/:id - delete returned empty', debugPayload);
-      return c.json({ error: 'Expense not found', debug: debugPayload }, 404);
+      return c.json({ error: 'Expense not found' }, 404);
     }
 
     // If we created a pending refund earlier (non-admin), report refunded=0 and pending_refund amount
     if (expense.use_balance) {
       const pendingRefundAmount = Number(expense.amount) || 0;
       if (user && (user.role === 'admin')) {
-        return c.json({ success: true, deleted: results[0], refunded: pendingRefundAmount, debug: debugMeta });
+        return c.json({ success: true, deleted: results[0], refunded: pendingRefundAmount });
       }
-      return c.json({ success: true, deleted: results[0], refunded: 0, pending_refund: pendingRefundAmount, debug: debugMeta });
+      return c.json({ success: true, deleted: results[0], refunded: 0, pending_refund: pendingRefundAmount });
     }
 
-    return c.json({ success: true, deleted: results[0], refunded: 0, debug: debugMeta });
+    return c.json({ success: true, deleted: results[0], refunded: 0 });
   } catch (error) {
-    const debugErr = { worker: WORKER_BUILD, expenseId: c.req.param('id'), error: String(error), now: new Date().toISOString() };
-    console.error('DELETE /api/expenses/:id - exception', debugErr);
-    return c.json({ error: String(error), debug: debugErr }, 500);
+    return c.json({ error: String(error) }, 500);
   }
 });
 
@@ -3089,20 +2989,12 @@ app.delete('/api/tipo-comprobantes/:id', authMiddleware(), async (c) => {
 // Simple expense creation without auth for testing
 app.post('/api/test-expense', async (c) => {
   const body = await c.req.json();
-
-  // Require sigla and tipo_comprobante for test endpoint
-  if (!body.sigla || String(body.sigla).trim() === '') {
-    return c.json({ error: 'La forma de pago es obligatoria' }, 400);
-  }
-  if (!body.tipo_comprobante_id || String(body.tipo_comprobante_id).trim() === '') {
-    return c.json({ error: 'El tipo de comprobante es obligatorio' }, 400);
-  }
-
+  
   try {
     await c.env.DB.prepare(
-      'INSERT INTO expenses (user_id, description, amount, category, expense_date, status, use_balance, tipo_comprobante_id, sigla) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO expenses (user_id, description, amount, category, expense_date, status, use_balance, sigla) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     )
-      .bind('admin-001', body.description, body.amount, body.category, new Date().toISOString().split('T')[0], 'pendiente', 0, body.tipo_comprobante_id, body.sigla)
+      .bind('admin-001', body.description, body.amount, body.category, new Date().toISOString().split('T')[0], 'pendiente', 0, body.sigla || null)
       .run();
 
     return c.json({ 

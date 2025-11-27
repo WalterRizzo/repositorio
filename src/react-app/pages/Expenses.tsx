@@ -1,3 +1,17 @@
+/*
+CSS para tablas consistentes:
+.app-table {
+  table-layout: fixed;
+  width: 100%;
+}
+.app-table th,
+.app-table td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+*/
+
 // ...existing code...
 
   // ...existing code...
@@ -16,7 +30,7 @@ import { useEffect, useState } from "react";
 import { useNotifications } from "@/react-app/hooks/useNotifications";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
-  import { Loader2, Receipt, Users, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Wallet, Key } from "lucide-react";
+  import { Loader2, Receipt, Users, Trash2, Database, Edit3, Sparkles, X, FileSpreadsheet, Wallet } from "lucide-react";
 import type { Expense, UserProfile } from "@/shared/types";
 import ExpensesTable from "@/react-app/components/ExpensesTable";
 import ExpenseForm from "@/react-app/components/ExpenseForm";
@@ -168,7 +182,7 @@ export default function Expenses() {
   const [usersPage, setUsersPage] = useState(1);
   // Pagination state for movements grid
   const [movementsPage, setMovementsPage] = useState(1);
-  const recordsPerPage = 5;
+  const recordsPerPage = 8;
 
   // derived filtered movements + pagination (fixes date filter not refreshing grid)
   const filteredMovements = balanceMovements
@@ -464,33 +478,16 @@ export default function Expenses() {
     }
   };
 
-  const handleReject = async (id: number, reason?: string) => {
+  const handleReject = async (id: number) => {
     if (!confirm("¿Rechazar este gasto?")) return;
-    // If caller provides a reason (e.g. child component modal), use it. Otherwise ask for one.
-    const reasonProvided = (reason && reason.trim() !== '') ? reason.trim() : window.prompt('Por favor, indica la razón del rechazo (obligatorio):');
-    if (!reasonProvided || reasonProvided.trim() === '') {
-      alert('Debes proporcionar una razón para el rechazo.');
-      return;
-    }
 
     try {
-      const resp = await fetch(`/api/expenses/${id}/reject`, {
+      await fetch(`/api/expenses/${id}/reject`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rejectionReason: reasonProvided.trim() })
       });
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        const msg = err.error || `Error ${resp.status} al rechazar gasto`;
-        console.error('Reject failed:', msg);
-        alert(`❌ No se pudo rechazar: ${msg}`);
-        return;
-      }
-
-      const data = await resp.json().catch(() => ({}));
       await fetchExpenses();
-      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id, expense: data.expense } })); } catch(e){}
+      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id } })); } catch(e){}
       alert("Gasto rechazado exitosamente");
       // Notificación push al usuario
       if (isSupported && permission === "granted") {
@@ -503,11 +500,9 @@ export default function Expenses() {
           }
         );
       }
-      return true;
     } catch (error) {
       console.error("Error rechazando gasto:", error);
       alert("Error al rechazar el gasto");
-      return false;
     }
   };
 
@@ -954,7 +949,7 @@ export default function Expenses() {
   // pendingExpenses removed — counts computed inline where necessary
 
   return (
-    <div className="expenses-page flex min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
+    <div className="flex min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-black">
       <Sidebar />
       {/* Notificación de eliminación de gasto */}
       {showDeleteNotification && (
@@ -980,9 +975,9 @@ export default function Expenses() {
       <div className="flex-1 w-full">
         <Header userProfile={userProfile} />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {/* HEADER PROFESIONAL */}
-        <div className="mb-8 relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 p-6 shadow-lg border border-slate-600 sticky top-20 z-40 backdrop-blur-sm">
+        <div className="mb-8 relative overflow-hidden rounded-xl bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 p-6 shadow-lg border border-slate-600">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
           <div className="relative z-10">
             <h1 className="text-3xl font-bold text-white mb-2">
@@ -1043,10 +1038,10 @@ export default function Expenses() {
                     window.location.hash = '#users';
                   }}
                   className={`flex-1 py-3 px-4 rounded-md font-semibold text-sm transition-all duration-200 ${
-                      activeTab === 'users'
-                        ? 'bg-blue-600 text-white shadow-md magic-tab-active'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    }`}
+                    activeTab === 'users'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  }`}
                 >
                   <div className="flex items-center justify-center space-x-2">
                     <Users className="w-4 h-4" />
@@ -1054,8 +1049,6 @@ export default function Expenses() {
                   </div>
                 </button>
               )}
-
-              {/* (Removed) Top KPI quick-action for 'Gestión de Usuarios' — using per-row actions in the Users table instead to avoid duplication */}
 
               {/* Pestaña Historial - Solo para admin/supervisor - OCULTO POR AHORA */}
               {false && (userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
@@ -1178,7 +1171,7 @@ export default function Expenses() {
         )}
 
         {activeTab === 'users' && (
-          <div className="bg-white dark:bg-gray-800 w-full px-0 py-0 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
             {/* Información de paginación - Usuarios */}
             <div className="mb-4 flex justify-between items-center">
               <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -1206,14 +1199,18 @@ export default function Expenses() {
             </div>
 
             {/* Tabla de usuarios */}
-            <div className="overflow-x-auto app-table-container">
-              <table className="w-full border-2 border-purple-500 shadow-lg table-condensed app-table">
+            <div className="overflow-x-auto">
+              <table className="w-full rounded-xl border-2 border-purple-500 shadow-lg app-table">
                 <thead className="bg-gradient-to-r from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-700 dark:via-gray-700 dark:to-gray-700">
                   <tr>
-                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider"><div className="header-inner"><span className="header-icon">👤</span><span className="header-label">Usuario</span></div></th>
-                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider"><div className="header-inner"><span className="header-icon">🎯</span><span className="header-label">Rol</span></div></th>
+                    <th className="px-4 py-2 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      👤 Usuario
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      🎯 Rol
+                    </th>
                       {/* Balance column hidden per UX — open 'Ver Saldos' to view all balances */}
-                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       ⚙️ Acciones
                     </th>
                   </tr>
@@ -1222,8 +1219,8 @@ export default function Expenses() {
                   {users
                     .slice((usersPage - 1) * recordsPerPage, usersPage * recordsPerPage)
                     .map((user) => (
-                      <tr key={user.user_id} className="group transition-all duration-200">
-                      <td className="px-4 py-1 align-top">
+                    <tr key={user.user_id} className="group transition-all duration-200">
+                      <td className="px-6 py-4 align-top">
                         <div className="flex items-center space-x-4">
                           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-pink-500 flex items-center justify-center text-white font-extrabold text-sm shadow-2xl">
                             {String(user.user_id || user.name || '?').charAt(0).toUpperCase()}
@@ -1250,24 +1247,9 @@ export default function Expenses() {
                               <Wallet className="w-4 h-4" />
                             </button>
                           )}
-                          {/* Key action: Gestión de Usuarios — aparece junto a Eliminar solo para admin/supervisor */}
                           <button onClick={() => handleDeleteUser(user.user_id)} className="w-9 h-9 flex items-center justify-center rounded-full bg-rose-600/60 hover:bg-rose-600 text-white shadow hover:shadow-lg transition-transform transform hover:-translate-y-0.5" title="Eliminar usuario">
                             <Trash2 className="w-4 h-4" />
                           </button>
-                          {/* Key action moved AFTER Delete: Gestión de Usuarios — aparece después de Eliminar solo para admin/supervisor */}
-                          {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
-                            <button
-                              onClick={() => {
-                                try { navigate(`/settings?tab=users&user=${user.user_id}`); }
-                                catch (e) { window.location.href = `/settings?tab=users&user=${user.user_id}`; }
-                              }}
-                              title="Gestión de Usuarios"
-                              aria-label={`Gestión de Usuarios: ${user.name || user.user_id}`}
-                              className="w-9 h-9 flex items-center justify-center rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white shadow hover:shadow-lg transition-transform transform hover:-translate-y-0.5"
-                            >
-                              <Key className="w-4 h-4" />
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -1339,79 +1321,44 @@ export default function Expenses() {
                   <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
                 </div>
               ) : (
-                <div className="overflow-x-auto bg-black rounded-xl p-4 border border-gray-900 grid-glow-container" style={{background:'#000',borderColor:'#23272F'}}>
-                  {/* Use the shared table classes to match Expenses table visuals and ensure stable header alignment */}
-                  <table className="w-full min-w-full border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed app-table">
-                    <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
+                <div className="overflow-x-auto rounded-2xl border-2 border-violet-500 shadow-lg bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4">
+                  <table className="w-full rounded-2xl border-2 border-violet-500 shadow-lg bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 table-condensed app-table">
+                    <thead className="bg-gradient-to-r from-violet-600 to-purple-600 sticky top-0">
                       <tr>
-                        <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📅</span><span className="header-label">FECHA</span></div></th>
-                          <th style={{width:'18%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">👤</span><span className="header-label">USUARIO</span></div></th>
-                          <th style={{width:'10%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">🎯</span><span className="header-label">TIPO</span></div></th>
-                          <th style={{width:'10%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">💰</span><span className="header-label">MONTO</span></div></th>
-                          <th style={{width:'8%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">💱</span><span className="header-label">MONEDA</span></div></th>
-                          <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📊</span><span className="header-label">SALDO ANTERIOR</span></div></th>
-                          <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📈</span><span className="header-label">SALDO NUEVO</span></div></th>
-                          <th style={{width:'18%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📝</span><span className="header-label">DESCRIPCIÓN</span></div></th>
+                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">FECHA</th>
+                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">USUARIO</th>
+                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">TIPO</th>
+                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">MONTO</th>
+                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">MONEDA</th>
+                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">SALDO ANTERIOR</th>
+                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">SALDO NUEVO</th>
+                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">DESCRIPCIÓN</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-                      {pageItems.map((movement, i) => (
-                          <tr key={movement.id} className="table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${i * 45}ms` }}>
-                              <td className="px-1 py-1 whitespace-nowrap text-[11px] text-gray-700 dark:text-gray-200 font-semibold">
-                              {(() => {
-                                const d = parseDbTimestampToDate(movement.created_at);
-                                return d ? d.toLocaleString('es-AR', {
-                                year: 'numeric',
-                                month: '2-digit',
-                                day: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: true
-                                }).replace(',', '') : movement.created_at;
-                              })()}
-                            </td>
-                            <td className="px-2 py-1 whitespace-nowrap text-xs sm:text-sm text-gray-700 dark:text-gray-200 font-semibold">
-                              {movement.user_name}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              <span className={`inline-flex px-3 py-1 text-xs font-black rounded-xl ${
-                                movement.type === 'carga' 
-                                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
-                                  : movement.type === 'descuento'
-                                  ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white'
-                                  : 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
-                              }`}>
-                                {movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste'}
-                              </span>
-                            </td>
-                            <td className="px-1 py-1 whitespace-nowrap text-[11px] text-gray-700 dark:text-gray-200">
-                              <span className={`text-sm font-black ${
-                                movement.type === 'carga' 
-                                  ? 'text-green-400' 
-                                  : 'text-red-400'
-                              }`}>
-                                {movement.type === 'carga' ? '+' : ''}{movement.amount}
-                              </span>
-                            </td>
-                            <td className="px-1 py-1 whitespace-nowrap">
-                              <span className="text-sm font-black text-gray-300">
-                                {movement.currency}
-                              </span>
-                            </td>
-                            <td className={`px-1 py-1 whitespace-nowrap text-[11px] font-semibold ${Number(movement.balance_before) < 0 ? 'text-rose-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
-                              ${Number(movement.balance_before).toFixed(2)}
-                            </td>
-                            <td className={`px-1 py-1 whitespace-nowrap text-[11px] font-black ${Number(movement.balance_after) < 0 ? 'text-rose-500' : 'text-green-500'}`}>
-                              ${Number(movement.balance_after).toFixed(2)}
-                            </td>
-                            <td className="px-2 py-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300 col-desc" title={movement.description}>
-                              {movement.description}
-                            </td>
-                          </tr>
-                        ))}
+                    <tbody className="divide-y divide-violet-700">
+                      {pageItems.map((movement, idx) => (
+                        <tr key={movement.id} className="hover:bg-violet-900/30 transition-all text-xs font-bold text-white" style={{ animationDelay: `${idx * 35}ms` }}>
+                          <td className="px-3 py-2 whitespace-nowrap text-left align-middle">
+                            {(() => {
+                              const d = parseDbTimestampToDate(movement.created_at);
+                              return d ? d.toLocaleDateString('es-AR') : movement.created_at;
+                            })()}
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-left align-middle">{movement.user_name}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-left align-middle">
+                            <span className={`px-2 py-1 rounded text-xs font-black ${movement.type === 'carga' ? 'bg-green-600 text-white' : movement.type === 'descuento' ? 'bg-red-600 text-white' : 'bg-yellow-600 text-white'}`}>{movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste'}</span>
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-left align-middle">
+                            <span className={`text-xs font-black ${movement.type === 'carga' ? 'text-green-400' : 'text-red-400'}`}>{movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}</span>
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap text-left align-middle">{movement.currency}</td>
+                          <td className={`px-3 py-2 whitespace-nowrap text-left align-middle ${Number(movement.balance_before) < 0 ? 'text-rose-500 font-bold' : 'text-gray-400'}`}>${Number(movement.balance_before).toFixed(2)}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-left align-middle text-green-400 font-black">${Number(movement.balance_after).toFixed(2)}</td>
+                          <td className="px-3 py-2 max-w-[220px] truncate text-left align-middle" title={movement.description}>{movement.description && movement.description.length > 60 ? movement.description.slice(0, 57) + '...' : movement.description}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
-                  {/* Use global shared table classes. Removed heavy inline gradient hover styles to keep visuals consistent across grids */}
                   
                   {filteredMovements.length === 0 && (
                     <div className="text-center py-12">
@@ -1419,26 +1366,18 @@ export default function Expenses() {
                     </div>
                   )}
                   
-                  {/* Always show pagination control to match Expenses table behaviour (keeps UI consistent even on a single page) */}
-                  {totalFiltered > 0 && (
-                    <div className="flex justify-between items-center mt-4 bg-black text-white rounded-xl px-3 py-2 pager-shimmer">
+                  {totalFiltered > recordsPerPage && (
+                    <div className="flex justify-between items-center mt-4 bg-black text-white rounded-xl px-3 py-2">
                       <div className="text-sm text-gray-300">
                         Mostrando {Math.min((movementsPage - 1) * recordsPerPage + 1, totalFiltered)} - {Math.min(movementsPage * recordsPerPage, totalFiltered)} de {totalFiltered} movimientos
                       </div>
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => setMovementsPage(1)}
-                          disabled={movementsPage === 1}
-                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
-                        >
-                          « Primera
-                        </button>
-                        <button
                           onClick={() => setMovementsPage(Math.max(1, movementsPage - 1))}
                           disabled={movementsPage === 1}
-                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                          className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm"
                         >
-                          ‹ Anterior
+                          ← Anterior
                         </button>
                         <span className="px-3 py-1 bg-white/10 text-white rounded text-sm">
                           Página {movementsPage} de {totalPages}
@@ -1446,16 +1385,9 @@ export default function Expenses() {
                         <button
                           onClick={() => setMovementsPage(Math.min(totalPages, movementsPage + 1))}
                           disabled={movementsPage >= totalPages}
-                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                          className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm"
                         >
-                          Siguiente ›
-                        </button>
-                        <button
-                          onClick={() => setMovementsPage(totalPages)}
-                          disabled={movementsPage >= totalPages}
-                          className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
-                        >
-                          Última »
+                          Siguiente →
                         </button>
                       </div>
                     </div>
@@ -1512,83 +1444,36 @@ export default function Expenses() {
                 <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
               </div>
             ) : (
-              <div className="overflow-x-auto grid-glow-container">
-                  <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed app-table">
-                  <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
-                      <tr>
-                      <th style={{width:'12%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📅</span><span className="header-label">FECHA</span></div></th>
-                      <th style={{width:'18%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">👤</span><span className="header-label">USUARIO</span></div></th>
-                      <th style={{width:'10%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">🎯</span><span className="header-label">TIPO</span></div></th>
-                      <th style={{width:'10%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">💰</span><span className="header-label">MONTO</span></div></th>
-                      <th style={{width:'12%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📊</span><span className="header-label">SALDO ANTERIOR</span></div></th>
-                      <th style={{width:'12%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📈</span><span className="header-label">SALDO NUEVO</span></div></th>
-                      <th style={{width:'18%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📝</span><span className="header-label">DESCRIPCIÓN</span></div></th>
+              <div className="overflow-x-auto rounded-2xl border-2 border-purple-500 shadow-lg bg-white dark:bg-gray-900 p-4">
+                <table className="w-full app-table">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Fecha</th>
+                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Usuario</th>
+                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Tipo</th>
+                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Monto</th>
+                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Moneda</th>
+                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Saldo Anterior</th>
+                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Saldo Nuevo</th>
+                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Descripción</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
-                    {pageItems.map((movement, i) => (
-                        <tr key={movement.id} className="hover:bg-violet-900/30 transition-all table-row-glow row-neon-left row-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
-                          <td className="px-1 py-1 whitespace-nowrap text-[11px] text-gray-700 dark:text-gray-200 font-semibold">
-                            {(() => {
-                              const d = parseDbTimestampToDate(movement.created_at);
-                              return d ? d.toLocaleString('es-AR', {
-                              year: 'numeric',
-                              month: '2-digit',
-                              day: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: true
-                              }).replace(',', '') : movement.created_at;
-                            })()}
-                          </td>
-                          <td className="px-1 py-1 whitespace-nowrap text-[11px] text-gray-700 dark:text-gray-200 font-semibold">
-                            {movement.user_name}
-                          </td>
-                          <td className="px-1 py-1 whitespace-nowrap text-xs sm:text-sm">
-                            <span className={`inline-flex px-3 py-1 text-xs font-black rounded-xl ${
-                              movement.type === 'carga' 
-                                ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white'
-                                : movement.type === 'descuento'
-                                ? 'bg-gradient-to-r from-red-600 to-pink-600 text-white'
-                                : 'bg-gradient-to-r from-yellow-600 to-orange-600 text-white'
-                            }`}>
-                              {movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste'}
-                            </span>
-                          </td>
-                          <td className="px-1 py-1 whitespace-nowrap">
-                            <span className={`text-sm font-black ${
-                              movement.type === 'carga' 
-                                ? 'text-green-400' 
-                                : 'text-red-400'
-                            }`}>
-                              {movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}
-                            </span>
-                          </td>
-                            <td className={`px-1 py-1 whitespace-nowrap text-[11px] sm:text-[11px] font-semibold ${Number(movement.balance_before) < 0 ? 'text-rose-500 font-bold' : 'text-gray-500 dark:text-gray-400'}`}>
-                              ${Number(movement.balance_before).toFixed(2)}
-                            </td>
-                            <td className={`px-1 py-1 whitespace-nowrap text-[11px] sm:text-[11px] font-black ${Number(movement.balance_after) < 0 ? 'text-rose-500' : 'text-green-500'}`}>
-                              ${Number(movement.balance_after).toFixed(2)}
-                            </td>
-                          <td className="px-1 py-1 text-[11px] sm:text-[11px] text-gray-600 dark:text-gray-300 col-desc" title={movement.description}>
-                            {movement.description}
-                          </td>
-                        </tr>
-                      ))}
+                  <tbody className="divide-y divide-gray-700">
+                    {pageItems.map((movement, idx) => (
+                      <tr key={movement.id} className="hover:bg-violet-900/30 transition-all text-xs font-bold text-white" style={{ animationDelay: `${idx * 35}ms` }}>
+                        <td className="px-4 py-3 whitespace-nowrap">{(() => { const d = parseDbTimestampToDate(movement.created_at); return d ? d.toLocaleDateString('es-AR') : movement.created_at; })()}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{movement.user_name}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste'}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{movement.type === 'carga' ? '+' : ''}{movement.amount}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">{movement.currency}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">${Number(movement.balance_before).toFixed(2)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap">${Number(movement.balance_after).toFixed(2)}</td>
+                        <td className="px-4 py-3 max-w-[220px] truncate" title={movement.description}>{movement.description && movement.description.length > 60 ? movement.description.slice(0, 57) + '...' : movement.description}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
-                {/* admin movements pager (same style) */}
-                {/* admin movements pager (same style as expenses) */}
-                {totalFiltered > 0 && (
-                  <div className="flex justify-between items-center mt-4 bg-black text-white rounded-xl px-3 py-2 pager-shimmer">
-                    <div className="text-sm text-gray-300">Mostrando {Math.min((movementsPage - 1) * recordsPerPage + 1, totalFiltered)} - {Math.min(movementsPage * recordsPerPage, totalFiltered)} de {totalFiltered} movimientos</div>
-                    <div className="flex items-center space-x-2">
-                      <button onClick={() => setMovementsPage(Math.max(1, movementsPage - 1))} disabled={movementsPage === 1} className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm">← Anterior</button>
-                      <span className="px-3 py-1 bg-white/10 text-white rounded text-sm">Página {movementsPage} de {totalPages}</span>
-                      <button onClick={() => setMovementsPage(Math.min(totalPages, movementsPage + 1))} disabled={movementsPage >= totalPages} className="px-3 py-1 bg-black hover:bg-gray-800 disabled:opacity-50 text-white rounded text-sm">Siguiente →</button>
-                    </div>
-                  </div>
-                )}
+                
                   {filteredMovements.length === 0 && (
                   <div className="text-center py-12">
                     <p className="text-gray-400 font-semibold">📭 No hay movimientos registrados</p>
@@ -1710,14 +1595,14 @@ export default function Expenses() {
                       <table className="w-full text-sm text-left text-gray-300 app-table">
                         <thead>
                           <tr>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">#</span><span className="header-label">id</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">🔁</span><span className="header-label">original_expense_id</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">👤</span><span className="header-label">user_id</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📝</span><span className="header-label">description</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">💰</span><span className="header-label">amount</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">💱</span><span className="header-label">currency</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📅</span><span className="header-label">expense_date</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📦</span><span className="header-label">archived_at</span></div></th>
+                            <th className="px-2 py-1">id</th>
+                            <th className="px-2 py-1">original_expense_id</th>
+                            <th className="px-2 py-1">user_id</th>
+                            <th className="px-2 py-1">description</th>
+                            <th className="px-2 py-1">amount</th>
+                            <th className="px-2 py-1">currency</th>
+                            <th className="px-2 py-1">expense_date</th>
+                            <th className="px-2 py-1">archived_at</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1750,15 +1635,14 @@ export default function Expenses() {
                       <table className="w-full text-sm text-left text-gray-300 app-table">
                         <thead>
                           <tr>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">#</span><span className="header-label">id</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">🔁</span><span className="header-label">original_movement_id</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">👤</span><span className="header-label">user_id</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">🎯</span><span className="header-label">tipo</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">💰</span><span className="header-label">monto</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📊</span><span className="header-label">saldo_anterior</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📈</span><span className="header-label">saldo_nuevo</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📝</span><span className="header-label">DESCRIPCIÓN</span></div></th>
-                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📅</span><span className="header-label">archived_at</span></div></th>
+                            <th className="px-2 py-1">id</th>
+                            <th className="px-2 py-1">original_movement_id</th>
+                            <th className="px-2 py-1">user_id</th>
+                            <th className="px-2 py-1">tipo</th>
+                            <th className="px-2 py-1">monto</th>
+                            <th className="px-2 py-1">saldo_anterior</th>
+                            <th className="px-2 py-1">saldo_nuevo</th>
+                            <th className="px-2 py-1">archived_at</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1771,7 +1655,6 @@ export default function Expenses() {
                               <td className="px-2 py-1">{r.monto}</td>
                               <td className="px-2 py-1">{r.saldo_anterior}</td>
                               <td className="px-2 py-1">{r.saldo_nuevo}</td>
-                              <td className="px-2 py-1 text-xs text-gray-600 dark:text-gray-300 col-desc" title={r.descripcion || r.description}>{r.descripcion ?? r.description ?? ''}</td>
                               <td className="px-2 py-1">{r.archived_at}</td>
                             </tr>
                           ))}

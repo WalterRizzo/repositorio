@@ -135,3 +135,4 @@ export default function Header({ userProfile }: HeaderProps) {
     </header>
   );
 }
+// ...existing code...

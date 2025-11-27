@@ -88,40 +88,38 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
         {transactionsLoading ? (
           <div className="text-center py-4">Cargando transacciones...</div>
         ) : filteredTransactions.length > 0 ? (
-            <div className="overflow-x-auto app-table-container">
-              <table className="w-full text-[11px] table-condensed app-table">
-              <thead>
-                <tr className="border-b">
-                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">FECHA</th>
-                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">USUARIO</th>
-                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">TIPO</th>
-                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">MONTO</th>
-                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">SALDO ANTERIOR</th>
-                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">SALDO NUEVO</th>
-                    <th className="px-2 py-1 text-left text-[10px] uppercase tracking-wide">DESCRIPCIÓN</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTransactions.map((tx: any, idx: number) => (
-                    <tr key={idx} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800 app-table-row-hover">
-                      <td className="px-2 py-1">{(parseDbTimestampToDate(tx.fecha) || new Date()).toLocaleDateString()}</td>
-                      <td className="px-2 py-1 max-w-[160px] truncate">{tx.usuario || 'N/A'}</td>
-                      <td className="px-2 py-1">
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                        tx.tipo === 'carga' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-                      }`}>
-                        {tx.tipo}
-                      </span>
-                    </td>
-                    <td className="px-2 py-1">{tx.moneda} {formatBalance(tx.monto, tx.moneda, 'en-US')}</td>
-                    <td className={`px-2 py-1 font-semibold ${getColorClass(tx.saldo_anterior)}`}>{tx.moneda} {formatBalance(tx.saldo_anterior, tx.moneda, 'en-US')}</td>
-                    <td className={`px-2 py-1 font-semibold ${getColorClass(tx.saldo_nuevo)}`}>{tx.moneda} {formatBalance(tx.saldo_nuevo, tx.moneda, 'en-US')}</td>
-                    <td className="px-2 py-1 text-[10px] max-w-[220px] truncate">{tx.descripcion || '-'}</td>
+            <div className="overflow-x-auto app-table-container rounded-2xl shadow-lg border-2 border-gray-800 dark:border-gray-900 bg-gray-900">
+              <table className="w-full text-xs app-table">
+                <thead className="bg-gray-900">
+                  <tr>
+                    <th className="px-2 py-2 text-left text-[11px] font-black text-white uppercase tracking-wider">Fecha</th>
+                    <th className="px-2 py-2 text-left text-[11px] font-black text-white uppercase tracking-wider">Usuario</th>
+                    <th className="px-2 py-2 text-left text-[11px] font-black text-white uppercase tracking-wider">Tipo</th>
+                    <th className="px-2 py-2 text-right text-[11px] font-black text-white uppercase tracking-wider">Monto</th>
+                    <th className="px-2 py-2 text-center text-[11px] font-black text-white uppercase tracking-wider">Moneda</th>
+                    <th className="px-2 py-2 text-right text-[11px] font-black text-white uppercase tracking-wider">Saldo Anterior</th>
+                    <th className="px-2 py-2 text-right text-[11px] font-black text-white uppercase tracking-wider">Saldo Nuevo</th>
+                    <th className="px-2 py-2 text-left text-[11px] font-black text-white uppercase tracking-wider">Descripción</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-violet-900 dark:divide-violet-700">
+                  {filteredTransactions.map((tx: any, idx: number) => (
+                    <tr key={idx} className="hover:bg-gray-800 transition-all">
+                      <td className="px-2 py-2 whitespace-nowrap text-[11px] text-left text-white">{(parseDbTimestampToDate(tx.fecha) || new Date()).toLocaleDateString('es-AR')}</td>
+                      <td className="px-2 py-2 max-w-[160px] truncate text-[11px] text-left text-white">{tx.usuario || 'N/A'}</td>
+                      <td className="px-2 py-2 text-[11px] text-left">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${tx.tipo === 'carga' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{tx.tipo}</span>
+                      </td>
+                      <td className="px-2 py-2 whitespace-nowrap text-[11px] text-right font-bold text-white">{tx.moneda} {formatBalance(tx.monto, tx.moneda, 'es-AR')}</td>
+                      <td className="px-2 py-2 whitespace-nowrap text-[11px] text-center text-white">{tx.moneda}</td>
+                      <td className={`px-2 py-2 font-semibold text-[11px] text-right ${getColorClass(tx.saldo_anterior)} text-white`}>{tx.moneda} {formatBalance(tx.saldo_anterior, tx.moneda, 'es-AR')}</td>
+                      <td className={`px-2 py-2 font-semibold text-[11px] text-right ${getColorClass(tx.saldo_nuevo)} text-white`}>{tx.moneda} {formatBalance(tx.saldo_nuevo, tx.moneda, 'es-AR')}</td>
+                      <td className="px-2 py-2 text-[10px] max-w-[220px] truncate text-left text-white">{tx.descripcion || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
         ) : (
           <div className="text-center py-4 text-gray-500">No hay transacciones registradas</div>
         )}
