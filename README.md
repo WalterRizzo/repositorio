@@ -1,6 +1,77 @@
 # 💰 ExpenseFlow - Gestión de Gastos Empresariales
 
 Una aplicación moderna y completa para gestionar gastos empresariales, construida con React 19, Hono, TypeScript y Cloudflare Workers.
+## 🌟 Características Principales
+
+- ✅ **Autenticación segura**: Integración con Google OAuth vía Mocha Users Service
+- 💳 **Gestión completa de gastos**: Crear, editar, eliminar y categorizar gastos
+- 👥 **Roles y permisos**: Sistema de roles (Admin, Supervisor, Employee)
+- 💰 **Sistema de saldos**: Gestión de saldo prepagado para empleados
+- 📊 **Reportes y analytics**: Gráficos y estadísticas de gastos
+- 🔄 **Sistema de aprobaciones**: Flujo de trabajo para supervisores
+- 📱 **Responsive design**: Funciona perfectamente en móviles y desktop
+- 🌙 **Modo oscuro**: Tema claro y oscuro
+- 🏷️ **Categorización**: Organización por categorías personalizables
+- 📄 **Comprobantes**: Upload y gestión de archivos adjuntos
+- **Reportes y Analytics**: Gráficos y exportación a Excel
+- **Subida de Recibos**: Almacenamiento de fotos de facturas en Cloudflare R2
+- **Gestión de Usuarios**: Panel administrativo para roles y permisos
+- **Tema Oscuro**: Interfaz moderna con soporte para modo oscuro
+
+### 🏗️ Arquitectura Técnica
+- **Frontend**: React 19 + TypeScript + Tailwind CSS
+- **Backend**: Hono (Express-like framework) en Cloudflare Workers
+- **Base de Datos**: Cloudflare D1 (SQLite)
+- **Autenticación**: Mocha Users Service
+- **Almacenamiento**: Cloudflare R2 para archivos
+- **Deployment**: Cloudflare Workers + Pages
+### 📋 Requisitos Previos
+
+1. **Cuenta de Cloudflare**
+2. **Cuenta en getmocha.com** para el servicio de autenticación
+3. **Node.js 18+** y npm
+4. **Wrangler CLI** (se instala automáticamente)
+### 🔧 Configuración e Instalación
+
+#### 1. Clonar e instalar dependencias
+```bash
+git clone <tu-repo>
+cd expense-tharsis
+npm install
+```
+
+#### 2. Configurar Cloudflare
+```bash
+# Autenticar con Cloudflare
+npx wrangler auth login
+# Verificar configuración
+npx wrangler whoami
+```
+#### 3. Configurar base de datos
+La base de datos D1 ya está configurada. Si necesitas crear una nueva:
+```bash
+npx wrangler d1 create expense-app-db
+# Actualizar database_id en wrangler.json con el ID generado
+```
+#### 4. Configurar variables de entorno
+
+**Para desarrollo (archivo .dev.vars):**
+```bash
+MOCHA_USERS_SERVICE_API_URL=https://users-service.getmocha.com/api
+MOCHA_USERS_SERVICE_API_KEY=tu-api-key-aqui
+```
+
+**Para producción:**
+```bash
+npx wrangler secret put MOCHA_USERS_SERVICE_API_URL
+# Ingresar: https://users-service.getmocha.com/api
+
+npx wrangler secret put MOCHA_USERS_SERVICE_API_KEY
+# Ingresar tu API key desde getmocha.com
+```
+# 💰 ExpenseFlow - Gestión de Gastos Empresariales
+
+Una aplicación moderna y completa para gestionar gastos empresariales, construida con React 19, Hono, TypeScript y Cloudflare Workers.
 
 ## 🌟 Características Principales
 

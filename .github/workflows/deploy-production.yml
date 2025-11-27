@@ -37,18 +37,7 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
-      - name: Prepare Wrangler config
-        run: node scripts/ensure-wrangler-config.js
-
-      - name: Deploy to Cloudflare (Wrangler)
-        env:
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-        run: npx wrangler deploy --config ./wrangler.json
-
-      - name: Verification - fetch /expenses (sanity check)
+      - name: Info — no automatic deploy
         run: |
-          sleep 2
-          curl -sSfL https://expense-tharsis-app.tharsis-gastos-app.workers.dev/expenses | grep -q "index-" && echo "OK: assets present" || (echo "WARNING: assets missing" && exit 1)
-      - name: Success
-        if: ${{ success() }}
-        run: echo "Production deploy completed."
+          echo "Automatic deploy removed for safety: this workflow only builds on branch 'produccion'."
+          echo "To deploy, run the included script locally (deploy-production.sh / deploy-production.ps1) from a terminal authenticated with Wrangler (npx wrangler auth login)."
