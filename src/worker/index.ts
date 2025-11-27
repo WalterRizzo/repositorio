@@ -1209,10 +1209,9 @@ app.delete('/api/expenses/:id', authMiddleware(), async (c) => {
       return c.json({ error: 'No tienes permiso para eliminar este gasto' }, 403);
     }
     
-    if (currentExpense[0].status !== 'pendiente') {
-      return c.json({ 
-        error: 'No se puede eliminar un gasto que ya ha sido aprobado o rechazado' 
-      }, 400);
+    // Allow deletion for 'pendiente' and 'rechazado' expenses — block only approved ones
+    if (currentExpense[0].status === 'aprobado') {
+      return c.json({ error: 'No se puede eliminar un gasto que ya ha sido aprobado' }, 400);
     }
     
     // Obtener detalles completos del gasto antes de eliminarlo

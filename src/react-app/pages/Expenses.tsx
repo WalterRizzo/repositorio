@@ -1153,6 +1153,7 @@ export default function Expenses() {
               expense={editingExpense}
               onSuccess={handleFormSuccess}
               onCancel={handleFormCancel}
+              readOnly={!!editingExpense && editingExpense.status === 'aprobado'}
             />
           ) : (
             <ExpensesTable

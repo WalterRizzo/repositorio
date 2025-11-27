@@ -11,12 +11,14 @@ interface ExpenseFormProps {
   expense: Expense | null;
   onSuccess: () => void;
   onCancel: () => void;
+  readOnly?: boolean;
 }
 
 export default function ExpenseForm({
   expense,
   onSuccess,
   onCancel,
+  readOnly = false,
 }: ExpenseFormProps) {
   const [formData, setFormData] = useState({
     description: "",
@@ -52,6 +54,8 @@ export default function ExpenseForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const isEditing = !!expense;
+  // computed read-only: either the prop or the expense has status 'aprobado'
+  const isReadOnly: boolean = Boolean(readOnly) || (expense?.status === 'aprobado');
   const multiFileInputRef = useRef<HTMLInputElement>(null);
 
   // Función para reproducir sonido de guardado (ahora con variación aleatoria)
@@ -765,6 +769,8 @@ export default function ExpenseForm({
                 min="0"
                 className="w-full px-4 py-3 bg-white/5 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white placeholder-white/30 hover:bg-white/10 font-bold text-lg"
                 placeholder="0.00"
+                disabled={isReadOnly}
+                readOnly={isReadOnly}
               />
             </div>
 
@@ -780,6 +786,7 @@ export default function ExpenseForm({
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-gray-700 font-semibold"
+                disabled={isReadOnly}
               >
                 {currenciesList.length === 0 ? (
                   // Fallback to a small safe list while currencies load or in case of error
@@ -811,6 +818,8 @@ export default function ExpenseForm({
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-3 bg-white/5 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-white/10"
+                disabled={isReadOnly}
+                readOnly={isReadOnly}
               />
             </div>
           </div>
@@ -827,6 +836,7 @@ export default function ExpenseForm({
               onChange={handleChange}
               required
               className="w-full px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-gray-700"
+              disabled={isReadOnly}
             >
               <option value="" className="bg-gray-800 text-white">Selecciona una categoría</option>
               {(() => {
@@ -855,6 +865,7 @@ export default function ExpenseForm({
               onChange={handleChange}
               required
               className="w-full px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-gray-700"
+              disabled={isReadOnly}
             >
               <option value="" className="bg-gray-800 text-white">Seleccionar tipo...</option>
               {tipoComprobantes.map((tipo) => (
@@ -877,6 +888,7 @@ export default function ExpenseForm({
                 accept="image/*"
                 onChange={handleFileChange}
                 className="hidden"
+                disabled={isReadOnly}
               />
               <button
                 type="button"
@@ -945,6 +957,7 @@ export default function ExpenseForm({
                 onChange={handleMultipleFileChange}
                 className="hidden"
                 id="multiple-files-input"
+                disabled={isReadOnly}
               />
               <button
                 type="button"
@@ -1031,6 +1044,7 @@ export default function ExpenseForm({
               onChange={handleChange}
               className="w-full px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-gray-700"
               required
+              disabled={isReadOnly}
             >
               <option value="" className="bg-gray-800 text-white">Seleccionar forma de pago</option>
               {paymentMethods.map((m) => (
@@ -1137,13 +1151,13 @@ export default function ExpenseForm({
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isReadOnly}
             className="group relative flex items-center justify-center w-full sm:w-auto space-x-2 px-8 py-3 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white rounded-xl hover:from-violet-700 hover:via-purple-700 hover:to-indigo-700 transition-all duration-300 shadow-xl shadow-violet-500/30 hover:shadow-2xl hover:shadow-violet-500/50 transform hover:-translate-y-0.5 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none focus:outline-none focus:ring-2 focus:ring-violet-500"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-violet-500 rounded-xl blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-300 -z-10"></div>
             <Save className="w-6 h-6 relative" />
             <span className="font-bold relative">
-              {isSubmitting ? "Guardando..." : expense ? "Actualizar Gasto" : "Crear Gasto"}
+              {isReadOnly ? (expense ? 'Ver Gasto (solo lectura)' : 'Crear Gasto') : (isSubmitting ? 'Guardando...' : expense ? 'Actualizar Gasto' : 'Crear Gasto')}
             </span>
           </button>
         </div>
