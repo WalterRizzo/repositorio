@@ -449,8 +449,11 @@
 }
 
 /* Header helpers: align icon + label, keep labels truncated but readable */
-.app-table thead th { /* make headers flex so icons + text align nicely */
-  display: flex;
+.app-table thead th { /* keep native table header layout to avoid layout breakage */
+  /* Avoid changing display type of <th> so table semantics and alignment are preserved */
+}
+.app-table thead th .header-inner { /* inner wrapper for alignment */
+  display:flex;
   align-items: center;
   gap: 0.5rem;
 }
