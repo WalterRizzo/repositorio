@@ -1,27 +1,28 @@
 # Migración de secretos y recomendaciones
 
-Este documento explica cómo mover las claves y secretos del archivo `wrangler.json` al mecanismo de secretos de Cloudflare (wrangler) y buenas prácticas para rotar claves.
+Este documento explica cómo mover las claves y secretos desde archivos de configuración al mecanismo de secretos de tu plataforma (Cloud provider / CI secrets). El repositorio ya no asume uso de Wrangler/Cloudflare CLI — trata las instrucciones a continuación como ejemplos genéricos y adapta al gestor de secretos que uses.
 
 1) Verifica que has eliminado todas las claves sensibles del control de versiones (por ejemplo `wrangler.json`, `wrangler.toml`, `wrangler.config.js`). No metas secretos en archivos versionados.
 
 2) Rotar las claves:
    - Si alguna clave estaba expuesta (ej: `JWT_SECRET`, `RESEND_API_KEY`), rotala en los servicios correspondientes (Resend API, Mocha) y genera una nueva.
 
-3) Guardar secretos en Cloudflare con wrangler:
+3) Guardar secretos en el gestor de secretos de tu plataforma (ejemplo genérico):
 ```powershell
-# En tu terminal (PowerShell):
-npx wrangler login
-npx wrangler secret put JWT_SECRET
 # pega el valor de JWT_SECRET y presiona Enter
-npx wrangler secret put RESEND_API_KEY
 # pega el valor de RESEND_API_KEY y presiona Enter
-npx wrangler secret put MOCHA_USERS_SERVICE_API_KEY
+# Autentica con la CLI de tu plataforma y guarda el secreto
+mycli secret put JWT_SECRET
+# pega el valor de JWT_SECRET y presiona Enter
+mycli secret put RESEND_API_KEY
+# pega el valor de RESEND_API_KEY y presiona Enter
+mycli secret put MOCHA_USERS_SERVICE_API_KEY
 ### DBA Exec Key
 
 If you keep the DBA endpoint, protect it with an additional secret to avoid accidental exposure via a leaked cookie or compromised admin account. Set it with:
 
 ```powershell
-npx wrangler secret put DBA_EXEC_KEY
+mycli secret put DBA_EXEC_KEY
 ```
 
 Then call the endpoint with an extra header:
@@ -49,7 +50,7 @@ curl -H "Authorization: Bearer <token>" -H "x-dba-key: <secret>" -X POST https:/
    - Mantén `DBA_EXEC_KEY` secreto y solo disponible para administradores de confianza.
    - Requiere `Authorization: Bearer <token>` con un usuario `admin` autenticado.
    - Habilita el flag `ALLOW_DBA_WRITE` en tu entorno (Cloudflare Secrets) de forma temporal y limitada: 
-      - `npx wrangler secret put ALLOW_DBA_WRITE` y escribe `true` como valor.
+      - `mycli secret put ALLOW_DBA_WRITE` y escribe `true` como valor.
       - O usa `DBA_ALLOW_MUTATIONS=true` como alternativa si lo prefieres.
    - Auditoría: Todas las operaciones ejecutadas a través del endpoint DBA se registran en la tabla `dba_logs` si existe. Revisa esa tabla periódicamente.
 

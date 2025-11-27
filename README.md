@@ -33,7 +33,7 @@ Una aplicación moderna y completa para gestionar gastos empresariales, construi
 1. **Cuenta de Cloudflare**
 2. **Cuenta en getmocha.com** para el servicio de autenticación
 3. **Node.js 18+** y npm
-4. **Wrangler CLI** (se instala automáticamente)
+4. **Herramienta CLI preferida** (se recomienda usar la que mejor se adapte a tu flujo de trabajo)
 
 ### 🔧 Configuración e Instalación
 
@@ -47,17 +47,17 @@ npm install
 #### 2. Configurar Cloudflare
 ```bash
 # Autenticar con Cloudflare
-npx wrangler auth login
+Autentícate con la herramienta CLI que prefieras.
 
 # Verificar configuración
-npx wrangler whoami
+Verifica que tus credenciales estén configuradas correctamente.
 ```
 
 #### 3. Configurar base de datos
 La base de datos D1 ya está configurada. Si necesitas crear una nueva:
 ```bash
-npx wrangler d1 create expense-app-db
-# Actualizar database_id en wrangler.json con el ID generado
+Usa tu herramienta CLI para crear la base de datos.
+# Actualiza database_id en tu configuración con el ID generado
 ```
 
 #### 4. Configurar variables de entorno
@@ -70,10 +70,10 @@ MOCHA_USERS_SERVICE_API_KEY=tu-api-key-aqui
 
 **Para producción:**
 ```bash
-npx wrangler secret put MOCHA_USERS_SERVICE_API_URL
+npx tu_herramienta_cli secret put MOCHA_USERS_SERVICE_API_URL
 # Ingresar: https://users-service.getmocha.com/api
 
-npx wrangler secret put MOCHA_USERS_SERVICE_API_KEY
+npx tu_herramienta_cli secret put MOCHA_USERS_SERVICE_API_KEY
 # Ingresar tu API key desde getmocha.com
 ```
 
@@ -99,14 +99,9 @@ npx wrangler d1 execute expense-app-db --local --file=./migrations/22.sql
 npx wrangler d1 execute expense-app-db --remote --file=./migrations/22.sql
 ```
 
-También añadimos un endpoint de comprobación rápida (`/api/db-check`) protegido por autenticación que te permitirá verificar en pocos segundos si la tabla y la columna están presentes en tu DB. Úsalo desde el cliente (o curl) cuando estés autenticado:
-
-```bash
+Ejecuta las migraciones usando tu herramienta preferida para D1 / SQLite / tu DB en local o producción.
 # desde el cliente (ej. con cookie de sesión):
-curl -i -b "YOUR_COOKIE_AUTH" https://<tu-app>/api/db-check
-```
-```
-
+Ejemplo, si usas una CLI que soporte ejecutar archivos SQL contra la base de datos, úsala contra cada fichero en `./migrations/`.
 ### 4. Configurar variables de entorno
 
 **Archivo .dev.vars (desarrollo local):**
@@ -134,17 +129,16 @@ npx wrangler secret put JWT_SECRET
 #### Desarrollo
 ```bash
 npm run dev
-```
-La aplicación estará disponible en `http://localhost:5173`
+Ejecuta ./migrations/22.sql con la herramienta SQL/DB que utilices en local o producción.
 
 #### Producción
 Use the repository-root Wrangler configuration to guarantee you deploy the intended worker (we've updated the repo so the recommended command always uses the root `wrangler.json`):
 
 ```bash
 # Opción 1: Script automatizado (Windows)
-.\deploy-production.ps1
-
-# Opción 2: Manual — recommended and enforced here
+npx tu_herramienta_cli secret put MOCHA_USERS_SERVICE_API_URL
+npx tu_herramienta_cli secret put MOCHA_USERS_SERVICE_API_KEY
+npx tu_herramienta_cli secret put JWT_SECRET
 npm run build
 npx wrangler deploy --config ./wrangler.json
 
@@ -156,14 +150,13 @@ Note: the internal `.wrangler/deploy/config.json` now points at the repository's
 
 ### 📊 Estructura del Proyecto
 
-```
+Este repositorio ya no contiene despliegues automáticos con Wrangler. Para desplegar en producción sigue uno de estos caminos (elige el que prefieras):
 src/
-├── react-app/          # Frontend React
-│   ├── components/     # Componentes reutilizables
+Usar servicios estáticos como Netlify / Vercel (sube `dist/client` o configura el builder)
 │   ├── pages/          # Páginas de la aplicación
-│   ├── hooks/          # Custom hooks
-│   └── App.tsx         # Componente principal
-├── worker/             # Backend Cloudflare Worker
+Crear una nueva pipeline CI/CD que tome `npm run build` y publique los assets a tu host elegido
+
+He incluido un script de ayuda `scripts/prepare-static-deploy.js` que valida que `dist/client` exista tras `npm run build` y te deja listo para subir los archivos.
 │   └── index.ts        # API endpoints
 └── shared/             # Tipos compartidos
     └── types.ts        # Definiciones TypeScript

@@ -32,15 +32,12 @@
     "tailwindcss": "^3.4.18",
     "typescript": "5.8.3",
     "typescript-eslint": "8.31.0",
-    "vite": "^6.0.0",
-    "wrangler": "^4.33.0"
+    "vite": "^6.0.0"
   },
   "scripts": {
     "build": "tsc -b && vite build",
-    "cf-typegen": "wrangler types",
-    "check": "tsc && vite build && wrangler deploy --dry-run",
-    "deploy:prod": "node scripts/ensure-wrangler-config.js && npm run build && npx wrangler deploy --config ./wrangler.json",
-    "deploy:dry-root": "node scripts/ensure-wrangler-config.js && npx wrangler deploy --dry-run --config ./wrangler.json",
+    "check": "tsc && vite build",
+    "deploy:static": "npm run build && node scripts/prepare-static-deploy.js",
     "dev": "vite",
     "lint": "eslint ."
   }

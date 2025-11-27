@@ -7,17 +7,19 @@
 1. Crear cuenta en https://resend.com (gratis hasta 3,000 emails/mes)
 2. Verificar dominio o usar el dominio de prueba
 3. Generar API Key
-4. Agregar la API key como secreto en Cloudflare Workers:
+4. Agregar la API key como secreto en el gestor de secretos de tu plataforma (Cloudflare, Netlify, Vercel, AWS Secrets Manager, etc.).
+
+Ejemplo genérico con la CLI de tu plataforma:
 
 ```bash
-npx wrangler secret put RESEND_API_KEY
+mycli secret put RESEND_API_KEY
 ```
 
 5. Actualizar el código en `src/worker/index.ts` línea ~85:
    - Reemplazar `'Bearer re_123456789'` 
    - Por: `\`Bearer ${c.env.RESEND_API_KEY}\``
 
-6. Agregar el binding en `wrangler.json`:
+6. Agregar el binding / variable secreta en la configuración de tu plataforma (ej.: variables de entorno, bindings, etc.).
 
 ```json
 {

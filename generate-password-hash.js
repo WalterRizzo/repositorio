@@ -18,4 +18,5 @@ console.log(`📝 Contraseña: ${password}`);
 console.log(`🔑 Hash SHA256: ${hash}`);
 console.log('');
 console.log('💡 Para actualizar en la base de datos, usa:');
-console.log(`npx wrangler d1 execute expense-app-db --remote --command="UPDATE users SET password_hash = '${hash}' WHERE email = 'usuario@email.com';"`);
+console.log('💡 Para actualizar en la base de datos, usa tu cliente SQL o el método de despliegue que prefieras.');
+console.log("Ejemplo (ejecuta en tu BD / herramienta SQL): UPDATE users SET password_hash = '<HASH>' WHERE email = 'usuario@email.com';");
