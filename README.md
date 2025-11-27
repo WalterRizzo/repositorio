@@ -183,6 +183,20 @@ Notas:
 
 Si prefieres un flujo diferente (Pages, S3, Netlify, Vercel), puedo adaptarlo, pero por ahora la pipeline oficial para producción usa **Wrangler** y solo desplegará desde `produccion`.
 
+#### Protección de la rama `produccion` (recomendado)
+
+Para minimizar errores en despliegues, recomiendo activar una protección de rama que haga obligatorios los checks y/o revisiones antes de permitir push directo. Añadí dos scripts para facilitar esto (requieren `gh` CLI con permisos admin del repo):
+
+- `scripts/protect-production-branch.sh` (bash)
+- `scripts/protect-production-branch.ps1` (PowerShell)
+
+Ejemplo (PowerShell):
+```powershell
+pwsh ./scripts/protect-production-branch.ps1
+```
+
+Los scripts aplicarían reglas simples: exigir los status checks (build), exigir 1 aprobación en PRs y aplicar la política a administradores.
+
 ### 📊 Estructura del Proyecto
 
 Este repositorio ya no contiene despliegues automáticos con Wrangler. Para desplegar en producción sigue uno de estos caminos (elige el que prefieras):
