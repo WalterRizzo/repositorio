@@ -455,7 +455,7 @@
 .app-table thead th .header-inner { /* inner wrapper for alignment */
   display:flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem; /* tighten gap so long header labels have more room */
 }
 .app-table thead th .header-icon {
   display: inline-flex;
@@ -468,10 +468,12 @@
   line-height: 1;
 }
 .app-table thead th .header-label {
-  display: inline-block;
+  display: -webkit-box; /* allow multi-line truncation */
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; /* show up to 2 lines for long headers */
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal; /* allow wrapping, clamp to two lines */
   min-width: 0; /* allow shrinking inside flex */
 }
 
