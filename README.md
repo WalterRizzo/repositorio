@@ -142,6 +142,29 @@ Opciones sugeridas:
 Si quieres desplegar automáticamente a **Cloudflare Pages** desde GitHub, la configuración que añadimos al workflow usa la acción oficial de Pages. Requisitos y pasos:
 
 1. Crea un proyecto en Cloudflare Pages y apunta su sitio al nombre que quieras.
+
+#### Configurar secrets automáticamente desde tu máquina (opcional)
+
+He añadido dos scripts en `./scripts` para ayudarte a configurar los secrets de GitHub automáticamente usando GitHub CLI (`gh`):
+
+- `scripts/setup-cloudflare-pages-secrets.ps1` — PowerShell (Windows)
+- `scripts/setup-cloudflare-pages-secrets.sh` — Bash (Linux / macOS / WSL)
+
+Uso (desde la raíz del proyecto):
+
+PowerShell:
+```powershell
+pwsh ./scripts/setup-cloudflare-pages-secrets.ps1
+```
+
+Bash / WSL / macOS:
+```bash
+./scripts/setup-cloudflare-pages-secrets.sh
+```
+
+Notas:
+- Ambos scripts usan `gh secret set` — por lo tanto requieren que `gh` esté instalado y que estés autenticado (`gh auth login`) con una cuenta que tenga permisos de administrador en este repositorio.
+- También puedes establecer los secrets manualmente en GitHub (Settings → Secrets & variables → Actions) si no quieres usar `gh`.
 2. Genera un API Token en tu cuenta Cloudflare con permisos de Pages (Pages > API tokens > Create Token — permisos: Account > Pages > Edit).
 3. Averigua tu `accountId` (ver la sección "Overview" de tu cuenta o en la URL del panel de Pages).
 4. Crea los secretos en GitHub (Settings > Secrets & variables > Actions) para la rama con permisos de despliegue:
