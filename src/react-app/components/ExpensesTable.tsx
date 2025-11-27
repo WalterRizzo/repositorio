@@ -568,8 +568,8 @@ export default function ExpensesTable({
                             <Trash2 className="w-4 h-4" />
                             <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
                           </button>
-                          {/* Solo mostrar aprobar/rechazar si el rol NO es usuario */}
-                          {userRole !== 'usuario' && (
+                          {/* Solo mostrar aprobar/rechazar si el rol NO es usuario y el gasto está pendiente */}
+                          {userRole !== 'usuario' && expense.status === 'pendiente' && (
                             <>
                               <button
                                 onClick={() => handleApproveClick(expense.id)}

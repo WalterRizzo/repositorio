@@ -692,7 +692,7 @@ export default function ExpenseForm({
     <input ref={fileInputRef} id="receipt-file-input" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
     <input ref={multiFileInputRef} id="multiple-files-input" type="file" accept="image/*" multiple onChange={handleMultipleFileChange} className="hidden" />
     <div className={isNew ? 'md:col-span-9 lg:col-span-9 px-6 md:px-0' : 'lg:col-span-3'}>
-        {error && (
+        {error && !error.includes('Solo se puede modificar la categoría y la descripción de un gasto existente') && (
           <div className={`mb-6 p-4 rounded-2xl text-sm backdrop-blur-sm border animate-slideIn ${
             error.includes('💡 OCR detectó') 
               ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'

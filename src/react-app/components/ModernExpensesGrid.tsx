@@ -9,6 +9,7 @@ interface Expense {
   amount: string;
   currency: string;
   payment: string;
+  sigla: string;
   status: string;
   attachments?: string[];
 }
@@ -34,19 +35,19 @@ export const ModernExpensesGrid: React.FC<Props> = ({ expenses }) => (
         </tr>
       </thead>
       <tbody className="divide-y divide-gray-700">
-        {expenses.map(exp => (
-          <tr key={exp.id} className="hover:bg-gray-800 transition-all text-xs font-bold text-white">
-            <td className="px-4 py-3 whitespace-nowrap">{exp.date}</td>
-            <td className="px-4 py-3 whitespace-nowrap">{exp.category}</td>
-            <td className="px-4 py-3 max-w-[220px] truncate" title={exp.description}>{exp.description && exp.description.length > 60 ? exp.description.slice(0, 57) + '...' : exp.description}</td>
-            <td className="px-4 py-3 whitespace-nowrap">{exp.user}</td>
-            <td className="px-4 py-3 whitespace-nowrap">{exp.amount}</td>
-            <td className="px-4 py-3 whitespace-nowrap">{exp.currency}</td>
-            <td className="px-4 py-3 whitespace-nowrap">{exp.payment}</td>
-            <td className="px-4 py-3 whitespace-nowrap"><span className={`status-badge status-${exp.status}`}>{exp.status}</span></td>
-            <td className="px-4 py-3 whitespace-nowrap">{exp.attachments?.length ? `${exp.attachments.length} archivo(s)` : '-'}</td>
-          </tr>
-        ))}
+          {expenses.map(exp => (
+            <tr key={exp.id} className="hover:bg-gray-800 transition-all text-xs font-bold text-white">
+              <td className="px-4 py-3 whitespace-nowrap">{exp.date}</td>
+              <td className="px-4 py-3 whitespace-nowrap">{exp.category}</td>
+              <td className="px-4 py-3 max-w-[220px] truncate" title={exp.description}>{exp.description && exp.description.length > 60 ? exp.description.slice(0, 57) + '...' : exp.description}</td>
+              <td className="px-4 py-3 whitespace-nowrap">{exp.user}</td>
+              <td className="px-4 py-3 whitespace-nowrap">{exp.amount}</td>
+              <td className="px-4 py-3 whitespace-nowrap">{exp.currency}</td>
+              <td className="px-4 py-3 whitespace-nowrap">{exp.sigla}</td>
+              <td className="px-4 py-3 whitespace-nowrap"><span className={`status-badge status-${exp.status}`}>{exp.status}</span></td>
+              <td className="px-4 py-3 whitespace-nowrap">{exp.attachments?.length ? `${exp.attachments.length} archivo(s)` : '-'}</td>
+            </tr>
+          ))}
       </tbody>
     </table>
     <div className="flex items-center justify-between bg-black text-white rounded-b-xl px-4 py-3 mt-2">
