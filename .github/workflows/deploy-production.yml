@@ -37,13 +37,19 @@ jobs:
       - name: Build (tsc + vite)
         run: npm run build
 
-      - name: "NOTE - Wrangler deployment removed"
+      - name: Deploy to Cloudflare Pages (optional)
+        if: ${{ secrets.CF_PAGES_API_TOKEN != '' && secrets.CF_ACCOUNT_ID != '' && secrets.CF_PAGES_PROJECT != '' }}
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CF_PAGES_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          projectName: ${{ secrets.CF_PAGES_PROJECT }}
+          directory: './dist'
+
+      - name: No Pages deploy configured (info)
+        if: ${{ secrets.CF_PAGES_API_TOKEN == '' || secrets.CF_ACCOUNT_ID == '' || secrets.CF_PAGES_PROJECT == '' }}
         run: |
-          echo "Wrangler deployment removed from repo. Update this workflow with steps that match your chosen deployment target (S3, Netlify, Vercel, custom worker)."
+          echo "Cloudflare Pages not configured — set CF_PAGES_API_TOKEN, CF_ACCOUNT_ID and CF_PAGES_PROJECT in repository secrets to enable automatic deploys."
 
-      - name: Verification - skipped
-        run: echo "No remote verification step executed. Add a check for your target host if needed."
-
-      - name: Success
-        if: ${{ success() }}
-        run: echo "Workflow completed — but no remote deployment was executed (Wrangler removed)."
+      - name: Verification - optional
+        run: echo "Build completed. If deploy credentials were provided the static site was sent to Cloudflare Pages. Otherwise no remote deployment was executed."

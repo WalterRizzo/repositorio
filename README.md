@@ -137,6 +137,21 @@ Opciones sugeridas:
 - Usar plataformas de hosting estático (Netlify, Vercel) y configurar `npm run build` como paso de build
 - Crear un job de CI que tome `npm run build` y publique los assets a tu host (S3, FTP, Cloudflare, etc.)
 
+#### Despliegue automático a Cloudflare Pages (sin Wrangler)
+
+Si quieres desplegar automáticamente a **Cloudflare Pages** desde GitHub, la configuración que añadimos al workflow usa la acción oficial de Pages. Requisitos y pasos:
+
+1. Crea un proyecto en Cloudflare Pages y apunta su sitio al nombre que quieras.
+2. Genera un API Token en tu cuenta Cloudflare con permisos de Pages (Pages > API tokens > Create Token — permisos: Account > Pages > Edit).
+3. Averigua tu `accountId` (ver la sección "Overview" de tu cuenta o en la URL del panel de Pages).
+4. Crea los secretos en GitHub (Settings > Secrets & variables > Actions) para la rama con permisos de despliegue:
+    - `CF_PAGES_API_TOKEN` — el token API que generaste
+    - `CF_ACCOUNT_ID` — tu Cloudflare Account ID
+    - `CF_PAGES_PROJECT` — el nombre del proyecto de Pages
+5. El workflow se ejecuta en cada push a la rama `produccion` y, si los secretos están presentes, hará `npm ci`, `npm run build` y desplegará el contenido de `./dist` a Pages.
+
+Si no quieres usar Pages, puedes mantener despliegue manual o elegir otro destino (S3/CloudFront, Netlify, Vercel). El paso de CI está diseñado para ser opcional — sólo se ejecutará si los secretos están configurados.
+
 ### 📊 Estructura del Proyecto
 
 Este repositorio ya no contiene despliegues automáticos con Wrangler. Para desplegar en producción sigue uno de estos caminos (elige el que prefieras):
