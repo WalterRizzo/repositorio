@@ -1210,8 +1210,8 @@ export default function Expenses() {
               <table className="w-full border-2 border-purple-500 shadow-lg table-condensed app-table">
                 <thead className="bg-gradient-to-r from-violet-50 via-purple-50 to-indigo-50 dark:from-gray-700 dark:via-gray-700 dark:to-gray-700">
                   <tr>
-                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider"><span className="header-icon">👤</span><span className="header-label">Usuario</span></th>
-                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider"><span className="header-icon">🎯</span><span className="header-label">Rol</span></th>
+                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider"><div className="header-inner"><span className="header-icon">👤</span><span className="header-label">Usuario</span></div></th>
+                    <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider"><div className="header-inner"><span className="header-icon">🎯</span><span className="header-label">Rol</span></div></th>
                       {/* Balance column hidden per UX — open 'Ver Saldos' to view all balances */}
                     <th className="px-4 py-1 text-left text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                       ⚙️ Acciones
@@ -1344,14 +1344,14 @@ export default function Expenses() {
                   <table className="w-full min-w-full border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed app-table">
                     <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                       <tr>
-                        <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📅</span><span className="header-label">FECHA</span></th>
-                          <th style={{width:'18%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">👤</span><span className="header-label">USUARIO</span></th>
-                          <th style={{width:'10%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">🎯</span><span className="header-label">TIPO</span></th>
-                          <th style={{width:'10%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">💰</span><span className="header-label">MONTO</span></th>
-                          <th style={{width:'8%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">💱</span><span className="header-label">MONEDA</span></th>
-                          <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📊</span><span className="header-label">SALDO ANTERIOR</span></th>
-                          <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📈</span><span className="header-label">SALDO NUEVO</span></th>
-                          <th style={{width:'18%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📝</span><span className="header-label">DESCRIPCIÓN</span></th>
+                        <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📅</span><span className="header-label">FECHA</span></div></th>
+                          <th style={{width:'18%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">👤</span><span className="header-label">USUARIO</span></div></th>
+                          <th style={{width:'10%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">🎯</span><span className="header-label">TIPO</span></div></th>
+                          <th style={{width:'10%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">💰</span><span className="header-label">MONTO</span></div></th>
+                          <th style={{width:'8%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">💱</span><span className="header-label">MONEDA</span></div></th>
+                          <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📊</span><span className="header-label">SALDO ANTERIOR</span></div></th>
+                          <th style={{width:'12%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📈</span><span className="header-label">SALDO NUEVO</span></div></th>
+                          <th style={{width:'18%'}} className="px-2 py-1 text-left text-xs font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📝</span><span className="header-label">DESCRIPCIÓN</span></div></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
@@ -1516,13 +1516,13 @@ export default function Expenses() {
                   <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900 table-fixed table-gradient-stripe table-condensed app-table">
                   <thead className="bg-gray-50 dark:bg-gray-700 table-header-neon">
                       <tr>
-                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">📅 FECHA</th>
-                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">👤 USUARIO</th>
-                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">🎯 TIPO</th>
-                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap">💰 MONTO</th>
-                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📊</span><span className="header-label">SALDO ANTERIOR</span></th>
-                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📈</span><span className="header-label">SALDO NUEVO</span></th>
-                      <th className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><span className="header-icon">📝</span><span className="header-label">DESCRIPCIÓN</span></th>
+                      <th style={{width:'12%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📅</span><span className="header-label">FECHA</span></div></th>
+                      <th style={{width:'18%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">👤</span><span className="header-label">USUARIO</span></div></th>
+                      <th style={{width:'10%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">🎯</span><span className="header-label">TIPO</span></div></th>
+                      <th style={{width:'10%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">💰</span><span className="header-label">MONTO</span></div></th>
+                      <th style={{width:'12%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📊</span><span className="header-label">SALDO ANTERIOR</span></div></th>
+                      <th style={{width:'12%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📈</span><span className="header-label">SALDO NUEVO</span></div></th>
+                      <th style={{width:'18%'}} className="px-1 py-1 text-left text-[10px] font-black text-white uppercase tracking-wider whitespace-nowrap"><div className="header-inner"><span className="header-icon">📝</span><span className="header-label">DESCRIPCIÓN</span></div></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
@@ -1710,14 +1710,14 @@ export default function Expenses() {
                       <table className="w-full text-sm text-left text-gray-300 app-table">
                         <thead>
                           <tr>
-                            <th className="px-2 py-1">id</th>
-                            <th className="px-2 py-1">original_expense_id</th>
-                            <th className="px-2 py-1">user_id</th>
-                            <th className="px-2 py-1">description</th>
-                            <th className="px-2 py-1">amount</th>
-                            <th className="px-2 py-1">currency</th>
-                            <th className="px-2 py-1">expense_date</th>
-                            <th className="px-2 py-1">archived_at</th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">#</span><span className="header-label">id</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">🔁</span><span className="header-label">original_expense_id</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">👤</span><span className="header-label">user_id</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📝</span><span className="header-label">description</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">💰</span><span className="header-label">amount</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">💱</span><span className="header-label">currency</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📅</span><span className="header-label">expense_date</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📦</span><span className="header-label">archived_at</span></div></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1750,14 +1750,15 @@ export default function Expenses() {
                       <table className="w-full text-sm text-left text-gray-300 app-table">
                         <thead>
                           <tr>
-                            <th className="px-2 py-1">id</th>
-                            <th className="px-2 py-1">original_movement_id</th>
-                            <th className="px-2 py-1">user_id</th>
-                            <th className="px-2 py-1">tipo</th>
-                            <th className="px-2 py-1">monto</th>
-                            <th className="px-2 py-1">saldo_anterior</th>
-                            <th className="px-2 py-1">saldo_nuevo</th>
-                            <th className="px-2 py-1">archived_at</th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">#</span><span className="header-label">id</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">🔁</span><span className="header-label">original_movement_id</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">👤</span><span className="header-label">user_id</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">🎯</span><span className="header-label">tipo</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">💰</span><span className="header-label">monto</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📊</span><span className="header-label">saldo_anterior</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📈</span><span className="header-label">saldo_nuevo</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📝</span><span className="header-label">DESCRIPCIÓN</span></div></th>
+                            <th className="px-2 py-1"><div className="header-inner"><span className="header-icon">📅</span><span className="header-label">archived_at</span></div></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1770,6 +1771,7 @@ export default function Expenses() {
                               <td className="px-2 py-1">{r.monto}</td>
                               <td className="px-2 py-1">{r.saldo_anterior}</td>
                               <td className="px-2 py-1">{r.saldo_nuevo}</td>
+                              <td className="px-2 py-1 text-xs text-gray-600 dark:text-gray-300 col-desc" title={r.descripcion || r.description}>{r.descripcion ?? r.description ?? ''}</td>
                               <td className="px-2 py-1">{r.archived_at}</td>
                             </tr>
                           ))}
