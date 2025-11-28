@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
-import { Loader2, Users, Receipt, Plus, Edit, Trash2 } from "lucide-react";
+import { Loader2, Users, Receipt, Plus, Edit, Trash2, Key } from "lucide-react";
 import type { Expense, UserProfile } from "@/shared/types";
 import Header from "@/react-app/components/Header";
 import ExpensesTable from "@/react-app/components/ExpensesTable";
@@ -397,6 +397,14 @@ export default function Admin() {
                               className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                             >
                               <Edit className="w-4 h-4" />
+                            </button>
+                            {/* Gestión de Usuario: abrimos la sección de Usuarios en Settings para administrar al usuario */}
+                            <button
+                              onClick={() => navigate(`/settings?tab=users&userId=${encodeURIComponent(user.user_id)}`)}
+                              title="Gestionar usuario"
+                              className="text-indigo-500 hover:text-indigo-800 dark:text-indigo-300 dark:hover:text-indigo-200"
+                            >
+                              <Key className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteUser(user.user_id)}
