@@ -46,8 +46,19 @@
     <div id="root"></div>
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/src/react-app/service-worker.js');
+        window.addEventListener('load', async () => {
+          try {
+            const swPath = '/src/react-app/service-worker.js';
+            const headResp = await fetch(swPath, { method: 'HEAD' });
+            const ct = headResp.headers?.get('content-type') || '';
+            if (headResp.ok && ct.includes('javascript')) {
+              navigator.serviceWorker.register(swPath).catch(e => console.warn('SW register failed', e));
+            } else {
+              console.warn('Skipping service worker registration — file missing or not JS:', swPath, headResp.status, ct);
+            }
+          } catch (err) {
+            console.warn('Service worker availability check failed', err);
+          }
         });
       }
     </script>
