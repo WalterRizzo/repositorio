@@ -609,49 +609,35 @@ export default function SettingsPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {categories.map((category) => (
-                <div
-                  key={category.id}
-                  className="group bg-gray-800 border border-gray-700 rounded-2xl p-6 hover:border-indigo-500 transition-all"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <div 
-                        className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl"
-                        style={{ backgroundColor: category.color }}
-                      >
-                        {category.icon || '🏷️'}
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-xl text-white">{category.name}</h3>
-                        {category.description && (
-                          <p className="text-sm text-gray-400 mt-1">{category.description}</p>
-                        )}
-                      </div>
-                    </div>
-                    
+                <div key={category.id} className="relative rounded-2xl p-7 shadow-xl backdrop-blur-lg bg-white/7 border border-white/10 transition-transform hover:-translate-y-2 hover:shadow-2xl group">
+                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
-                      <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleEditCategory(category)}
-                          className="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg"
-                        >
+                      <>
+                        <button onClick={() => handleEditCategory(category)} className="p-2 rounded-full bg-white/10 hover:bg-indigo-500 text-indigo-300 hover:text-white shadow">
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => handleDeleteCategory(category.id)}
-                          className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-                        >
+                        <button onClick={() => handleDeleteCategory(category.id)} className="p-2 rounded-full bg-white/10 hover:bg-red-500 text-red-300 hover:text-white shadow">
                           <Trash2 className="w-4 h-4" />
                         </button>
-                      </div>
+                      </>
                     )}
                   </div>
-                  
-                  <div className="text-xs text-gray-500 mt-4 pt-4 border-t border-gray-700">
-                    Creada: {(() => { const d = parseDbTimestampToDate(category.created_at); return d ? d.toLocaleDateString('es-ES') : category.created_at; })()}
+
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-16 h-16 rounded-xl flex items-center justify-center shadow-lg" style={{ background: category.color, boxShadow: `0 0 0 6px ${category.color}33` }}>
+                      {category.icon || '🏷️'}
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white mb-1 tracking-tight">{category.name}</h3>
+                      {category.description && (
+                        <p className="text-base text-gray-300 font-medium max-w-[220px]">{category.description}</p>
+                      )}
+                    </div>
                   </div>
+
+                  <div className="text-sm text-gray-400 mt-2">Creada: {(() => { const d = parseDbTimestampToDate(category.created_at); return d ? d.toLocaleDateString('es-ES') : category.created_at; })()}</div>
                 </div>
               ))}
             </div>

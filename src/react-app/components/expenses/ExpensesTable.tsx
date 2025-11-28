@@ -1,4 +1,4 @@
-import { Plus, Trash2, Receipt, Filter, Edit3, CheckCircle, XCircle, Sparkles, FileSpreadsheet, Clock } from "lucide-react";
+﻿import { Plus, Trash2, Receipt, Filter, Edit3, CheckCircle, XCircle, Sparkles, FileSpreadsheet, Clock } from "lucide-react";
 import { useState, useRef } from "react";
 import BubbleTooltipPortal from "./BubbleTooltipPortal";
 import { getStatusBadgeClasses, getStatusLabel } from '@/react-app/utils/status';
@@ -538,8 +538,8 @@ export default function ExpensesTable({
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      expense.status === 'aprobado' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-                      expense.status === 'rechazado' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+                      expense.status === 'aprobado' ? 'text-green-600 dark:text-green-300' :
+                      expense.status === 'rechazado' ? 'text-orange-500 dark:text-orange-300' : 'text-blue-600 dark:text-blue-300'
                     }`}>{expense.status === 'aprobado' ? 'Aprobado' : expense.status === 'rechazado' ? 'Rechazado' : 'Pendiente'}</span>
                       {expense.attachments && expense.attachments.length > 0 ? (
                       <img
@@ -701,7 +701,7 @@ export default function ExpensesTable({
                             {expense.attachments.length > 3 && (
                               <button
                                 type="button"
-                                className="w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded border border-blue-300 ml-1 hover:bg-blue-200 transition"
+                                className="w-6 h-6 flex items-center justify-center text-blue-600 dark:text-blue-300 rounded border border-blue-300 ml-1 hover:bg-blue-200 transition"
                                 onClick={() => setPreviewAttachments(expense.attachments)}
                                 title={`Ver todos los archivos (${expense.attachments.length})`}
                               >

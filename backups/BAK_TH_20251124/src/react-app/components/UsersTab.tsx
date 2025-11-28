@@ -108,7 +108,7 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
                     <td className="px-4 py-2">{tx.usuario || 'N/A'}</td>
                     <td className="px-4 py-2">
                       <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        tx.tipo === 'carga' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+                        'bg-gray-700 text-white border border-gray-500'
                       }`}>
                         {tx.tipo}
                       </span>

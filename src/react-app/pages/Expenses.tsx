@@ -1322,39 +1322,50 @@ export default function Expenses() {
                   <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-2xl border-2 border-violet-500 shadow-lg bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4">
-                  <table className="w-full rounded-2xl border-2 border-violet-500 shadow-lg bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 table-condensed app-table">
-                    <thead className="bg-gradient-to-r from-violet-600 to-purple-600 sticky top-0">
+                <div className="overflow-x-auto rounded-2xl border-2 border-gray-700/30 shadow-lg bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4">
+                  <table className="w-full rounded-2xl border-2 border-gray-700/20 shadow-lg bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 table-condensed app-table">
+                    <thead className="bg-gradient-to-r from-gray-800 to-gray-900/80 sticky top-0">
                       <tr>
-                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">FECHA</th>
-                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">USUARIO</th>
-                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">TIPO</th>
-                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">MONTO</th>
-                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">MONEDA</th>
-                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">SALDO ANTERIOR</th>
-                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">SALDO NUEVO</th>
-                        <th className="px-3 py-2 text-left text-xs font-black text-white uppercase tracking-wider">DESCRIPCIÓN</th>
+                        <th className="px-3 py-3 text-left text-[13px] sm:text-[15px] font-extrabold text-white uppercase tracking-wider">FECHA</th>
+                        <th className="px-3 py-3 text-left text-[13px] sm:text-[15px] font-extrabold text-white uppercase tracking-wider">USUARIO</th>
+                        <th className="px-3 py-3 text-left text-[13px] sm:text-[15px] font-extrabold text-white uppercase tracking-wider">TIPO</th>
+                        <th className="px-3 py-3 text-left text-[13px] sm:text-[15px] font-extrabold text-white uppercase tracking-wider">MONTO</th>
+                        <th className="px-3 py-3 text-left text-[13px] sm:text-[15px] font-extrabold text-white uppercase tracking-wider">MONEDA</th>
+                        <th className="px-3 py-3 text-left text-[13px] sm:text-[15px] font-extrabold text-white uppercase tracking-wider">SALDO ANTERIOR</th>
+                        <th className="px-3 py-3 text-left text-[13px] sm:text-[15px] font-extrabold text-white uppercase tracking-wider">SALDO NUEVO</th>
+                        <th className="px-3 py-3 text-left text-[13px] sm:text-[15px] font-extrabold text-white uppercase tracking-wider">DESCRIPCIÓN</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-violet-700">
+                    <tbody className="divide-y divide-gray-800/50">
                       {pageItems.map((movement, idx) => (
-                        <tr key={movement.id} className="hover:bg-violet-900/30 transition-all text-xs font-bold text-white" style={{ animationDelay: `${idx * 35}ms` }}>
+                        <tr key={movement.id} className="hover:bg-gray-100 dark:hover:bg-gray-800 transition-all text-[15px] font-bold text-gray-900 dark:text-white" style={{ animationDelay: `${idx * 35}ms` }}>
                           <td className="px-3 py-2 whitespace-nowrap text-left align-middle">
                             {(() => {
                               const d = parseDbTimestampToDate(movement.created_at);
                               return d ? d.toLocaleDateString('es-AR') : movement.created_at;
                             })()}
                           </td>
-                          <td className="px-3 py-2 whitespace-nowrap text-left align-middle">{movement.user_name}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-left align-middle text-[15px] sm:text-[16px]">{movement.user_name}</td>
                           <td className="px-3 py-2 whitespace-nowrap text-left align-middle">
-                            <span className={`px-2 py-1 rounded text-xs font-black ${movement.type === 'carga' ? 'bg-green-600 text-white' : movement.type === 'descuento' ? 'bg-red-600 text-white' : 'bg-yellow-600 text-white'}`}>{movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste'}</span>
+                            <span
+                              className={
+                                `px-3 py-1 rounded-full text-sm sm:text-[15px] font-semibold border ${
+                                  movement.type === 'carga' ? 'bg-emerald-800/20 text-emerald-300 border-emerald-600/30' :
+                                  movement.type === 'descuento' ? 'bg-rose-700/10 text-rose-300 border-rose-500/20' :
+                                  'bg-indigo-700/10 text-indigo-200 border-indigo-500/20'
+                                }`
+                              }
+                              style={{ fontFamily: 'Inter, Arial, sans-serif' }}
+                            >
+                              {movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste'}
+                            </span>
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap text-left align-middle">
-                            <span className={`text-xs font-black ${movement.type === 'carga' ? 'text-green-400' : 'text-red-400'}`}>{movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}</span>
+                            <span className={`text-[15px] font-extrabold ${movement.type === 'carga' ? 'text-emerald-300' : movement.type === 'descuento' ? 'text-rose-400' : 'text-indigo-200'}`}>{movement.type === 'carga' ? '+' : ''}{movement.amount} {movement.currency}</span>
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap text-left align-middle">{movement.currency}</td>
-                          <td className={`px-3 py-2 whitespace-nowrap text-left align-middle ${Number(movement.balance_before) < 0 ? 'text-rose-500 font-bold' : 'text-gray-400'}`}>${Number(movement.balance_before).toFixed(2)}</td>
-                          <td className="px-3 py-2 whitespace-nowrap text-left align-middle text-green-400 font-black">${Number(movement.balance_after).toFixed(2)}</td>
+                          <td className={`px-3 py-2 whitespace-nowrap text-left align-middle ${Number(movement.balance_before) < 0 ? 'text-rose-400 font-semibold' : 'text-gray-400'}`}>${Number(movement.balance_before).toFixed(2)}</td>
+                          <td className={`px-3 py-2 whitespace-nowrap text-left align-middle ${Number(movement.balance_after) < 0 ? 'text-rose-400 font-semibold' : 'text-emerald-300 font-extrabold'}`}>${Number(movement.balance_after).toFixed(2)}</td>
                           <td className="px-3 py-2 max-w-[220px] truncate text-left align-middle" title={movement.description}>{movement.description && movement.description.length > 60 ? movement.description.slice(0, 57) + '...' : movement.description}</td>
                         </tr>
                       ))}
@@ -1447,29 +1458,29 @@ export default function Expenses() {
             ) : (
               <div className="overflow-x-auto rounded-2xl border-2 border-purple-500 shadow-lg bg-white dark:bg-gray-900 p-4">
                 <table className="w-full app-table">
-                  <thead>
+                  <thead className="bg-gray-200 sticky top-0">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Fecha</th>
-                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Usuario</th>
-                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Tipo</th>
-                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Monto</th>
-                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Moneda</th>
-                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Saldo Anterior</th>
-                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Saldo Nuevo</th>
-                      <th className="px-4 py-3 text-left text-xs font-black text-white uppercase tracking-wider">Descripción</th>
+                      <th className="px-4 py-3 text-left text-[15px] font-black text-gray-700 uppercase tracking-wider">Fecha</th>
+                      <th className="px-4 py-3 text-left text-[15px] font-black text-gray-700 uppercase tracking-wider">Usuario</th>
+                      <th className="px-4 py-3 text-left text-[15px] font-black text-gray-700 uppercase tracking-wider">Tipo</th>
+                      <th className="px-4 py-3 text-left text-[15px] font-black text-gray-700 uppercase tracking-wider">Monto</th>
+                      <th className="px-4 py-3 text-left text-[15px] font-black text-gray-700 uppercase tracking-wider">Moneda</th>
+                      <th className="px-4 py-3 text-left text-[15px] font-black text-gray-700 uppercase tracking-wider">Saldo Anterior</th>
+                      <th className="px-4 py-3 text-left text-[15px] font-black text-gray-700 uppercase tracking-wider">Saldo Nuevo</th>
+                      <th className="px-4 py-3 text-left text-[15px] font-black text-gray-700 uppercase tracking-wider">Descripción</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-700">
+                  <tbody className="divide-y divide-gray-300">
                     {pageItems.map((movement, idx) => (
-                      <tr key={movement.id} className="hover:bg-violet-900/30 transition-all text-xs font-bold text-white" style={{ animationDelay: `${idx * 35}ms` }}>
+                      <tr key={movement.id} className="hover:bg-gray-100 dark:hover:bg-gray-800 transition-all text-[15px] font-bold text-gray-900 dark:text-white" style={{ animationDelay: `${idx * 35}ms` }}>
                         <td className="px-4 py-3 whitespace-nowrap">{(() => { const d = parseDbTimestampToDate(movement.created_at); return d ? d.toLocaleDateString('es-AR') : movement.created_at; })()}</td>
                         <td className="px-4 py-3 whitespace-nowrap">{movement.user_name}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{movement.type === 'carga' ? '+' : ''}{movement.amount}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">{movement.currency}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">${Number(movement.balance_before).toFixed(2)}</td>
-                        <td className="px-4 py-3 whitespace-nowrap">${Number(movement.balance_after).toFixed(2)}</td>
-                        <td className="px-4 py-3 max-w-[220px] truncate" title={movement.description}>{movement.description && movement.description.length > 60 ? movement.description.slice(0, 57) + '...' : movement.description}</td>
+                        <td className="px-4 py-3 whitespace-nowrap"><span className="px-3 py-1 rounded-full text-[15px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600" style={{fontFamily: 'Inter, Arial, sans-serif'}}>{movement.type === 'carga' ? 'Carga' : movement.type === 'descuento' ? 'Gasto' : 'Ajuste'}</span></td>
+                        <td className="px-4 py-3 whitespace-nowrap text-[15px] font-black">{movement.type === 'carga' ? '+' : ''}{movement.amount}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-[15px]">{movement.currency}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-[15px]">${Number(movement.balance_before).toFixed(2)}</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-[15px]">${Number(movement.balance_after).toFixed(2)}</td>
+                        <td className="px-4 py-3 max-w-[220px] truncate text-[15px]" title={movement.description}>{movement.description && movement.description.length > 60 ? movement.description.slice(0, 57) + '...' : movement.description}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1771,20 +1782,20 @@ export default function Expenses() {
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm app-table">
-                        <thead className="bg-gradient-to-r from-violet-600 to-purple-600">
+                        <thead className="bg-gray-200 sticky top-0">
                           <tr>
                             {Object.keys(dbaResults.results[0]).map((key) => (
-                              <th key={key} className="px-4 py-3 text-left font-black text-white uppercase tracking-wider">
+                              <th key={key} className="px-4 py-3 text-left font-black text-gray-700 uppercase tracking-wider">
                                 {key}
                               </th>
                             ))}
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-700">
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                           {dbaResults.results.slice(auditStartIdx, auditStartIdx + auditPageSize).map((row: any, index: number) => (
-                            <tr key={index} className="hover:bg-violet-900/30 transition-all">
+                            <tr key={index} className="hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">
                               {Object.values(row).map((value: any, cellIndex: number) => (
-                                <td key={cellIndex} className="px-4 py-3 text-white font-semibold">
+                                <td key={cellIndex} className="px-4 py-3 text-gray-900 dark:text-white font-semibold">
                                   {value !== null ? String(value) : <span className="text-gray-500 italic">null</span>}
                                 </td>
                               ))}

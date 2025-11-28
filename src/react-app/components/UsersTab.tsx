@@ -86,35 +86,35 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
         <p className="text-sm text-gray-400 mb-4">Registro completo de todas las operaciones de saldo</p>
         
         {transactionsLoading ? (
-          <div className="text-center py-4">Cargando transacciones...</div>
+          <div className="text-center py-4 text-lg font-bold text-gray-300">Cargando transacciones...</div>
         ) : filteredTransactions.length > 0 ? (
             <div className="overflow-x-auto app-table-container rounded-2xl shadow-lg border-2 border-gray-800 dark:border-gray-900 bg-gray-900">
               <table className="w-full text-xs app-table">
                 <thead className="bg-gray-900">
                   <tr>
-                    <th className="px-2 py-2 text-left text-[11px] font-black text-white uppercase tracking-wider">Fecha</th>
-                    <th className="px-2 py-2 text-left text-[11px] font-black text-white uppercase tracking-wider">Usuario</th>
-                    <th className="px-2 py-2 text-left text-[11px] font-black text-white uppercase tracking-wider">Tipo</th>
-                    <th className="px-2 py-2 text-right text-[11px] font-black text-white uppercase tracking-wider">Monto</th>
-                    <th className="px-2 py-2 text-center text-[11px] font-black text-white uppercase tracking-wider">Moneda</th>
-                    <th className="px-2 py-2 text-right text-[11px] font-black text-white uppercase tracking-wider">Saldo Anterior</th>
-                    <th className="px-2 py-2 text-right text-[11px] font-black text-white uppercase tracking-wider">Saldo Nuevo</th>
-                    <th className="px-2 py-2 text-left text-[11px] font-black text-white uppercase tracking-wider">Descripción</th>
+                    <th className="px-2 py-2 text-left text-[15px] font-black text-gray-200 uppercase tracking-wider">Fecha</th>
+                    <th className="px-2 py-2 text-left text-[15px] font-black text-gray-200 uppercase tracking-wider">Usuario</th>
+                    <th className="px-2 py-2 text-left text-[15px] font-black text-gray-200 uppercase tracking-wider">Tipo</th>
+                    <th className="px-2 py-2 text-right text-[15px] font-black text-gray-200 uppercase tracking-wider">Monto</th>
+                    <th className="px-2 py-2 text-center text-[15px] font-black text-gray-200 uppercase tracking-wider">Moneda</th>
+                    <th className="px-2 py-2 text-right text-[15px] font-black text-gray-200 uppercase tracking-wider">Saldo Anterior</th>
+                    <th className="px-2 py-2 text-right text-[15px] font-black text-gray-200 uppercase tracking-wider">Saldo Nuevo</th>
+                    <th className="px-2 py-2 text-left text-[15px] font-black text-gray-200 uppercase tracking-wider">Descripción</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-violet-900 dark:divide-violet-700">
+                <tbody className="divide-y divide-gray-800 dark:divide-gray-700">
                   {filteredTransactions.map((tx: any, idx: number) => (
-                    <tr key={idx} className="hover:bg-gray-800 transition-all">
-                      <td className="px-2 py-2 whitespace-nowrap text-[11px] text-left text-white">{(parseDbTimestampToDate(tx.fecha) || new Date()).toLocaleDateString('es-AR')}</td>
-                      <td className="px-2 py-2 max-w-[160px] truncate text-[11px] text-left text-white">{tx.usuario || 'N/A'}</td>
-                      <td className="px-2 py-2 text-[11px] text-left">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${tx.tipo === 'carga' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>{tx.tipo}</span>
+                    <tr key={idx} className="hover:bg-gray-100 dark:hover:bg-gray-800 transition-all text-[15px] font-bold text-gray-900 dark:text-white">
+                      <td className="px-3 py-3 whitespace-nowrap text-left">{(parseDbTimestampToDate(tx.fecha) || new Date()).toLocaleDateString('es-AR')}</td>
+                      <td className="px-3 py-3 max-w-[180px] truncate text-left">{tx.usuario || 'N/A'}</td>
+                      <td className="px-3 py-3 text-left">
+                        <span className="px-3 py-1 rounded-full text-[15px] font-bold bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-400 dark:border-gray-500" style={{fontFamily: 'Inter, Arial, sans-serif'}}>{tx.tipo}</span>
                       </td>
-                      <td className="px-2 py-2 whitespace-nowrap text-[11px] text-right font-bold text-white">{tx.moneda} {formatBalance(tx.monto, tx.moneda, 'es-AR')}</td>
-                      <td className="px-2 py-2 whitespace-nowrap text-[11px] text-center text-white">{tx.moneda}</td>
-                      <td className={`px-2 py-2 font-semibold text-[11px] text-right ${getColorClass(tx.saldo_anterior)} text-white`}>{tx.moneda} {formatBalance(tx.saldo_anterior, tx.moneda, 'es-AR')}</td>
-                      <td className={`px-2 py-2 font-semibold text-[11px] text-right ${getColorClass(tx.saldo_nuevo)} text-white`}>{tx.moneda} {formatBalance(tx.saldo_nuevo, tx.moneda, 'es-AR')}</td>
-                      <td className="px-2 py-2 text-[10px] max-w-[220px] truncate text-left text-white">{tx.descripcion || '-'}</td>
+                      <td className="px-3 py-3 whitespace-nowrap text-right font-bold">{tx.moneda} {formatBalance(tx.monto, tx.moneda, 'es-AR')}</td>
+                      <td className="px-3 py-3 whitespace-nowrap text-center">{tx.moneda}</td>
+                      <td className={`px-3 py-3 font-semibold text-right ${getColorClass(tx.saldo_anterior)}`}>{tx.moneda} {formatBalance(tx.saldo_anterior, tx.moneda, 'es-AR')}</td>
+                      <td className={`px-3 py-3 font-semibold text-right ${getColorClass(tx.saldo_nuevo)}`}>{tx.moneda} {formatBalance(tx.saldo_nuevo, tx.moneda, 'es-AR')}</td>
+                      <td className="px-3 py-3 max-w-[260px] truncate text-left">{tx.descripcion || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

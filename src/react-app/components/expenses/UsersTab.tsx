@@ -111,9 +111,7 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
                     <td className="px-2 py-1">{(parseDbTimestampToDate(tx.fecha) || new Date()).toLocaleDateString()}</td>
                     <td className="px-2 py-1 max-w-[160px] truncate">{tx.usuario || 'N/A'}</td>
                     <td className="px-2 py-1">
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${tx.tipo === 'carga' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
-                        {tx.tipo}
-                      </span>
+                      <span className="px-2 py-0.5 rounded text-xs font-bold bg-gray-700 text-white border border-gray-500">{tx.tipo}</span>
                     </td>
                     <td className="px-2 py-1">{tx.moneda} {formatBalance(tx.monto, tx.moneda, 'en-US')}</td>
                     <td className={`px-2 py-1 font-semibold ${getColorClass(tx.saldo_anterior)}`}>{tx.moneda} {formatBalance(tx.saldo_anterior, tx.moneda, 'en-US')}</td>
