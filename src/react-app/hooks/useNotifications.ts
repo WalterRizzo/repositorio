@@ -18,7 +18,23 @@ export function useNotifications() {
 
   const registerServiceWorker = async () => {
     try {
-      const reg = await navigator.serviceWorker.register('/sw.js');
+      // Safety-guard: ensure the SW file exists and is served as JS. Some hosts return index.html with text/html
+      // which would break registration (SecurityError). Do a HEAD request first.
+      const swPath = '/sw.js';
+      try {
+        const head = await fetch(swPath, { method: 'HEAD' });
+        const contentType = head.headers?.get('content-type') || '';
+        if (!head.ok || !contentType.includes('javascript')) {
+          console.warn('Skipping Service Worker registration - file missing or not JS:', swPath, head.status, contentType);
+          return;
+        }
+      } catch (e) {
+        // HEAD failed - just skip registration to avoid SecurityError
+        console.warn('Service worker availability check failed, skipping register:', e);
+        return;
+      }
+
+      const reg = await navigator.serviceWorker.register(swPath);
       console.log('✅ Service Worker registrado:', reg);
       setRegistration(reg);
     } catch (error) {
