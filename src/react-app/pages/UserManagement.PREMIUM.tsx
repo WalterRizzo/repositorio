@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
-import { Loader2, Plus, Users, Edit2, Trash2, X, Save, UserPlus, CheckCircle, FileSpreadsheet } from "lucide-react";
+import { Loader2, Plus, Users, Edit2, Trash2, X, Save, UserPlus, CheckCircle, FileSpreadsheet, Key } from "lucide-react";
 import * as XLSX from 'xlsx';
 import Header from "@/react-app/components/Header";
 import argentinaFlag from '@/react-app/assets/argentina.svg';
@@ -414,6 +414,14 @@ export default function UserManagement() {
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>
+                                {/* Gestión de Usuario (abrir settings usuarios con el userId) */}
+                                <button
+                                  onClick={() => navigate(`/settings?tab=users&userId=${encodeURIComponent(userItem.user_id)}`)}
+                                  title="Gestionar usuario"
+                                  className="w-9 h-9 flex items-center justify-center rounded-full bg-emerald-600/70 hover:bg-emerald-600 text-white shadow hover:shadow-lg transition-transform transform hover:-translate-y-0.5"
+                                >
+                                  <Key className="w-4 h-4" />
+                                </button>
                               <button
                                 onClick={() => deleteUser(userItem.user_id)}
                                 className="w-9 h-9 flex items-center justify-center rounded-full bg-rose-600/60 hover:bg-rose-600 text-white shadow hover:shadow-lg transition-transform transform hover:-translate-y-0.5"
