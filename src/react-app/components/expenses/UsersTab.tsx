@@ -7,6 +7,7 @@ function getColorClass(value: any) {
 }
 import { useState, useEffect } from "react";
 import { useNavigate } from 'react-router';
+import { Key } from 'lucide-react';
 // removed unused import
 import { formatBalance, isSpuriousPendingReembolso } from '@/react-app/utils/format';
 import { parseDbTimestampToDate } from '@/react-app/utils/dates';
@@ -123,16 +124,16 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
                           onClick={() => {
                             try {
                               const id = tx.user_id ?? tx.usuario_id ?? tx.user ?? tx.usuario;
-                              if (id) navigate(`/settings?tab=users&user=${encodeURIComponent(String(id))}`);
+                              if (id) navigate(`/settings?tab=users&userId=${encodeURIComponent(String(id))}`);
                               else navigate('/settings?tab=users');
                             } catch (e) {
                               navigate('/settings?tab=users');
                             }
                           }}
-                          className="px-2 py-0.5 text-xs rounded bg-gray-700 text-white hover:bg-gray-600"
                           title="Gestionar usuario"
+                          className="group inline-flex items-center justify-center px-2 py-1 rounded-full bg-emerald-600/70 hover:bg-emerald-600 text-white shadow-sm transition-transform transform hover:-translate-y-0.5"
                         >
-                          Gestionar
+                          <Key className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>

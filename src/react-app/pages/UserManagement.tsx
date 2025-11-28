@@ -406,7 +406,7 @@ export default function UserManagement() {
                               </button>
                               <div className="flex items-center gap-2 flex-nowrap">
                               <button
-                                onClick={() => navigate('/settings?tab=users')}
+                                onClick={() => navigate(`/settings?tab=users&userId=${encodeURIComponent(userItem.user_id)}`)}
                                 className="group relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-orange-300"
                                 title="Gestión de Usuarios"
                                 aria-label="Gestión de Usuarios"

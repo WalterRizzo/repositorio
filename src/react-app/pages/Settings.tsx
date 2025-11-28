@@ -93,7 +93,14 @@ export default function SettingsPage() {
     try {
       const params = new URLSearchParams(location.search || window.location.search);
       const tab = params.get('tab');
+      const userIdParam = params.get('userId') || params.get('user');
       if (tab === 'users') setActiveTab('users');
+      // If a userId is provided, open the users tab and pre-select the user in the 'user-password' subtab
+      if (userIdParam) {
+        setActiveTab('users');
+        try { setUsersTab('user-password'); } catch(e) {}
+        try { setUserPasswordForm(prev => ({ ...prev, userId: userIdParam })); } catch(e) {}
+      }
       if (tab === 'categories') setActiveTab('categories');
       if (tab === 'comprobantes') setActiveTab('comprobantes');
       if (tab === 'currencies') setActiveTab('currencies');
