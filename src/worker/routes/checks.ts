@@ -104,9 +104,16 @@ app.post('/checks', async (c) => {
         }
 
         return c.json({ ok: true, data: results[0] }, 201);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error creating check:', error);
-        return c.json({ ok: false, error: 'Error al crear el cheque: ' + String(error) }, 500);
+        
+        // Handle specific SQLite constraint errors
+        const errorMsg = String(error);
+        if (errorMsg.includes('UNIQUE constraint failed')) {
+            return c.json({ ok: false, error: 'Ya existe un cheque con este número y banco' }, 409);
+        }
+        
+        return c.json({ ok: false, error: 'Error al crear el cheque. Por favor, intenta de nuevo.' }, 500);
     }
 });
 
