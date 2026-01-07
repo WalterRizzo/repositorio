@@ -866,7 +866,7 @@ export default function Expenses() {
       if (response.ok && result.results) {
         // Filtrar solo las tablas principales
   // Keep this list intentionally small to avoid clutter — but include formapago so admins can manage payment methods
-  const mainTables = ['users', 'user_profiles', 'expenses', 'tipo_comprobantes', 'categories', 'currencies', 'formapago', 'balance_transactions', 'saldos', 'saldo_transacciones'];
+  const mainTables = ['users', 'user_profiles', 'expenses', 'tipo_comprobantes', 'categories', 'currencies', 'formapago', 'balance_transactions', 'saldos', 'saldo_transacciones', 'checks'];
         const tableNames = result.results
           .map((row: any) => row.name)
           .filter((name: string) => mainTables.includes(name));
@@ -876,7 +876,7 @@ export default function Expenses() {
     } catch (error) {
       console.error('Error cargando tablas:', error);
       // Si falla, usar tablas por defecto
-      setDbaTables(['users', 'expenses', 'tipo_comprobantes', 'categories']);
+      setDbaTables(['users', 'expenses', 'tipo_comprobantes', 'categories', 'checks']);
     }
   };
 
