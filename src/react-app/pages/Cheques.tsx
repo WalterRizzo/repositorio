@@ -87,9 +87,23 @@ export default function ChequesPage() {
   const handleSubmitCheque = async (data: Omit<Check, 'id' | 'created_at' | 'updated_at'>) => {
     try {
       const res = await api.checks.$post({ json: data });
+      
+      if (!res.ok) {
+        // Handle HTTP error
+        try {
+          const errorData = await res.json() as any;
+          const errorMsg = errorData.error || errorData.message || `HTTP ${res.status}`;
+          alert(`Error: ${errorMsg}`);
+        } catch {
+          alert(`Error HTTP ${res.status}: No se pudo decodificar la respuesta`);
+        }
+        return;
+      }
+      
+      // Parse success response
       const responseData = await res.json() as any;
       
-      if (res.ok && responseData.ok) {
+      if (responseData.ok) {
         fetchCheques(filters);
         fetchSummary();
         handleCloseModal();

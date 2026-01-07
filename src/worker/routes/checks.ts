@@ -18,7 +18,7 @@ app.use('/*', async (c, next) => {
 });
 
 // GET /checks - Listar todos los cheques
-app.get('/checks', authMiddleware, async (c) => {
+app.get('/checks', async (c) => {
     const db = c.env.DB;
     const { banco, estado, fechaDesde, fechaHasta, importeDesde, importeHasta } = c.req.query();
 
@@ -66,7 +66,7 @@ app.get('/checks', authMiddleware, async (c) => {
   });
 
 // POST /checks - Registrar un nuevo cheque
-app.post('/checks', authMiddleware, async (c) => {
+app.post('/checks', async (c) => {
     try {
         const body = await c.req.json();
         const {
@@ -111,7 +111,7 @@ app.post('/checks', authMiddleware, async (c) => {
 });
 
 // PATCH /checks/:id/status - Actualizar estado de cheque
-app.patch('/checks/:id/status', authMiddleware, async (c) => {
+app.patch('/checks/:id/status', async (c) => {
     try {
         const id = c.req.param('id');
         const { status } = await c.req.json();
