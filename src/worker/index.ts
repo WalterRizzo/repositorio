@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { setCookie, deleteCookie } from "hono/cookie";
 import { cors } from "hono/cors";
 import { authMiddleware, generateToken, verifyPassword, hashPassword, type User } from "./auth";
-import registerExpenseRoutes from './routes/expenses';
+// import registerExpenseRoutes from './routes/expenses';
+import checksRouter from './routes/checks';
 
 type Variables = {
   user: User;
@@ -249,7 +250,7 @@ app.post("/api/auth/login", loginRateLimit, async (c) => {
         const emailResponse = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${c.env.RESEND_API_KEY}`,
+            'Authorization': `Bearer ${((c.env as any).RESEND_API_KEY as string) || ''}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -648,14 +649,12 @@ app.put('/api/expenses/:id', authMiddleware(), async (c) => {
       return c.json({ error: 'No se puede editar un gasto que ya ha sido aprobado' }, 400);
     }
 
-    // Owner may fully edit when expense is 'pendiente' or 'rechazado'. Only 'aprobado' is blocked above.
-    const currentStatus = currentExpense[0].status;
-    const isRejected = currentStatus === 'rechazado';
-    const isPending = currentStatus === 'pendiente';
-    const newStatus = isRejected ? 'pendiente' : currentStatus;
+    // If rejected -> owner can edit any field; after edit the status becomes 'pendiente'
+    const isRejected = currentExpense[0].status === 'rechazado';
+    const newStatus = isRejected ? 'pendiente' : currentExpense[0].status;
 
-    // If not pending nor rejected, keep legacy behaviour: only allow category + description changes
-    if (!isRejected && !isPending) {
+    // If not rejected, keep legacy behaviour: only allow category + description changes
+    if (!isRejected) {
       const allowedFields = new Set(['category', 'description']);
       const providedFields = Object.keys(expenseData || {});
       const forbidden = providedFields.filter(k => !allowedFields.has(k));
@@ -675,7 +674,7 @@ app.put('/api/expenses/:id', authMiddleware(), async (c) => {
       return c.json(results[0]);
     }
 
-    // From this point we are editing a rejected OR pending expense by its owner and can modify full fields.
+    // From this point we are editing a rejected expense by its owner and can modify full fields.
     // Gather original values to handle balance adjustments
     const { results: fullExpenseRes } = await c.env.DB.prepare('SELECT * FROM expenses WHERE id = ?').bind(expenseId).all();
     const original = fullExpenseRes[0] as any;
@@ -1064,9 +1063,11 @@ app.put('/api/expenses/:id/reject', authMiddleware(), async (c) => {
               await c.env.DB.prepare('DELETE FROM balance_transactions WHERE user_id = ? AND amount = ? AND type = ?').bind(expense.user_id, reembolsoAmount, 'descuento').run();
             } catch (err) { /* non-fatal */ }
 
-            // Solo elimina la transacción pendiente/rechazada, pero NO elimina el gasto. Actualiza el estado a 'rechazado'.
-            await c.env.DB.prepare('UPDATE expenses SET status = ?, rejection_reason = ?, rejected_by = ?, rejected_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind('rechazado', rejectionReason, user.name, expenseId).run();
-            return c.json({ success: true, message: 'Transacción pendiente/rechazada eliminada y gasto marcado como rechazado.' });
+            // Finally, remove the expense row and return success without creating registro
+            const { results: deleted } = await c.env.DB.prepare('DELETE FROM expenses WHERE id = ? RETURNING *').bind(expenseId).all();
+            if (deleted && deleted.length > 0) {
+              return c.json({ success: true, deleted: deleted[0], refunded: 0, message: 'Transacción pendiente/rechazada eliminada sin crear registro de reembolso.' });
+            }
           }
         } catch (err) {
           console.warn('Error buscando/limpiando transacción pendiente en saldo_transacciones:', err);
@@ -1097,9 +1098,12 @@ app.put('/api/expenses/:id/reject', authMiddleware(), async (c) => {
       }
 
       if (!(approvedMatching && approvedMatching.length > 0)) {
-        // Si no hay descuento aprobado, simplemente marcar el gasto como rechazado y NO crear reembolso ni eliminar el gasto.
-        await c.env.DB.prepare('UPDATE expenses SET status = ?, rejection_reason = ?, rejected_by = ?, rejected_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?').bind('rechazado', rejectionReason, user.name, expenseId).run();
-        return c.json({ success: true, message: 'Gasto marcado como rechazado. No existe descuento aprobado, no se creó reembolso.' });
+        // If there's no approved matching discount, do NOT create any refund (protects against spurious reembolso creation).
+        // Remove the expense and return — no movement records will be created.
+        const { results: deleted } = await c.env.DB.prepare('DELETE FROM expenses WHERE id = ? RETURNING *').bind(expenseId).all();
+        if (deleted && deleted.length > 0) {
+          return c.json({ success: true, deleted: deleted[0], refunded: 0, message: 'No existe descuento aprobado para este gasto — no se creó reembolso.' });
+        }
       }
 
       // If we reached this point, there is an approved descuento matching this expense — proceed to refund behavior.
@@ -1142,7 +1146,7 @@ app.put('/api/expenses/:id/reject', authMiddleware(), async (c) => {
         const emailResponse = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${c.env.RESEND_API_KEY}`,
+            'Authorization': `Bearer ${((c.env as any).RESEND_API_KEY as string) || ''}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -1211,9 +1215,10 @@ app.delete('/api/expenses/:id', authMiddleware(), async (c) => {
       return c.json({ error: 'No tienes permiso para eliminar este gasto' }, 403);
     }
     
-    // Allow deletion for 'pendiente' and 'rechazado' expenses — block only approved ones
-    if (currentExpense[0].status === 'aprobado') {
-      return c.json({ error: 'No se puede eliminar un gasto que ya ha sido aprobado' }, 400);
+    if (currentExpense[0].status !== 'pendiente') {
+      return c.json({ 
+        error: 'No se puede eliminar un gasto que ya ha sido aprobado o rechazado' 
+      }, 400);
     }
     
     // Obtener detalles completos del gasto antes de eliminarlo
@@ -3621,12 +3626,15 @@ app.get('/api/users/:userId/saldos', authMiddleware(), async (c) => {
 
 // Middleware para servir archivos estáticos y SPA
 // Register modular routes from the routes/ directory (if any)
-try {
-  // registerExpenseRoutes will add /api/expenses/export and related endpoints
-  registerExpenseRoutes(app);
-} catch (err) {
-  console.warn('No modular routes registered or error while registering:', err);
-}
+// Commented out: registerExpenseRoutes was removed from modular setup
+// try {
+//   registerExpenseRoutes(app);
+// } catch (err) {
+//   console.warn('No modular routes registered or error while registering:', err);
+// }
+
+// Register checks router
+app.route('/api', checksRouter);
 
 // Register same-origin trip endpoints before SPA catch-all so they get matched
 app.get('/api/trips/preview', async (c) => {
@@ -3834,13 +3842,13 @@ app.get('*', async (c) => {
   const url = new URL(c.req.url);
   
   // Intentar obtener el archivo específico
-  let response = await c.env.ASSETS.fetch(url);
+  let response = await ((c.env as any).ASSETS as Fetcher).fetch(url);
   
   // Si no se encuentra (404) y no es un asset, servir index.html para el SPA
   if (response.status === 404 && !url.pathname.startsWith('/assets/')) {
     const indexUrl = new URL(c.req.url);
     indexUrl.pathname = '/index.html';
-    response = await c.env.ASSETS.fetch(indexUrl);
+    response = await ((c.env as any).ASSETS as Fetcher).fetch(indexUrl);
   }
   
   // Clonar response para poder modificar headers

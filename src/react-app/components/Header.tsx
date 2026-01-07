@@ -29,7 +29,7 @@ export default function Header({ userProfile }: HeaderProps) {
         try {
           const resp = await fetch('/api/users/me/balances');
           if (!resp.ok) return;
-          const json = await resp.json();
+          const json = await resp.json() as any;
           if (mounted && Array.isArray(json.balances)) setLocalBalances(json.balances);
         } catch (e) {
           // ignore

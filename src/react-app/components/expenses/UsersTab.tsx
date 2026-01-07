@@ -35,7 +35,7 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
       setTransactionsLoading(true);
       const response = await fetch("/api/transacciones-saldo");
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         setTransactions(data.transacciones || []);
       } else {
         console.error("Error al cargar transacciones");
@@ -52,7 +52,7 @@ export default function UsersTab({ userProfile }: UsersTabProps) {
   const fetchUsers = async () => {
     try {
       const response = await fetch("/api/users");
-      const data = await response.json();
+      const data = await response.json() as any;
       setUsers(data);
     } catch (error) {
       console.error("Error cargando usuarios:", error);

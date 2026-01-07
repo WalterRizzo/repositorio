@@ -70,7 +70,7 @@ export default function UserManagement() {
   const fetchUserProfile = async () => {
     try {
       const response = await fetch("/api/users/me");
-      const data = await response.json();
+      const data = await response.json() as any;
       setUserProfile(data.profile || { role: 'admin' });
     } catch (error) {
       console.error("Error cargando perfil:", error);
@@ -117,7 +117,7 @@ export default function UserManagement() {
         navigate('/users', { replace: true });
         try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.create' } })); } catch(e){}
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         showMessage('error', errorData.error || 'Error creando usuario');
       }
     } catch (error) {
@@ -156,7 +156,7 @@ export default function UserManagement() {
         await fetchUsers();
         try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.update', userId: editingUser?.user_id || null } })); } catch(e){}
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         showMessage('error', errorData.error || 'Error actualizando usuario');
       }
     } catch (error) {
@@ -178,7 +178,7 @@ export default function UserManagement() {
         await fetchUsers();
         try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.delete', userId } })); } catch(e){}
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         showMessage('error', errorData.error || 'Error eliminando usuario');
       }
     } catch (error) {
@@ -405,23 +405,25 @@ export default function UserManagement() {
                                 <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
                               </button>
                               <div className="flex items-center gap-2 flex-nowrap">
-                              <button
-                                onClick={() => navigate(`/settings?tab=users&userId=${encodeURIComponent(userItem.user_id)}`)}
-                                className="group relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-orange-300"
-                                title="Gestión de Usuarios"
-                                aria-label="Gestión de Usuarios"
-                              >
-                                <Key className="w-3.5 h-3.5" />
-                                <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
-                              </button>
-                              <button
-                                onClick={() => deleteUser(userItem.user_id)}
-                                className="group relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-rose-300"
-                                title="Eliminar"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
-                              </button>
+                                {/* Gestión de Usuarios - visible y clara junto a Eliminar */}
+                                <button
+                                  onClick={() => navigate(`/settings?tab=users&userId=${encodeURIComponent(userItem.user_id)}`)}
+                                  className="group relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-emerald-300"
+                                  title="Gestión de Usuarios"
+                                  aria-label={`Gestión de Usuarios ${userItem.user_id}`}
+                                >
+                                  <Key className="w-3.5 h-3.5" />
+                                  <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                                </button>
+
+                                <button
+                                  onClick={() => deleteUser(userItem.user_id)}
+                                  className="group relative inline-flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-2 border-rose-300"
+                                  title="Eliminar"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                                </button>
                               </div>
                             </>
                           )}

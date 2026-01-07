@@ -16,7 +16,7 @@ export default function NegativeBalanceExpenses({ currency, show, onClose }: Neg
     setLoading(true);
     fetch(`/api/expenses?currency=${currency}`)
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: any) => {
         // Filtrar solo gastos que contribuyen al saldo negativo
         const negativeExpenses = Array.isArray(data.expenses)
           ? data.expenses.filter((e: any) => e.amount > 0)

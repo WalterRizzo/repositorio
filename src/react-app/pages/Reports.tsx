@@ -85,7 +85,7 @@ export default function Reports() {
         const txt = await res.text();
         throw new Error(`Reports endpoint returned ${res.status}: ${txt?.slice(0,200)}`);
       }
-      const json = await res.json();
+      const json = await res.json() as any;
       setReportData(json || null);
     } catch (e) {
       console.error('Error fetching reports:', e);
@@ -99,7 +99,7 @@ export default function Reports() {
   const fetchUsersList = async () => {
     try {
       const res = await fetch('/api/users');
-      const list = await res.json();
+      const list = await res.json() as any;
       setUsers(list || []);
     } catch (e) { console.error('Error loading users', e); }
   };
@@ -147,7 +147,7 @@ export default function Reports() {
       if (!response.ok) {
         // Try to parse JSON error body when possible
         let bodyText = '';
-        try { const err = await response.json(); bodyText = err?.error || JSON.stringify(err); } catch (e) { bodyText = await response.text(); }
+        try { const err = await response.json() as any; bodyText = err?.error || JSON.stringify(err); } catch (e) { bodyText = await response.text(); }
         throw new Error(`Export endpoint returned ${response.status}: ${bodyText}`);
       }
       // Try parse JSON, but if the response is HTML (login page or error page) detect and give clearer message

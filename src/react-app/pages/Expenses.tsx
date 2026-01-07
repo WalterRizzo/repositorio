@@ -63,7 +63,7 @@ export default function Expenses() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: sql }),
       });
-      const result = await response.json();
+      const result = await response.json() as any;
       if (response.ok) {
         setDbaResults(result);
       } else {
@@ -86,12 +86,12 @@ export default function Expenses() {
       const resp1 = await fetch('/api/dba/execute', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'SELECT * FROM closed_expenses ORDER BY archived_at DESC LIMIT 500;' })
       });
-      const data1 = await resp1.json().catch(() => ({ results: [] }));
+      const data1 = await resp1.json().catch(() => ({ results: [] })) as any;
 
       const resp2 = await fetch('/api/dba/execute', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'SELECT * FROM closed_saldo_transacciones ORDER BY archived_at DESC LIMIT 500;' })
       });
-      const data2 = await resp2.json().catch(() => ({ results: [] }));
+      const data2 = await resp2.json().catch(() => ({ results: [] })) as any;
 
       if (!resp1.ok) throw new Error(data1.error || 'Error cargando closed_expenses');
       if (!resp2.ok) throw new Error(data2.error || 'Error cargando closed_saldo_transacciones');
@@ -321,7 +321,7 @@ export default function Expenses() {
     try {
       const resp = await fetch('/api/currencies');
       if (!resp.ok) return setCurrenciesList([]);
-      const data = await resp.json();
+      const data = await resp.json() as any;
       if (Array.isArray(data)) {
         setCurrenciesList(data.map((c:any) => ({ code: String(c.code).toUpperCase(), name: c.name, symbol: c.symbol })));
       }
@@ -341,7 +341,7 @@ export default function Expenses() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      const data = await response.json();
+      const data = await response.json() as any;
       console.log('� RAW API DATA:', JSON.stringify(data, null, 2));
       console.log('🎯 USER ROLE FROM API:', data.role);
       console.log('💰 USER BALANCE FROM API:', data.balance);
@@ -360,7 +360,7 @@ export default function Expenses() {
   const fetchExpenses = async () => {
     try {
       const response = await fetch("/api/expenses");
-      const data = await response.json();
+      const data = await response.json() as any;
       setExpenses(data);
     } catch (error) {
       console.error("Error cargando gastos:", error);
@@ -372,7 +372,7 @@ export default function Expenses() {
   const fetchUsers = async () => {
     try {
       const response = await fetch("/api/users");
-      const data = await response.json();
+      const data = await response.json() as any;
       setUsers(data);
     } catch (error) {
       console.error("Error cargando usuarios:", error);
@@ -383,7 +383,7 @@ export default function Expenses() {
     try {
       const response = await fetch("/api/users/me/balances");
       if (!response.ok) throw new Error("Error fetching balances");
-      const data = await response.json();
+      const data = await response.json() as any;
       setMultiBalances(data.balances || []);
     } catch (error) {
       console.error("Error cargando saldos multimoneda:", error);
@@ -403,7 +403,7 @@ export default function Expenses() {
 
     try {
       const response = await fetch(`/api/expenses/${id}`, { method: "DELETE" });
-      const result = await response.json();
+      const result = await response.json() as any;
       
       if (response.ok) {
         if (result.refunded && result.refunded > 0) {
@@ -457,7 +457,7 @@ export default function Expenses() {
       });
 
       if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
+        const err = await resp.json().catch(() => ({})) as any;
         const msg = err.error || `Error ${resp.status} al aprobar gasto`;
         console.error('Approve failed:', msg);
         alert(`❌ No se pudo aprobar: ${msg}`);
@@ -517,7 +517,7 @@ export default function Expenses() {
     try {
       const response = await fetch('/api/balance/movements');
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         setBalanceMovements(data.movements || []);
       } else {
         console.error('Error fetching movements');
@@ -600,7 +600,7 @@ export default function Expenses() {
           console.log('✨ Tu propio saldo ha sido actualizado exitosamente');
         }
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         alert(`Error: ${errorData.error}`);
       }
     } catch (error) {
@@ -668,7 +668,7 @@ export default function Expenses() {
         const txt = await response.text();
         throw new Error(`Error fetching balances: ${response.status} ${txt}`);
       }
-      const json = await response.json();
+      const json = await response.json() as any;
       if (json && json.saldos) {
         setSelectedUserBalances(Array.isArray(json.saldos) ? json.saldos : []);
       } else {
@@ -690,7 +690,7 @@ export default function Expenses() {
         credentials: 'include'
       });
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         return data.balance || 0;
       }
       return 0;
@@ -743,7 +743,7 @@ export default function Expenses() {
         setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
         setShowSettingsModal(false);
       } else {
-        const data = await response.json();
+        const data = await response.json() as any;
         alert(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
       }
     } catch (error) {
@@ -788,7 +788,7 @@ export default function Expenses() {
         alert('✅ Contraseña del usuario actualizada correctamente');
         setUserPasswordForm({ userId: '', newPassword: '', confirmPassword: '' });
       } else {
-        const data = await response.json();
+        const data = await response.json() as any;
         alert(`❌ Error: ${data.error || 'No se pudo cambiar la contraseña'}`);
       }
     } catch (error) {
@@ -839,7 +839,7 @@ export default function Expenses() {
         setShowSettingsModal(false);
         await fetchUsers(); // Recargar lista de usuarios
       } else {
-        const data = await response.json();
+        const data = await response.json() as any;
         alert(`❌ Error: ${data.error || 'No se pudo crear el usuario'}`);
       }
     } catch (error) {
@@ -861,7 +861,7 @@ export default function Expenses() {
         }),
       });
 
-      const result = await response.json();
+      const result = await response.json() as any;
       
       if (response.ok && result.results) {
         // Filtrar solo las tablas principales

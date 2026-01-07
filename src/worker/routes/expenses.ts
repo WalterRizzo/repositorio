@@ -1,9 +1,10 @@
-import { authMiddleware } from '../auth';
+import { Hono } from 'hono';
+import { authMiddleware, User } from '../auth';
 import { registrarTransaccionSaldo } from '../utils';
 
-export function registerExpenseRoutes(app: any) {
-  // GET /api/expenses with pagination and filters
-  app.get('/api/expenses', authMiddleware(), async (c: any) => {
+export const expensesApi = new Hono<{ Bindings: Env; Variables: { user: User } }>();
+
+expensesApi.get('/expenses', authMiddleware(), async (c: any) => {
     try {
       const user = c.get('user');
       const url = new URL(c.req.url);
@@ -66,7 +67,7 @@ export function registerExpenseRoutes(app: any) {
   });
 
   // Export endpoint - returns all matching expenses without pagination (for Excel export)
-  app.get('/api/expenses/export', authMiddleware(), async (c: any) => {
+  expensesApi.get('/expenses/export', authMiddleware(), async (c: any) => {
     try {
       const user = c.get('user');
       const url = new URL(c.req.url);
@@ -115,7 +116,7 @@ export function registerExpenseRoutes(app: any) {
   });
 
   // POST /api/expenses - create new expense
-  app.post('/api/expenses', authMiddleware(), async (c: any) => {
+  expensesApi.post('/expenses', authMiddleware(), async (c: any) => {
     try {
       const user = c.get('user');
       const expense = await c.req.json();
@@ -167,6 +168,3 @@ export function registerExpenseRoutes(app: any) {
       return c.json({ error: String(error) }, 500);
     }
   });
-}
-
-export default registerExpenseRoutes;

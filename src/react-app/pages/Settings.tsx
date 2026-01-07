@@ -120,7 +120,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/users/me');
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         setUserProfile(data);
         if (data?.role === 'usuario') setActiveTab('users');
       }
@@ -133,7 +133,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/categories');
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         setCategories(data);
       }
     } catch (error) {
@@ -145,7 +145,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/tipo-comprobantes');
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         setTiposComprobantes(data);
       }
     } catch (error) {
@@ -157,7 +157,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/currencies');
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         setCurrencies(data);
       }
     } catch (error) {
@@ -169,7 +169,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch('/api/users');
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         setUsers(data);
       }
     } catch (error) {
@@ -195,14 +195,14 @@ export default function SettingsPage() {
       console.log('📥 Respuesta:', response.status, response.statusText);
       
       if (response.ok) {
-        const result = await response.json();
+        const result = await response.json() as any;
         console.log('✅ Categoría guardada:', result);
         fetchCategories();
         resetCategoryForm();
         alert('✅ Categoría guardada exitosamente');
         try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'categories.upsert', categoryId: result?.id || null } })); } catch(e){}
       } else {
-        const error = await response.json();
+        const error = await response.json() as any;
         console.error('❌ Error del servidor:', error);
         alert('❌ Error: ' + (error.error || 'Error desconocido'));
       }
@@ -263,7 +263,7 @@ export default function SettingsPage() {
         alert('Moneda guardada exitosamente');
         try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'currencies.upsert' } })); } catch(e){}
       } else {
-        const err = await response.json();
+        const err = await response.json() as any;
         alert('Error: ' + (err.error || 'Error al guardar la moneda'));
       }
     } catch (error) {
@@ -288,7 +288,7 @@ export default function SettingsPage() {
         fetchCurrencies();
         try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'currencies.delete', currencyId: id } })); } catch(e){}
       } else {
-        const err = await response.json();
+        const err = await response.json() as any;
         alert('Error: ' + (err.error || 'No se pudo eliminar la moneda'));
       }
     } catch (error) {
@@ -325,7 +325,7 @@ export default function SettingsPage() {
         alert('✅ Contraseña cambiada exitosamente');
         setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       } else {
-        const error = await response.json();
+        const error = await response.json() as any;
         alert('❌ ' + (error.error || 'Error al cambiar la contraseña'));
       }
     } catch (error) {
@@ -362,7 +362,7 @@ export default function SettingsPage() {
         alert('✅ Contraseña del usuario cambiada exitosamente');
         setUserPasswordForm({ userId: '', newPassword: '', confirmPassword: '' });
       } else {
-        const error = await response.json();
+        const error = await response.json() as any;
         alert('❌ ' + (error.error || 'Error al cambiar la contraseña'));
       }
     } catch (error) {
@@ -399,7 +399,7 @@ export default function SettingsPage() {
         setCreateUserForm({ name: '', email: '', role: 'usuario', password: '', confirmPassword: '' });
         fetchUsers(); // Refresh users list
       } else {
-        const error = await response.json();
+        const error = await response.json() as any;
         alert('❌ ' + (error.error || 'Error al crear el usuario'));
       }
     } catch (error) {
@@ -472,7 +472,7 @@ export default function SettingsPage() {
         // Try to parse server-provided JSON message (e.g. FK constraint)
         let errMsg = 'No se pudo eliminar el tipo de comprobante';
         try {
-          const data = await response.json();
+          const data = await response.json() as any;
           if (data && data.error) errMsg = data.error;
         } catch (e) { /* ignore parse errors */ }
         alert('❌ Error: ' + errMsg);

@@ -23,7 +23,7 @@ export default function TripHistoryModal({ userId, onClose }: Props) {
       setError(null);
       try {
         const resp = await fetch(`/api/trips/history?userId=${encodeURIComponent(userId)}`, { credentials: 'include' });
-        const data = await resp.json();
+        const data = await resp.json() as any;
         if (!resp.ok) {
           setError(data?.error || 'Error cargando histórico');
           return;

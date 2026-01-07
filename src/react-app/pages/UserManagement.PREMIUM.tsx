@@ -66,7 +66,7 @@ export default function UserManagement() {
   const fetchUserProfile = async () => {
     try {
       const response = await fetch("/api/users/me");
-      const data = await response.json();
+      const data = await response.json() as any;
       setUserProfile(data.profile || { role: 'admin' });
     } catch (error) {
       console.error("Error cargando perfil:", error);
@@ -113,7 +113,7 @@ export default function UserManagement() {
         navigate('/users', { replace: true });
         try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.create' } })); } catch(e){}
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         showMessage('error', errorData.error || 'Error creando usuario');
       }
     } catch (error) {
@@ -152,7 +152,7 @@ export default function UserManagement() {
         await fetchUsers();
         try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.update', userId: editingUser?.user_id || null } })); } catch(e){}
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         showMessage('error', errorData.error || 'Error actualizando usuario');
       }
     } catch (error) {
@@ -174,7 +174,7 @@ export default function UserManagement() {
         await fetchUsers();
         try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.delete', userId } })); } catch(e){}
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         showMessage('error', errorData.error || 'Error eliminando usuario');
       }
     } catch (error) {

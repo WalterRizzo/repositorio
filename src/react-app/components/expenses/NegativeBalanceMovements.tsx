@@ -27,7 +27,7 @@ export default function NegativeBalanceMovements({ currency, show, onClose }: Ne
     setLoading(true);
     fetch(`/api/users/me/balance-movements?currency=${currency}`)
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: any) => {
         const all = Array.isArray(data.movements) ? data.movements : [];
         // filter out spurious pending 'Reembolso (pendiente) por eliminación' rows from user view
         const filtered = all.filter((m: any) => {

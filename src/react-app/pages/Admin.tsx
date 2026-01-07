@@ -41,7 +41,7 @@ export default function Admin() {
   const fetchUserProfile = async () => {
     try {
       const response = await fetch("/api/users/me");
-      const data = await response.json();
+      const data = await response.json() as any;
       setUserProfile(data.profile);
       
       if (!data.profile || !['admin', 'supervisor'].includes(data.profile.role)) {
@@ -55,7 +55,7 @@ export default function Admin() {
   const fetchExpenses = async () => {
     try {
       const response = await fetch("/api/expenses");
-      const data = await response.json();
+      const data = await response.json() as any;
       setExpenses(data);
     } catch (error) {
       console.error("Error cargando gastos:", error);
@@ -67,7 +67,7 @@ export default function Admin() {
   const fetchUsers = async () => {
     try {
       const response = await fetch("/api/users");
-      const data = await response.json();
+      const data = await response.json() as any;
       setUsers(data);
     } catch (error) {
       console.error("Error cargando usuarios:", error);
@@ -109,7 +109,7 @@ export default function Admin() {
         alert("Usuario creado exitosamente");
         try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.create' } })); } catch(e){}
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         alert(`Error al crear usuario: ${errorData.error || 'Error desconocido'}`);
       }
     } catch (error) {
@@ -149,7 +149,7 @@ export default function Admin() {
         alert("Usuario actualizado exitosamente");
         try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.update', userId: editingUser?.user_id || null } })); } catch(e){}
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         alert(`Error al actualizar usuario: ${errorData.error || 'Error desconocido'}`);
       }
     } catch (error) {
@@ -212,7 +212,7 @@ export default function Admin() {
     try {
       const resp = await fetch(`/api/expenses/${id}/approve`, { method: "PUT", credentials: 'include' });
       if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
+        const err = await resp.json().catch(() => ({})) as any;
         const msg = err.error || `Error ${resp.status} al aprobar gasto`;
         console.error('Approve failed:', msg);
         alert(`❌ No se pudo aprobar: ${msg}`);
@@ -245,14 +245,14 @@ export default function Admin() {
       });
 
       if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
+        const err = await resp.json().catch(() => ({})) as any;
         const msg = err.error || `Error ${resp.status} al rechazar gasto`;
         console.error('Reject failed:', msg);
         alert(`❌ No se pudo rechazar: ${msg}`);
         return;
       }
 
-      const data = await resp.json().catch(() => ({}));
+      const data = await resp.json().catch(() => ({})) as any;
       await fetchExpenses();
       try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id, expense: data.expense } })); } catch(e){}
       alert("Gasto rechazado exitosamente");

@@ -124,7 +124,7 @@ export default function ExpenseForm({
       const respAll = await fetch('/api/users/me/balances', { credentials: 'include' });
       console.log('💰 /balances Response status:', respAll.status);
       if (respAll.ok) {
-        const allData = await respAll.json();
+        const allData = await respAll.json() as any;
         console.log('💰 balances data received:', allData);
 
         // Normalize and find matching currency (exact match on currency code)
@@ -142,7 +142,7 @@ export default function ExpenseForm({
       const response = await fetch(`/api/users/me/balance/${currency}`, { credentials: 'include' });
       console.log('💰 /balance/:currency Response status:', response.status);
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         console.log('💰 Balance data received (fallback):', data);
         setUserBalance(Number(data.balance) || 0);
         return;
@@ -209,7 +209,7 @@ export default function ExpenseForm({
         credentials: 'include'
       });
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         setTipoComprobantes(data);
         // Auto-select a tipo_comprobante by default when creating a new expense
         if ((!formData.tipo_comprobante_id || formData.tipo_comprobante_id === '') && Array.isArray(data) && data.length > 0) {
@@ -225,7 +225,7 @@ export default function ExpenseForm({
     try {
       const response = await fetch(`/api/expenses/${expenseId}/attachments`);
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         if (data.success && data.attachments) {
           setExistingAttachments(data.attachments);
         }
@@ -389,7 +389,7 @@ export default function ExpenseForm({
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         throw new Error(errorData.error || 'Error al subir el recibo');
       }
       
@@ -474,7 +474,7 @@ export default function ExpenseForm({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         throw new Error(errorData.error || 'Error al subir archivos');
       }
 
@@ -537,7 +537,7 @@ export default function ExpenseForm({
       if (!response.ok) {
         let errorMessage = "Error al guardar el gasto";
         try {
-          const errorData = await response.json();
+          const errorData = await response.json() as any;
           errorMessage = errorData.error || errorMessage;
         } catch {
           // If can't parse JSON, use default message

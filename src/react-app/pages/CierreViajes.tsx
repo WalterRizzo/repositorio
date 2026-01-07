@@ -88,7 +88,7 @@ export default function CierreViajes() {
     setPreviewing(true);
     try {
       const resp = await fetch(`/api/trips/preview?userId=${encodeURIComponent(selectedUserId)}&from=${encodeURIComponent(dateFrom)}&to=${encodeURIComponent(dateTo)}`, { credentials: 'include' });
-      const data = await resp.json();
+      const data = await resp.json() as any;
       if (!resp.ok) return alert(data?.error || 'Error previsualizando');
       // Filter out spurious pending 'Reembolso (pendiente) por eliminación' from preview
       const rawExpenses = Array.isArray(data.expenses) ? data.expenses : [];
@@ -152,7 +152,7 @@ export default function CierreViajes() {
       };
 
       const resp = await fetch('/api/trips/close', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const data = await resp.json();
+      const data = await resp.json() as any;
       if (!resp.ok) return alert(data?.error || 'Error al cerrar el viaje');
 
       alert(`Cierre realizado correctamente — tripId: ${data.tripId} (movedExpenses: ${data.movedExpenses}, movedMovements: ${data.movedMovements})`);

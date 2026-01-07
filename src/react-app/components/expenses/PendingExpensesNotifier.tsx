@@ -29,7 +29,7 @@ export default function PendingExpensesNotifier() {
   const checkPendingExpenses = async () => {
     try {
       const response = await fetch('/api/expenses/pending/count');
-      const data = await response.json();
+      const data = await response.json() as any;
       
       if (data.count > 0) {
         showNotification(
