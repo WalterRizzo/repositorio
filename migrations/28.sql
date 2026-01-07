@@ -1,0 +1,1 @@
+-- DEPRECATED: migration was added by mistake and removed. No schema changes should be applied.

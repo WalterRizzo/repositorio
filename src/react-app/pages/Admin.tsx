@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
-import { Loader2, Users, Receipt, Plus, Edit, Trash2 } from "lucide-react";
+import { Loader2, Users, Receipt, Plus, Edit, Trash2, Key } from "lucide-react";
 import type { Expense, UserProfile } from "@/shared/types";
 import Header from "@/react-app/components/Header";
 import ExpensesTable from "@/react-app/components/ExpensesTable";
@@ -41,7 +41,7 @@ export default function Admin() {
   const fetchUserProfile = async () => {
     try {
       const response = await fetch("/api/users/me");
-      const data = await response.json();
+      const data = await response.json() as any;
       setUserProfile(data.profile);
       
       if (!data.profile || !['admin', 'supervisor'].includes(data.profile.role)) {
@@ -52,12 +52,10 @@ export default function Admin() {
     }
   };
 
-  const fetchExpenses = async (page = 1, perPage = 100) => {
+  const fetchExpenses = async () => {
     try {
-      const offset = (page - 1) * perPage;
-      const response = await fetch(`/api/expenses?limit=${perPage}&offset=${offset}`);
-      const json = await response.json();
-      const data = (json && (json.data || json)) || [];
+      const response = await fetch("/api/expenses");
+      const data = await response.json() as any;
       setExpenses(data);
     } catch (error) {
       console.error("Error cargando gastos:", error);
@@ -69,7 +67,7 @@ export default function Admin() {
   const fetchUsers = async () => {
     try {
       const response = await fetch("/api/users");
-      const data = await response.json();
+      const data = await response.json() as any;
       setUsers(data);
     } catch (error) {
       console.error("Error cargando usuarios:", error);
@@ -83,7 +81,7 @@ export default function Admin() {
     
     // Validación en frontend
     if (!userForm.name.trim() || !userForm.email.trim()) {
-      console.warn("Nombre y email son requeridos en frontend");
+      alert("Nombre y email son requeridos en frontend");
       return;
     }
     
@@ -108,14 +106,15 @@ export default function Admin() {
         await fetchUsers();
         setShowUserModal(false);
         resetUserForm();
-        console.log("Usuario creado exitosamente");
+        alert("Usuario creado exitosamente");
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.create' } })); } catch(e){}
       } else {
-        const errorData = await response.json();
-        console.log(`Error al crear usuario: ${errorData.error || 'Error desconocido'}`);
+        const errorData = await response.json() as any;
+        alert(`Error al crear usuario: ${errorData.error || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error("Error creando usuario:", error);
-      console.log("Error al crear usuario");
+      alert("Error al crear usuario");
     }
   };
 
@@ -125,7 +124,7 @@ export default function Admin() {
     
     // Validación en frontend
     if (!userForm.name.trim() || !userForm.email.trim()) {
-      console.log("Nombre y email son requeridos");
+      alert("Nombre y email son requeridos");
       return;
     }
     
@@ -147,18 +146,20 @@ export default function Admin() {
         setShowUserModal(false);
         setEditingUser(null);
         resetUserForm();
-        console.log("Usuario actualizado exitosamente");
+        alert("Usuario actualizado exitosamente");
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.update', userId: editingUser?.user_id || null } })); } catch(e){}
       } else {
-        const errorData = await response.json();
-        console.log(`Error al actualizar usuario: ${errorData.error || 'Error desconocido'}`);
+        const errorData = await response.json() as any;
+        alert(`Error al actualizar usuario: ${errorData.error || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error("Error actualizando usuario:", error);
-      console.log("Error al actualizar usuario");
+      alert("Error al actualizar usuario");
     }
   };
 
   const handleDeleteUser = async (userId: string) => {
+    if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
     
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -167,13 +168,14 @@ export default function Admin() {
       
       if (response.ok) {
         await fetchUsers();
-        console.log("Usuario eliminado exitosamente");
+        alert("Usuario eliminado exitosamente");
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.delete', userId } })); } catch(e){}
       } else {
-        console.log("Error al eliminar usuario");
+        alert("Error al eliminar usuario");
       }
     } catch (error) {
       console.error("Error eliminando usuario:", error);
-      console.log("Error al eliminar usuario");
+      alert("Error al eliminar usuario");
     }
   };
 
@@ -205,30 +207,60 @@ export default function Admin() {
   };
 
   const handleApprove = async (id: number) => {
+    if (!confirm("¿Aprobar este gasto?")) return false;
 
     try {
-      await fetch(`/api/expenses/${id}/approve`, {
-        method: "PUT",
-      });
+      const resp = await fetch(`/api/expenses/${id}/approve`, { method: "PUT", credentials: 'include' });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({})) as any;
+        const msg = err.error || `Error ${resp.status} al aprobar gasto`;
+        console.error('Approve failed:', msg);
+        alert(`❌ No se pudo aprobar: ${msg}`);
+        return false;
+      }
       await fetchExpenses();
-      console.log("Gasto aprobado exitosamente");
+      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.approve', id } })); } catch(e){}
+      alert("Gasto aprobado exitosamente");
+      return true;
     } catch (error) {
       console.error("Error aprobando gasto:", error);
-      console.log("Error al aprobar el gasto");
+      alert("Error al aprobar el gasto");
+      return false;
     }
   };
 
-  const handleReject = async (id: number) => {
+  const handleReject = async (id: number, reason?: string) => {
+    if (!confirm("¿Rechazar este gasto?")) return;
+    const reasonProvided = (reason && reason.trim() !== '') ? reason.trim() : window.prompt('Por favor, indica la razón del rechazo (obligatorio):');
+    if (!reasonProvided || reasonProvided.trim() === '') {
+      alert('Debes proporcionar una razón para el rechazo.');
+      return;
+    }
 
     try {
-      await fetch(`/api/expenses/${id}/reject`, {
+      const resp = await fetch(`/api/expenses/${id}/reject`, {
         method: "PUT",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rejectionReason: reasonProvided.trim() })
       });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({})) as any;
+        const msg = err.error || `Error ${resp.status} al rechazar gasto`;
+        console.error('Reject failed:', msg);
+        alert(`❌ No se pudo rechazar: ${msg}`);
+        return;
+      }
+
+      const data = await resp.json().catch(() => ({})) as any;
       await fetchExpenses();
-      console.log("Gasto rechazado exitosamente");
+      try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'expenses.reject', id, expense: data.expense } })); } catch(e){}
+      alert("Gasto rechazado exitosamente");
+      return true;
     } catch (error) {
       console.error("Error rechazando gasto:", error);
-      console.log("Error al rechazar el gasto");
+      alert("Error al rechazar el gasto");
+      return false;
     }
   };
 
@@ -242,13 +274,13 @@ export default function Admin() {
     );
   }
 
-  const pendingExpenses = expenses.filter(e => e.status === 'pendiente');
+  // pending expenses variable removed — not used in this view after KPI cleanup
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Header userProfile={userProfile} />
       
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Panel de Administración</h1>
           <p className="text-gray-600 dark:text-gray-300">Gestionar gastos y usuarios</p>
@@ -286,29 +318,7 @@ export default function Admin() {
 
         {activeTab === 'expenses' && (
           <>
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 shadow-sm border border-blue-700">
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                  {pendingExpenses.length}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">Gastos Pendientes</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl p-6 shadow-sm border border-emerald-700">
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                  {expenses.filter(e => e.status === 'aprobado').length}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">Gastos Aprobados</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-orange-500 to-orange-700 rounded-2xl p-6 shadow-sm border border-orange-700">
-                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-1">
-                  {expenses.filter(e => e.status === 'rechazado').length}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">Gastos Rechazados</div>
-              </div>
-            </div>
-
+            {/* KPI cards removed — simplified view */}
             <ExpensesTable
               expenses={expenses}
               isLoading={isLoading}
@@ -340,9 +350,9 @@ export default function Admin() {
             </div>
 
             {/* Tabla de usuarios */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden app-table-container">
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full app-table">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Usuario</th>
@@ -355,7 +365,7 @@ export default function Admin() {
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {users.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 app-table-row-hover">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">{user.name}</div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">{user.user_id}</div>
@@ -375,8 +385,10 @@ export default function Admin() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                           ${user.monthly_salary.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          ${user.balance.toLocaleString()}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className={user.balance < 0 ? 'text-rose-500 font-bold' : 'text-gray-900 dark:text-white'}>
+                            ${user.balance.toLocaleString()}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <div className="flex space-x-2">
@@ -385,6 +397,14 @@ export default function Admin() {
                               className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
                             >
                               <Edit className="w-4 h-4" />
+                            </button>
+                            {/* Gestión de Usuario: abrimos la sección de Usuarios en Settings para administrar al usuario */}
+                            <button
+                              onClick={() => navigate(`/settings?tab=users&userId=${encodeURIComponent(user.user_id)}`)}
+                              title="Gestionar usuario"
+                              className="text-indigo-500 hover:text-indigo-800 dark:text-indigo-300 dark:hover:text-indigo-200"
+                            >
+                              <Key className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteUser(user.user_id)}

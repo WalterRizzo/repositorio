@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from "@/react-app/hooks/useAuth";
 import { Link } from "react-router";
 import argentinaFlag from '@/react-app/assets/argentina.svg';
@@ -18,11 +19,30 @@ export default function Header({ userProfile }: HeaderProps) {
 
   // kept for possible future usage, but not currently used
 
+  const [localBalances, setLocalBalances] = useState<Array<{currency:string; balance:number}> | null>(Array.isArray(userProfile?.balances) ? userProfile.balances : null);
+
+  useEffect(() => {
+    let mounted = true;
+    // If the prop doesn't contain balances, try to fetch them for this user (handles pages passing `user` instead of full profile)
+    if (userProfile && !Array.isArray(userProfile.balances)) {
+      (async () => {
+        try {
+          const resp = await fetch('/api/users/me/balances');
+          if (!resp.ok) return;
+          const json = await resp.json() as any;
+          if (mounted && Array.isArray(json.balances)) setLocalBalances(json.balances);
+        } catch (e) {
+          // ignore
+        }
+      })();
+    }
+    return () => { mounted = false; };
+  }, [userProfile]);
+
   return (
-    <>
-      <header className="sticky top-0 z-50 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b-2 border-indigo-500/30 shadow-xl backdrop-blur-sm w-full">
+    <header className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b-2 border-indigo-500/30 shadow-xl backdrop-blur-sm w-full sticky top-0 z-50">
   <div className="w-full lg:max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row items-center justify-between h-16 gap-y-0 w-full">
+        <div className="flex flex-col sm:flex-row items-center justify-between h-auto sm:h-16 gap-y-2 sm:gap-0 w-full">
             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-8 w-full">
             <Link to="/expenses" className="group flex items-center space-x-3">
               <div className="relative">
@@ -61,9 +81,20 @@ export default function Header({ userProfile }: HeaderProps) {
                 }`}>
                   {userProfile.role}
                 </span>
-                <span className="text-lg font-bold text-emerald-400">
-                  ${userProfile.balance?.toFixed(2) || '0.00'}
-                </span>
+                <div className="flex items-center space-x-3">
+                  {/* show multi-currency balances when available */}
+                  {Array.isArray(localBalances) && localBalances.length > 0 ? (
+                    localBalances.map((b: { currency: string; balance: number }) => (
+                      <span key={b.currency} className="text-sm font-bold px-2 py-1 rounded-md bg-emerald-900/30 text-emerald-300 border border-emerald-700/30">
+                        {b.currency} {Number(b.balance).toFixed(2)}
+                      </span>
+                    ))
+                    ) : (
+                    <span className="text-lg font-bold text-emerald-400">
+                      ${userProfile.balance?.toFixed(2) || '0.00'}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
             
@@ -102,8 +133,6 @@ export default function Header({ userProfile }: HeaderProps) {
         </div>
       </div>
     </header>
-    {/* Spacer to prevent content from being hidden under the fixed header */}
-    <div className="h-16" aria-hidden="true"></div>
-    </>
   );
 }
+// ...existing code...

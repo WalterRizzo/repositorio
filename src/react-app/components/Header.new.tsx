@@ -8,6 +8,8 @@ interface HeaderProps {
   onSettingsClick?: () => void;
 }
 
+import { useEffect, useState } from 'react';
+
 export default function Header({ userProfile, onSettingsClick }: HeaderProps) {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -28,9 +30,26 @@ export default function Header({ userProfile, onSettingsClick }: HeaderProps) {
     }).format(amount);
   };
 
+  const [localBalances, setLocalBalances] = useState<Array<{currency:string; balance:number}> | null>(Array.isArray(userProfile?.balances) ? userProfile.balances : null);
+
+  useEffect(() => {
+    let mounted = true;
+    if (userProfile && !Array.isArray(userProfile.balances)) {
+      (async () => {
+        try {
+          const resp = await fetch('/api/users/me/balances');
+          if (!resp.ok) return;
+          const json = await resp.json() as any;
+          if (mounted && Array.isArray(json.balances)) setLocalBalances(json.balances);
+        } catch (e) {}
+      })();
+    }
+    return () => { mounted = false };
+  }, [userProfile]);
+
   return (
     <header className="sticky top-0 z-50 bg-dark-900/95 backdrop-blur-xl border-b border-dark-800/50 shadow-xl">
-      <div className="max-w-[1920px] mx-auto px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo y Brand */}
           <div className="flex items-center space-x-10">
@@ -129,21 +148,30 @@ export default function Header({ userProfile, onSettingsClick }: HeaderProps) {
 
           {/* Saldo y Acciones del Usuario */}
           <div className="flex items-center space-x-4">
-            {/* Saldo Total */}
-            {userProfile?.balance !== undefined && (
+            {/* Saldo Total / Saldos por moneda */}
+
+            {userProfile && (
               <div className="hidden md:flex items-center space-x-3 px-5 py-2.5 bg-dark-850 rounded-xl border border-dark-700">
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-accent-green/20 to-accent-cyan/20">
                   <Wallet className="w-4 h-4 text-accent-green" />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wide">
-                    Saldo Total
+                    Saldo
                   </span>
-                  <span className={`text-sm font-bold ${
-                    userProfile.balance >= 0 ? 'text-accent-green' : 'text-red-400'
-                  }`}>
-                    {formatBalance(userProfile.balance)}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    {Array.isArray(localBalances) && localBalances.length > 0 ? (
+                      localBalances.map((b: { currency: string; balance: number }) => (
+                        <span key={b.currency} className={`text-sm font-semibold ${b.balance >= 0 ? 'text-accent-green' : 'text-red-400'}`}>
+                          {b.currency} {Number(b.balance).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                        </span>
+                      ))
+                    ) : (
+                      <span className={`text-sm font-bold ${userProfile.balance >= 0 ? 'text-accent-green' : 'text-red-400'}`}>
+                        {formatBalance(userProfile.balance || 0)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

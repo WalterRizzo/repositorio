@@ -1,4 +1,4 @@
-import { Receipt, Users, Database, FileSpreadsheet, Settings as SettingsIcon } from 'lucide-react';
+import { Receipt, Database, FileSpreadsheet, Settings as SettingsIcon, Landmark } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/react-app/hooks/useAuth';
 import argentinaFlag from '@/react-app/assets/argentina.svg';
@@ -9,7 +9,7 @@ export default function Sidebar() {
   const role = user?.role || 'usuario';
 
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-[#10121a] border-r border-gray-800 p-4 space-y-4 text-white">
+    <aside className="hidden md:flex flex-col w-64 bg-[#10121a] border-r border-gray-800 p-4 space-y-4 text-white sticky top-16 self-start h-[calc(100vh-4rem)] overflow-auto z-40">
       <div className="flex items-center gap-3 px-3 py-2">
         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
           <Receipt className="w-5 h-5 text-white" />
@@ -43,22 +43,32 @@ export default function Sidebar() {
             </li>
           )}
 
-          {/* Users visible for admin & supervisor (not for plain 'usuario') -> users button opens the users tab */}
+          {/* Cheques visible for admin & supervisor */}
           {(role === 'admin' || role === 'supervisor') && (
             <li>
-              <button onClick={() => { navigate('/expenses'); setTimeout(()=> { window.location.hash = '#users'; }, 50); }} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
-                <Users className="w-4 h-4" />
-                <span>Usuarios</span>
+              <button onClick={() => navigate('/cheques')} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
+                <Landmark className="w-4 h-4" />
+                <span>Cheques</span>
               </button>
             </li>
           )}
 
-          {/* Settings visible for admin & supervisor */}
+          {/* Users removed from left sidebar per UX request. */}
+
+          {/* Settings visible for ALL roles so every user can change their own password */}
+          <li>
+            <button onClick={() => navigate('/settings')} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
+              <SettingsIcon className="w-4 h-4" />
+              <span>Configuración</span>
+            </button>
+          </li>
+
+          {/* CIERRE DE VIAJE visible to admin & supervisor at top-level (same level as Configuración) */}
           {(role === 'admin' || role === 'supervisor') && (
             <li>
-              <button onClick={() => navigate('/settings')} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
-                <SettingsIcon className="w-4 h-4" />
-                <span>Configuración</span>
+              <button onClick={() => navigate('/cierre-viajes')} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
+                <span className="w-4 h-4">🧳</span>
+                <span>CIERRE DE VIAJE</span>
               </button>
             </li>
           )}
@@ -66,10 +76,13 @@ export default function Sidebar() {
           {/* DBA only visible to admin */}
           {role === 'admin' && (
             <li>
-              <button onClick={() => { navigate('/expenses'); setTimeout(()=> { window.location.hash = '#dba'; }, 50); }} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
-                <Database className="w-4 h-4" />
-                <span>DBA</span>
-              </button>
+              <div className="flex flex-col gap-1">
+                <button onClick={() => { navigate('/expenses'); setTimeout(()=> { window.location.hash = '#dba'; }, 50); }} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 w-full text-left">
+                  <Database className="w-4 h-4" />
+                  <span>DBA</span>
+                </button>
+                {/* kept inside DBA for admins if needed, but the top-level link covers supervisor & admin */}
+              </div>
             </li>
           )}
 

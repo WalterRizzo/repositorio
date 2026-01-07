@@ -1,6 +1,4 @@
 import { getCookie } from 'hono/cookie';
-import bcrypt from 'bcryptjs';
-import { SignJWT, jwtVerify } from 'jose';
 
 export interface User {
   id: string;
@@ -15,32 +13,53 @@ export interface AuthRequest {
 
 // Función para hashear contraseñas usando Web Crypto API
 export async function hashPassword(password: string): Promise<string> {
-  const saltRounds = 12;
-  return await bcrypt.hash(password, saltRounds);
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // Función para verificar contraseñas
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return await bcrypt.compare(password, hash);
+  const hashedInput = await hashPassword(password);
+  return hashedInput === hash;
 }
 
 // Función para generar token simple (base64 encoded)
-export async function generateToken(user: User, secret: string): Promise<string> {
-  const alg = 'HS256';
-  const jwt = await new SignJWT({ id: user.id, email: user.email, name: user.name, role: user.role })
-    .setProtectedHeader({ alg })
-    .setExpirationTime('7d')
-    .sign(new TextEncoder().encode(secret));
-  return jwt;
+export function generateToken(user: User, secret: string): string {
+  const payload = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    exp: Date.now() + (7 * 24 * 60 * 60 * 1000) // 7 días
+  };
+  const tokenData = JSON.stringify(payload);
+  return btoa(tokenData + '.' + secret);
 }
 
 // Función para verificar token
-export async function verifyToken(token: string, secret: string): Promise<User | null> {
+export function verifyToken(token: string, secret: string): User | null {
   try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret), { algorithms: ['HS256'] });
-    const p = payload as any;
-    // @ts-ignore
-    return { id: p.id, email: p.email, name: p.name, role: p.role } as User;
+    const decoded = atob(token);
+    const [payloadStr, tokenSecret] = decoded.split('.' + secret);
+    
+    if (tokenSecret !== '') return null;
+    
+    const payload = JSON.parse(payloadStr);
+    
+    // Verificar expiración
+    if (payload.exp < Date.now()) {
+      return null;
+    }
+    
+    return {
+      id: payload.id,
+      email: payload.email,
+      name: payload.name,
+      role: payload.role
+    };
   } catch (error) {
     return null;
   }
@@ -62,7 +81,7 @@ export function authMiddleware() {
       return c.json({ error: 'Token de autenticación requerido' }, 401);
     }
 
-    const user = await verifyToken(token, c.env.JWT_SECRET);
+    const user = verifyToken(token, c.env.JWT_SECRET);
     if (!user) {
       return c.json({ error: 'Token inválido' }, 401);
     }
@@ -71,3 +90,63 @@ export function authMiddleware() {
     await next();
   };
 }
+
+import { Hono } from 'hono';
+import { setCookie, deleteCookie } from 'hono/cookie';
+
+export const authRoutes = new Hono<{ Bindings: Env }>();
+
+// Login endpoint
+authRoutes.post("/login", async (c) => {
+    const body = await c.req.json();
+
+    const identifier = body.identifier || body.email;
+    if (!identifier || !body.password) {
+        return c.json({ error: "Identificador (email o usuario) y contraseña son requeridos" }, 400);
+    }
+
+    const { results } = await c.env.DB.prepare(
+        'SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(id) = LOWER(?)'
+    ).bind(identifier, identifier).all();
+
+    if (results.length === 0) {
+        return c.json({ error: "Credenciales inválidas" }, 401);
+    }
+
+    const user = results[0] as any;
+
+    const isValidPassword = await verifyPassword(body.password, user.password_hash);
+
+    if (!isValidPassword) {
+        return c.json({ error: "Credenciales inválidas" }, 401);
+    }
+
+    const userData: User = {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+    };
+
+    const token = generateToken(userData, c.env.JWT_SECRET);
+
+    setCookie(c, 'auth_token', token, {
+        httpOnly: true,
+        path: "/",
+        sameSite: "Lax",
+        secure: true,
+        maxAge: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    return c.json({
+        success: true,
+        user: userData,
+        token
+    });
+});
+
+// Logout
+authRoutes.post('/logout', async (c) => {
+    deleteCookie(c, 'auth_token', { path: '/' });
+    return c.json({ success: true });
+});

@@ -1,5 +1,89 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
+/* =============================
+   MODERN GRID STYLES (NEW)
+   ============================= */
+.modern-grid-container {
+  width: 100%;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(40,40,60,0.98), rgba(60,60,90,0.98));
+  box-shadow: 0 8px 32px rgba(99,102,241,0.12);
+  padding: 1.5rem 1rem;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+}
+.modern-grid-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: inherit;
+  color: #fff;
+  font-size: 1rem;
+  background: none;
+}
+/* Agrandar letra y espaciado en la grilla de saldos/transacciones */
+.modern-grid-table th {
+  padding: 1.1rem 0.7rem;
+  text-align: left;
+  font-weight: 700;
+  background: linear-gradient(90deg, rgba(139,92,246,0.18), rgba(99,102,241,0.12));
+  border-bottom: 2px solid rgba(139,92,246,0.18);
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
+.modern-grid-table td {
+  padding: 1rem 0.7rem;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: none;
+  font-size: 1.08rem;
+}
+.modern-grid-table tr {
+  transition: background 0.18s, box-shadow 0.18s;
+}
+.modern-grid-table tr:hover {
+  background: rgba(139,92,246,0.08);
+  box-shadow: 0 2px 12px rgba(139,92,246,0.10);
+}
+.modern-grid-table .desc-cell {
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Agrandar letra y espaciado en la grilla de saldos/transacciones */
+.app-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: inherit;
+  color: inherit;
+  font-size: 1.08rem;
+}
+
+/* Agrandar letra y espaciado en la grilla de saldos/transacciones */
+.app-table thead th {
+  padding: 1.1rem 0.85rem;
+  text-align: left;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 1.15rem;
+  background: linear-gradient(90deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+/* Agrandar letra y espaciado en la grilla de saldos/transacciones */
+.app-table tbody td {
+  padding: 1rem 0.85rem;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.nuevo-gasto-btn:hover {
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+  box-shadow: 0 4px 18px rgba(139,92,246,0.28);
+  transform: translateY(-2px) scale(1.04);
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -367,6 +451,209 @@
   perspective: 1000px;
 }
 
+/* ==============================
+   GRID & TABLE VISUAL EFFECTS
+   ============================== */
+
+@keyframes gradient-slide {
+  0% { transform: translateX(-50%); opacity: 0.6; }
+  50% { transform: translateX(0%); opacity: 1; }
+  100% { transform: translateX(50%); opacity: 0.6; }
+}
+
+@keyframes row-fade-slide {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.grid-glow-container {
+  position: relative;
+  overflow: visible;
+  border-radius: 1rem;
+}
+
+.grid-glow-container::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  border-radius: 1rem;
+  background: linear-gradient(90deg, rgba(139,92,246,0.18), rgba(99,102,241,0.12), rgba(168,85,247,0.14));
+  filter: blur(12px);
+  opacity: 0.85;
+  transform: translateZ(0);
+  pointer-events: none;
+}
+
+.table-header-neon {
+  background: linear-gradient(90deg, rgba(99,102,241,0.12), rgba(168,85,247,0.08));
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  box-shadow: inset 0 -6px 20px rgba(0,0,0,0.25);
+}
+
+.table-row-glow {
+  position: relative; z-index: 1; overflow: visible;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+.table-row-glow:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.45), 0 0 18px rgba(99,102,241,0.08);
+  background: linear-gradient(90deg, rgba(255,255,255,0.01), rgba(99,102,241,0.03));
+}
+
+/* ========================================
+   SHARED TABLE / GRID CLASSES
+   Use these classes across all table components to ensure unified visuals
+   ======================================== */
+.app-table-container {
+  border-radius: 1rem;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+.app-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: inherit;
+  color: inherit;
+  font-size: 0.9rem;
+}
+
+.app-table thead th {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+/* Header helpers: align icon + label, keep labels truncated but readable */
+.app-table thead th { /* keep native table header layout to avoid layout breakage */
+  /* Avoid changing display type of <th> so table semantics and alignment are preserved */
+}
+.app-table thead th .header-inner { /* inner wrapper for alignment */
+  display:flex;
+  align-items: center;
+  gap: 0.35rem; /* tighten gap so long header labels have more room */
+}
+.app-table thead th .header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: 0 0 1.1rem;
+  font-size: 0.85rem; /* slightly larger to be legible */
+  line-height: 1;
+}
+.app-table thead th .header-label {
+  display: -webkit-box; /* allow multi-line truncation */
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2; /* show up to 2 lines for long headers */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal; /* allow wrapping, clamp to two lines */
+  min-width: 0; /* allow shrinking inside flex */
+}
+
+/* Reduce visual weight of emoji/icon on tiny screens so header doesn't overflow */
+@media (max-width: 680px) {
+  .app-table thead th .header-icon { width: 0.95rem; height: 0.95rem; font-size: 0.7rem; }
+  .app-table thead th { gap: 0.35rem; font-size: 0.7rem; }
+}
+
+.app-table tbody td {
+  padding: 0.5rem 0.75rem;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+/* Column-specific helpers used by many grids */
+.app-table.table-fixed {
+  table-layout: fixed; /* ensures columns respect widths and text-overflow works */
+}
+
+.app-table td.col-desc {
+  white-space: nowrap;       /* keep single-line for compactness */
+  overflow: hidden;         /* clip overflow */
+  text-overflow: ellipsis;  /* visually truncate long descriptions */
+  max-width: 36ch;          /* reasonable visual width */
+}
+
+@media (max-width: 720px) {
+  .app-table td.col-desc {
+    white-space: normal;
+    max-width: none;
+  }
+}
+
+.app-table-row-hover:hover {
+  background: rgba(99,102,241,0.06); /* subtle hover */
+  transform: translateY(-1px);
+}
+
+.app-table .app-table-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.app-table-footer {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.02));
+  border-top: 1px solid rgba(255,255,255,0.02);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Small helpers to keep visual parity across places */
+.app-table .text-muted { color: rgba(255,255,255,0.6); }
+.app-table .cell-tight { padding: 0.35rem 0.5rem; font-size: 0.85rem; }
+
+
+.row-neon-left {
+  position: relative;
+}
+.row-neon-left::before {
+  content: '';
+  position: absolute; left: 0; top: 10%; bottom: 10%; width: 4px; border-radius: 4px;
+  background: linear-gradient(180deg, rgba(99,102,241,0.9), rgba(168,85,247,0.9));
+  opacity: 0; transform: scaleY(0.9);
+  transition: opacity 180ms, transform 180ms;
+}
+.row-neon-left:hover::before { opacity: 1; transform: scaleY(1); }
+
+.table-ribbon {
+  position: absolute; right: 10px; top: -12px; z-index: 2;
+  background: linear-gradient(90deg,#7c3aed,#6d28d9); color: white; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+}
+
+.row-fade-in {
+  animation: row-fade-slide 260ms ease-out both;
+}
+
+.table-gradient-stripe tr:nth-child(odd) td { background: linear-gradient(90deg, rgba(255,255,255,0.01), rgba(255,255,255,0.02)); }
+.table-gradient-stripe tr:nth-child(even) td { background: none; }
+
+/* small shimmering effect on table footers/pagers */
+.pager-shimmer {
+  position: relative; overflow: hidden;
+}
+.pager-shimmer::before {
+  content: '';
+  position: absolute; left: -30%; top: 0; bottom: 0; width: 60%; transform: skewX(-15deg);
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 100%);
+  animation: gradient-slide 1.6s linear infinite;
+  opacity: 0.6;
+}
+
+
 /* Animación de confetti cayendo */
 @keyframes confetti {
   0% {
@@ -489,6 +776,22 @@
   animation: pulse-glow 1s ease-in-out infinite;
 }
 
+/* Compact table helpers - smaller paddings and tighter rows for dense views */
+.table-condensed th {
+  padding: 0.20rem 0.30rem; /* tighter header (more compact horizontally) */
+  /* keep padding but unify font-size to match global table rules */
+  font-size: 13px !important;
+}
+.table-condensed td {
+  padding: 0.15rem 0.30rem; /* very compact cells */
+  /* unify table cell typography across grids */
+  font-size: 13px !important;
+  vertical-align: middle;
+  line-height: 1.05; /* make rows more compact vertically */
+}
+.table-condensed .px-1 { padding-left: 0.25rem !important; padding-right: 0.25rem !important; }
+.table-condensed .py-2 { padding-top: 0.15rem !important; padding-bottom: 0.15rem !important; }
+
 /* Bounce lento */
 @keyframes bounce-slow {
   0%, 100% {
@@ -572,6 +875,37 @@
   }
 }
 
+/* EMERGENCY: hide any 'Gestión de Usuarios' quick-action that incorrectly appears INSIDE the Expenses TABLE rows
+   Keep the small KPI quick-action (top of the page / tab area) visible — it intentionally opens Settings → Users.
+
+   We scope the defensive selectors to the table elements (rows / actions cells) ONLY so the button in the
+   top KPI/tab area (which is outside the table) won't be hidden by this emergency rule. */
+.expenses-page .expenses-grid-root [title="Gestión de Usuarios"],
+.expenses-page .expenses-grid-root [title*="Gestión"],
+.expenses-page .expenses-grid-root [title*="Gestion"],
+.expenses-page .expenses-grid-root [aria-label*="Gestión"],
+.expenses-page .expenses-grid-root [aria-label*="Gestion"],
+.expenses-page .expenses-grid-root [data-tip*="Gestión"],
+.expenses-page .expenses-grid-root [data-tip*="Gestion"] {
+  display: none !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Also defensively hide any key-shaped action buttons inside table actions cells */
+.expenses-page .expenses-grid-root .actions [title*="Gestión"],
+.expenses-page .expenses-grid-root .actions [aria-label*="Gestión"],
+.expenses-page .expenses-grid-root .actions .key-action,
+.expenses-page .expenses-grid-root .actions .key-btn {
+  display: none !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
 .animate-lightning {
   animation: lightning 1.5s ease-in-out infinite;
 }
@@ -592,6 +926,22 @@
 
 .animate-shake-intense {
   animation: shake-intense 0.6s ease-in-out;
+}
+
+/* =======================================
+   GLOBAL TABLE TYPOGRAPHY (UNIFORM)
+   - enforce same font family & size for ALL tables across the app
+   - uses !important to override in-component utilities that set tiny sizes
+   ======================================= */
+table, table th, table td {
+  font-family: inherit !important; /* use Inter (root) */
+  font-size: 13px !important;      /* consistent readable size */
+}
+
+/* also make the table headers bold and consistent */
+table th {
+  font-weight: 700 !important;
+  letter-spacing: 0.02em !important;
 }
 
 /* Lluvia de dinero */

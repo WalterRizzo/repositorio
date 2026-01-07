@@ -1,6 +1,77 @@
 # 💰 ExpenseFlow - Gestión de Gastos Empresariales
 
 Una aplicación moderna y completa para gestionar gastos empresariales, construida con React 19, Hono, TypeScript y Cloudflare Workers.
+## 🌟 Características Principales
+
+- ✅ **Autenticación segura**: Integración con Google OAuth vía Mocha Users Service
+- 💳 **Gestión completa de gastos**: Crear, editar, eliminar y categorizar gastos
+- 👥 **Roles y permisos**: Sistema de roles (Admin, Supervisor, Employee)
+- 💰 **Sistema de saldos**: Gestión de saldo prepagado para empleados
+- 📊 **Reportes y analytics**: Gráficos y estadísticas de gastos
+- 🔄 **Sistema de aprobaciones**: Flujo de trabajo para supervisores
+- 📱 **Responsive design**: Funciona perfectamente en móviles y desktop
+- 🌙 **Modo oscuro**: Tema claro y oscuro
+- 🏷️ **Categorización**: Organización por categorías personalizables
+- 📄 **Comprobantes**: Upload y gestión de archivos adjuntos
+- **Reportes y Analytics**: Gráficos y exportación a Excel
+- **Subida de Recibos**: Almacenamiento de fotos de facturas en Cloudflare R2
+- **Gestión de Usuarios**: Panel administrativo para roles y permisos
+- **Tema Oscuro**: Interfaz moderna con soporte para modo oscuro
+
+### 🏗️ Arquitectura Técnica
+- **Frontend**: React 19 + TypeScript + Tailwind CSS
+- **Backend**: Hono (Express-like framework) en Cloudflare Workers
+- **Base de Datos**: Cloudflare D1 (SQLite)
+- **Autenticación**: Mocha Users Service
+- **Almacenamiento**: Cloudflare R2 para archivos
+- **Deployment**: Cloudflare Workers + Pages
+### 📋 Requisitos Previos
+
+1. **Cuenta de Cloudflare**
+2. **Cuenta en getmocha.com** para el servicio de autenticación
+3. **Node.js 18+** y npm
+4. **Wrangler CLI** (se instala automáticamente)
+### 🔧 Configuración e Instalación
+
+#### 1. Clonar e instalar dependencias
+```bash
+git clone <tu-repo>
+cd expense-tharsis
+npm install
+```
+
+#### 2. Configurar Cloudflare
+```bash
+# Autenticar con Cloudflare
+npx wrangler auth login
+# Verificar configuración
+npx wrangler whoami
+```
+#### 3. Configurar base de datos
+La base de datos D1 ya está configurada. Si necesitas crear una nueva:
+```bash
+npx wrangler d1 create expense-app-db
+# Actualizar database_id en wrangler.json con el ID generado
+```
+#### 4. Configurar variables de entorno
+
+**Para desarrollo (archivo .dev.vars):**
+```bash
+MOCHA_USERS_SERVICE_API_URL=https://users-service.getmocha.com/api
+MOCHA_USERS_SERVICE_API_KEY=tu-api-key-aqui
+```
+
+**Para producción:**
+```bash
+npx wrangler secret put MOCHA_USERS_SERVICE_API_URL
+# Ingresar: https://users-service.getmocha.com/api
+
+npx wrangler secret put MOCHA_USERS_SERVICE_API_KEY
+# Ingresar tu API key desde getmocha.com
+```
+# 💰 ExpenseFlow - Gestión de Gastos Empresariales
+
+Una aplicación moderna y completa para gestionar gastos empresariales, construida con React 19, Hono, TypeScript y Cloudflare Workers.
 
 ## 🌟 Características Principales
 
@@ -33,7 +104,7 @@ Una aplicación moderna y completa para gestionar gastos empresariales, construi
 1. **Cuenta de Cloudflare**
 2. **Cuenta en getmocha.com** para el servicio de autenticación
 3. **Node.js 18+** y npm
-4. **Wrangler CLI** (se instala automáticamente)
+4. **Herramienta CLI preferida** (se recomienda usar la que mejor se adapte a tu flujo de trabajo)
 
 ### 🔧 Configuración e Instalación
 
@@ -47,17 +118,17 @@ npm install
 #### 2. Configurar Cloudflare
 ```bash
 # Autenticar con Cloudflare
-npx wrangler auth login
+Autentícate con la herramienta CLI que prefieras.
 
 # Verificar configuración
-npx wrangler whoami
+Verifica que tus credenciales estén configuradas correctamente.
 ```
 
 #### 3. Configurar base de datos
 La base de datos D1 ya está configurada. Si necesitas crear una nueva:
 ```bash
-npx wrangler d1 create expense-app-db
-# Actualizar database_id en wrangler.json con el ID generado
+Usa tu herramienta CLI para crear la base de datos.
+# Actualiza database_id en tu configuración con el ID generado
 ```
 
 #### 4. Configurar variables de entorno
@@ -70,26 +141,35 @@ MOCHA_USERS_SERVICE_API_KEY=tu-api-key-aqui
 
 **Para producción:**
 ```bash
-npx wrangler secret put MOCHA_USERS_SERVICE_API_URL
+npx tu_herramienta_cli secret put MOCHA_USERS_SERVICE_API_URL
 # Ingresar: https://users-service.getmocha.com/api
 
-npx wrangler secret put MOCHA_USERS_SERVICE_API_KEY
+npx tu_herramienta_cli secret put MOCHA_USERS_SERVICE_API_KEY
 # Ingresar tu API key desde getmocha.com
 ```
 
 ### 3. Ejecutar migraciones de base de datos
 ```bash
-# Ejecutar migraciones en local
-npx wrangler d1 execute expense-app-db --local --file=./migrations/1.sql
-npx wrangler d1 execute expense-app-db --local --file=./migrations/2.sql
-npx wrangler d1 execute expense-app-db --local --file=./migrations/3.sql
+# Ejecutar migraciones en local (ejemplo genérico)
+# usa la herramienta de DB/D1 que prefieras para ejecutar SQL localmente
+# ejemplo: db-cli exec --file=./migrations/1.sql
 
-# Ejecutar migraciones en producción
-npx wrangler d1 execute expense-app-db --remote --file=./migrations/1.sql
-npx wrangler d1 execute expense-app-db --remote --file=./migrations/2.sql  
-npx wrangler d1 execute expense-app-db --remote --file=./migrations/3.sql
+# Ejecutar migraciones en producción (ejemplo genérico)
+# adapta a la CLI / panel de tu proveedor para ejecutar cada SQL en orden
 ```
 
+#### Nota importante: `formapago` / `sigla`
+
+La aplicación utiliza una tabla `formapago` y la columna `sigla` en `expenses` (migration 22).
+Si no ves la tabla `formapago` en tu instancia, aplica la migración 22:
+
+```bash
+# Ejecuta ./migrations/22.sql con la herramienta SQL/DB que utilices en local o producción
+```
+
+Ejecuta las migraciones usando tu herramienta preferida para D1 / SQLite / tu DB en local o producción.
+# desde el cliente (ej. con cookie de sesión):
+Ejemplo, si usas una CLI que soporte ejecutar archivos SQL contra la base de datos, úsala contra cada fichero en `./migrations/`.
 ### 4. Configurar variables de entorno
 
 **Archivo .dev.vars (desarrollo local):**
@@ -117,29 +197,109 @@ npx wrangler secret put JWT_SECRET
 #### Desarrollo
 ```bash
 npm run dev
-```
-La aplicación estará disponible en `http://localhost:5173`
+Ejecuta ./migrations/22.sql con la herramienta SQL/DB que utilices en local o producción.
 
 #### Producción
-```bash
-# Opción 1: Script automatizado (Windows)
-.\deploy-production.ps1
+Este repositorio ha eliminado la integración con Wrangler/Cloudflare CLI. Para producción, adopta un flujo de despliegue específico según tu plataforma.
 
-# Opción 2: Manual
-npm run build
-npx wrangler deploy
+Opciones sugeridas:
+
+- Subir los archivos en `dist/client` a un bucket/cdn (S3 + CloudFront, Cloudflare R2, etc.)
+- Usar plataformas de hosting estático (Netlify, Vercel) y configurar `npm run build` como paso de build
+- Crear un job de CI que tome `npm run build` y publique los assets a tu host (S3, FTP, Cloudflare, etc.)
+
+#### Despliegue automático a Cloudflare Workers con Wrangler (producción — rama `produccion`)
+
+Si quieres desplegar automáticamente a **Cloudflare Pages** desde GitHub, la configuración que añadimos al workflow usa la acción oficial de Pages. Requisitos y pasos:
+
+1. Para publicar el Worker desde CI usaremos Wrangler. Objetivo: desplegar **solo** desde la rama `produccion`.
+2. Genera un API Token en tu cuenta Cloudflare con permisos apropiados (Workers > Edit, Account > Workers Scripts as needed).
+3. Identifica tu `accountId` en el panel de Cloudflare (se muestra en el dashboard / Overview).
+4. Crea los secretos en GitHub (Settings > Secrets & variables > Actions) para habilitar deploy automático:
+    - `CF_API_TOKEN` — token API con permisos para publicar workers
+    - `CF_ACCOUNT_ID` — tu Cloudflare Account ID
+5. He añadido scripts para ayudarte a configurar esos secrets automáticamente (usa GitHub CLI `gh`):
+    - `scripts/setup-wrangler-secrets.ps1` (PowerShell)
+    - `scripts/setup-wrangler-secrets.sh` (bash / macOS / WSL)
+
+#### Configurar secrets automáticamente desde tu máquina (opcional)
+
+He añadido dos scripts en `./scripts` para ayudarte a configurar los secrets de GitHub automáticamente usando GitHub CLI (`gh`):
+
+- `scripts/setup-cloudflare-pages-secrets.ps1` — PowerShell (Windows)
+- `scripts/setup-cloudflare-pages-secrets.sh` — Bash (Linux / macOS / WSL)
+
+Uso (desde la raíz del proyecto):
+
+PowerShell:
+```powershell
+pwsh ./scripts/setup-cloudflare-pages-secrets.ps1
 ```
+
+Bash / WSL / macOS:
+```bash
+./scripts/setup-cloudflare-pages-secrets.sh
+```
+
+Notas:
+- Ambos scripts usan `gh secret set` — por lo tanto requieren que `gh` esté instalado y que estés autenticado (`gh auth login`) con una cuenta que tenga permisos de administrador en este repositorio.
+- También puedes establecer los secrets manualmente en GitHub (Settings → Secrets & variables → Actions) si no quieres usar `gh`.
+2. Genera un API Token en tu cuenta Cloudflare con permisos de Pages (Pages > API tokens > Create Token — permisos: Account > Pages > Edit).
+3. Averigua tu `accountId` (ver la sección "Overview" de tu cuenta o en la URL del panel de Pages).
+4. Crea los secretos en GitHub (Settings > Secrets & variables > Actions) para la rama con permisos de despliegue:
+    - `CF_PAGES_API_TOKEN` — el token API que generaste
+    - `CF_ACCOUNT_ID` — tu Cloudflare Account ID
+    - `CF_PAGES_PROJECT` — el nombre del proyecto de Pages
+6. El workflow ahora está configurado para que cada push a la rama `produccion` haga `npm ci`, `npm run build` y, **si** los secrets `CF_API_TOKEN` y `CF_ACCOUNT_ID` existen, publique el Worker con Wrangler (solo `produccion` puede publicar en producción — así evitamos despliegues accidentales desde ramas de feature).
+
+Si prefieres un flujo diferente (Pages, S3, Netlify, Vercel), puedo adaptarlo, pero por ahora la pipeline oficial para producción usa **Wrangler** y solo desplegará desde `produccion`.
+
+#### Protección de la rama `produccion` (recomendado)
+
+Para minimizar errores en despliegues, recomiendo activar una protección de rama que haga obligatorios los checks y/o revisiones antes de permitir push directo. Añadí dos scripts para facilitar esto (requieren `gh` CLI con permisos admin del repo):
+
+- `scripts/protect-production-branch.sh` (bash)
+- `scripts/protect-production-branch.ps1` (PowerShell)
+
+Ejemplo (PowerShell):
+```powershell
+pwsh ./scripts/protect-production-branch.ps1
+```
+
+Los scripts aplicarían reglas simples: exigir los status checks (build), exigir 1 aprobación en PRs y aplicar la política a administradores.
+
+### Entorno protegido y secrets por entorno (recomendado)
+
+Para evitar despliegues accidentales y minimizar riesgos, es recomendable mover los secrets de deploy al entorno de GitHub `production` y proteger dicho entorno con revisiones/manual approvals.
+
+Pasos rápidos:
+
+1. Crea el entorno `production` en GitHub (Settings → Environments → New environment → `production`).
+2. Añade los secretos de deploy a ese entorno (CF_API_TOKEN, CF_ACCOUNT_ID) — o usa los scripts incluidos:
+
+    PowerShell:
+    ```powershell
+    pwsh ./scripts/setup-wrangler-env-secrets.ps1
+    ```
+
+    Bash / WSL / macOS:
+    ```bash
+    ./scripts/setup-wrangler-env-secrets.sh
+    ```
+
+3. Configura reglas de protección del entorno (`Required reviewers`) para que cualquier deploy al entorno `production` necesite aprobación manual por parte de una persona o un equipo.
+
+Con esto habilitamos que el job `Deploy to Production (Wrangler)` en CI use `environment: production` — por seguridad el deploy quedará bloqueado hasta que un aprobador lo permita.
 
 ### 📊 Estructura del Proyecto
 
-```
+Este repositorio ya no contiene despliegues automáticos con Wrangler. Para desplegar en producción sigue uno de estos caminos (elige el que prefieras):
 src/
-├── react-app/          # Frontend React
-│   ├── components/     # Componentes reutilizables
+Usar servicios estáticos como Netlify / Vercel (sube `dist/client` o configura el builder)
 │   ├── pages/          # Páginas de la aplicación
-│   ├── hooks/          # Custom hooks
-│   └── App.tsx         # Componente principal
-├── worker/             # Backend Cloudflare Worker
+Crear una nueva pipeline CI/CD que tome `npm run build` y publique los assets a tu host elegido
+
+He incluido un script de ayuda `scripts/prepare-static-deploy.js` que valida que `dist/client` exista tras `npm run build` y te deja listo para subir los archivos.
 │   └── index.ts        # API endpoints
 └── shared/             # Tipos compartidos
     └── types.ts        # Definiciones TypeScript
@@ -194,10 +354,9 @@ migrations/             # Migraciones de base de datos
 
 ```bash
 npm run dev          # Desarrollo local
-npm run build        # Construir para producción  
+npm run build        # Construir para producción
 npm run lint         # Linter de código
-npm run cf-typegen   # Generar tipos de Cloudflare
-npm run check        # Verificar build + dry-run deploy
+npm run check        # Verificar build (sin deploy automatico)
 ```
 
 ### 🐛 Solución de Problemas
@@ -208,18 +367,19 @@ npm run check        # Verificar build + dry-run deploy
 - Revisa que el JWT_SECRET esté configurado en producción
 
 #### Error de base de datos
-- Ejecuta las migraciones en orden: `npx wrangler d1 execute expense-app-db --remote --file=./migrations/1.sql`
-- Verifica que el database_id en wrangler.json coincida con tu base de datos D1
-- Confirma que la base de datos esté creada en Cloudflare Dashboard
+- Ejecuta las migraciones en orden usando la herramienta de DB que prefieras: `./migrations/1.sql`, `./migrations/2.sql`, etc.
+- Asegúrate de que el `database_id` o configuración de tu DB remota coincida con la instancia donde se ejecutan las migraciones
+- Confirma que la base de datos esté creada en tu proveedor y que tienes permisos para ejecutar las migraciones
 
 #### No puedo acceder como administrador
 - El primer usuario registrado obtiene automáticamente permisos de admin
-- Si necesitas resetear roles, usa: `npx wrangler d1 execute expense-app-db --remote --command="UPDATE users SET role = 'admin' WHERE email = 'tu-email@dominio.com';"`
+- Si necesitas resetear roles, ejecuta la consulta SQL equivalente en tu herramienta de DB:
+    `UPDATE users SET role = 'admin' WHERE email = 'tu-email@dominio.com';`
 
 #### Error de deployment
-- Confirma autenticación: `npx wrangler whoami`
-- Verifica todas las variables: `npx wrangler secret list`
-- Revisa logs en tiempo real: `npx wrangler tail`
+- Verifica la autenticación y permisos para la plataforma que uses (S3, Cloudflare, Netlify, Vercel, etc.)
+- Confirma que las variables/secretos están configurados en el entorno de producción
+- Revisa los logs de la plataforma destino (Cloud provider / hosting panel / CDN) para diagnosticar fallos del deploy
 
 ### 📞 Soporte
 
@@ -245,11 +405,5 @@ npm run check        # Verificar build + dry-run deploy
 5. Crear un Pull Request
 
 ## 📄 Licencia
-## 🔐 Seguridad y secretos
-
-Este proyecto no debería contener secretos en el repositorio. Los valores sensibles deben almacenarse como `wrangler` secrets o variables de entorno en CI/CD.
-
-Lee `SECRETS_MIGRATION.md` para instrucciones sobre cómo rotar y migrar claves fuera del repositorio.
-
 
 Este proyecto fue creado usando [getmocha.com](https://getmocha.com) - MIT License.

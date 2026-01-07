@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/react-app/hooks/useAuth";
-import { Loader2, Plus, Users, Edit2, Trash2, X, Save, UserPlus, CheckCircle } from "lucide-react";
+import { Loader2, Plus, Users, Edit2, Trash2, X, Save, UserPlus, CheckCircle, FileSpreadsheet, Key } from "lucide-react";
+import * as XLSX from 'xlsx';
 import Header from "@/react-app/components/Header";
 import argentinaFlag from '@/react-app/assets/argentina.svg';
 
@@ -26,6 +27,12 @@ export default function UserManagement() {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Footer filter states (visual only / export helper)
+  const [footerUserFilter, setFooterUserFilter] = useState<string>('all');
+  const [footerTypeFilter, setFooterTypeFilter] = useState<string>('cargas');
+  const [footerCurrency, setFooterCurrency] = useState<string>('all');
+  const [footerFrom, setFooterFrom] = useState('');
+  const [footerTo, setFooterTo] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [newUser, setNewUser] = useState<NewUser>({ user_id: "", role: "usuario", balance: 0 });
@@ -59,7 +66,7 @@ export default function UserManagement() {
   const fetchUserProfile = async () => {
     try {
       const response = await fetch("/api/users/me");
-      const data = await response.json();
+      const data = await response.json() as any;
       setUserProfile(data.profile || { role: 'admin' });
     } catch (error) {
       console.error("Error cargando perfil:", error);
@@ -104,8 +111,9 @@ export default function UserManagement() {
         setNewUser({ user_id: "", role: "usuario", balance: 0 });
         await fetchUsers();
         navigate('/users', { replace: true });
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.create' } })); } catch(e){}
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         showMessage('error', errorData.error || 'Error creando usuario');
       }
     } catch (error) {
@@ -142,8 +150,9 @@ export default function UserManagement() {
         setEditingUserId(null);
         setEditingUser(null);
         await fetchUsers();
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.update', userId: editingUser?.user_id || null } })); } catch(e){}
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         showMessage('error', errorData.error || 'Error actualizando usuario');
       }
     } catch (error) {
@@ -153,6 +162,7 @@ export default function UserManagement() {
   };
 
   const deleteUser = async (userId: string) => {
+    if (!confirm("Eliminar usuario?")) return;
 
     try {
       const response = await fetch(`/api/users/${userId}`, {
@@ -162,8 +172,9 @@ export default function UserManagement() {
       if (response.ok) {
         showMessage('success', 'Usuario eliminado exitosamente');
         await fetchUsers();
+        try { window.dispatchEvent(new CustomEvent('data:changed', { detail: { source: 'users.delete', userId } })); } catch(e){}
       } else {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         showMessage('error', errorData.error || 'Error eliminando usuario');
       }
     } catch (error) {
@@ -193,10 +204,25 @@ export default function UserManagement() {
     };
 
     return (
-      <span className={`inline-flex px-2.5 py-1 text-[10px] font-bold rounded-lg text-white uppercase tracking-wide ${styles[role as keyof typeof styles] || styles.usuario}`}>
+      <span className={`inline-flex px-3 py-1 text-[11px] font-semibold rounded-full text-white uppercase tracking-wide ${styles[role as keyof typeof styles] || styles.usuario} shadow-glow-sm ring-1 ring-white/5`}>
         {labels[role as keyof typeof labels] || 'USUARIO'}
       </span>
     );
+  };
+
+  const exportUsersToExcel = () => {
+    if (!users || users.length === 0) return;
+    const rows = users.map(u => ({
+      Usuario: u.user_id,
+      Rol: u.role,
+      Balance: Number(u.balance || 0),
+      Creacion: u.created_at
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Usuarios');
+    const filename = `users_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, filename);
   };
 
   if (authLoading || !user) {
@@ -211,7 +237,7 @@ export default function UserManagement() {
     <div className="min-h-screen">
       <Header userProfile={userProfile} />
       
-      <div className="max-w-6xl mx-auto px-6 py-8 animate-fadeIn">
+      <div className="max-w-7xl mx-auto px-6 py-8 animate-fadeIn">
         {/* MENSAJES */}
         {message && (
           <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-md animate-slideIn ${
@@ -307,23 +333,21 @@ export default function UserManagement() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {users.map((userItem) => (
-                    <tr key={userItem.user_id} className="hover:bg-white/5 transition-all duration-200 group">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-white font-bold text-xs shadow-lg">
+                    <tr key={userItem.user_id} className="group transition-all duration-200">
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-pink-500 flex items-center justify-center text-white font-extrabold text-sm shadow-2xl transform-gpu">
                             {userItem.user_id.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <div className="text-xs font-bold text-white truncate max-w-[220px] whitespace-nowrap">
+                            <div className="text-sm font-bold text-white truncate max-w-[260px]">
                               {userItem.user_id}
                             </div>
-                            <div className="text-[10px] text-white/40">
-                              ID: {userItem.user_id.substring(0, 12)}
-                            </div>
+                            <div className="text-xs text-white/40 truncate max-w-[260px]">{userItem.user_id}@{userItem.user_id.includes('@') ? '' : 'example.com'}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 align-middle">
                         {editingUserId === userItem.user_id ? (
                           <select
                             value={editingUser?.role || ""}
@@ -338,7 +362,7 @@ export default function UserManagement() {
                           getRoleBadge(userItem.role)
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 align-middle">
                         {editingUserId === userItem.user_id ? (
                           <input
                             type="number"
@@ -363,7 +387,7 @@ export default function UserManagement() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center justify-end space-x-1.5">
+                        <div className="flex items-center justify-end space-x-2">
                           {editingUserId === userItem.user_id ? (
                             <>
                               <button
@@ -385,14 +409,22 @@ export default function UserManagement() {
                             <>
                               <button
                                 onClick={() => startEdit(userItem)}
-                                className="p-1.5 text-violet-400 hover:bg-violet-500/20 rounded-lg transition-all hover:scale-110"
+                                className="w-9 h-9 flex items-center justify-center rounded-full bg-violet-800/50 hover:bg-violet-700/60 text-white shadow hover:shadow-lg transition-transform transform hover:-translate-y-0.5"
                                 title="Editar"
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>
+                                {/* Gestión de Usuario (abrir settings usuarios con el userId) */}
+                                <button
+                                  onClick={() => navigate(`/settings?tab=users&userId=${encodeURIComponent(userItem.user_id)}`)}
+                                  title="Gestionar usuario"
+                                  className="w-9 h-9 flex items-center justify-center rounded-full bg-emerald-600/70 hover:bg-emerald-600 text-white shadow hover:shadow-lg transition-transform transform hover:-translate-y-0.5"
+                                >
+                                  <Key className="w-4 h-4" />
+                                </button>
                               <button
                                 onClick={() => deleteUser(userItem.user_id)}
-                                className="p-1.5 text-rose-400 hover:bg-rose-500/20 rounded-lg transition-all hover:scale-110"
+                                className="w-9 h-9 flex items-center justify-center rounded-full bg-rose-600/60 hover:bg-rose-600 text-white shadow hover:shadow-lg transition-transform transform hover:-translate-y-0.5"
                                 title="Eliminar"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -407,6 +439,48 @@ export default function UserManagement() {
               </table>
             </div>
           )}
+        </div>
+
+        {/* FOOTER CONTROLS - modern, compact */}
+        <div className="p-4 border-t border-white/5 bg-gradient-to-r from-transparent via-white/1 to-transparent flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 justify-between">
+          <div className="flex items-center gap-3 flex-wrap">
+            <select value={footerUserFilter} onChange={(e) => setFooterUserFilter(e.target.value)} className="px-3 py-1 rounded-full bg-gray-800 text-white text-sm border border-white/6 focus:ring-2 focus:ring-violet-400">
+              <option value="all">Todos los usuarios</option>
+              <option value="admins">Admins</option>
+              <option value="supervisors">Supervisores</option>
+              <option value="users">Usuarios</option>
+            </select>
+
+            <button onClick={() => setFooterTypeFilter(prev => prev === 'cargas' ? 'todas' : 'cargas')} className={`px-3 py-1 rounded-full text-sm font-semibold ${footerTypeFilter === 'cargas' ? 'bg-white/5 text-white' : 'bg-white/6 text-white/70'}`}>
+              CARGAS
+            </button>
+
+            <select value={footerCurrency} onChange={(e) => setFooterCurrency(e.target.value)} className="px-3 py-1 rounded-full bg-gray-800 text-white text-sm border border-white/6">
+              <option value="all">Todas las monedas</option>
+              <option value="ARS">ARS</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+            </select>
+
+            <div className="flex items-center gap-2 text-xs text-white/60">
+              <div className="flex items-center gap-2 bg-white/5 rounded-full px-3 py-1">
+                <label className="text-[11px]">Fecha desde</label>
+                <input type="date" value={footerFrom} onChange={(e) => setFooterFrom(e.target.value)} className="text-xs bg-transparent border-none outline-none text-white" />
+              </div>
+              <div className="flex items-center gap-2 bg-white/5 rounded-full px-3 py-1">
+                <label className="text-[11px]">Fecha hasta</label>
+                <input type="date" value={footerTo} onChange={(e) => setFooterTo(e.target.value)} className="text-xs bg-transparent border-none outline-none text-white" />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="text-xs text-white/60 hidden sm:block">Página 1 de 1</div>
+            <button onClick={exportUsersToExcel} className="flex items-center gap-2 bg-gradient-to-br from-emerald-500 to-green-600 px-4 py-2 rounded-full text-sm text-white font-bold shadow-2xl hover:scale-105 transition-transform">
+              <FileSpreadsheet className="w-4 h-4" />
+              Exportar Excel
+            </button>
+          </div>
         </div>
 
         {/* MODAL CREAR USUARIO */}

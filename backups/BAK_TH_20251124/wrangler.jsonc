@@ -1,0 +1,5 @@
+{
+  "name": "expense-tharsis-worker",
+  "compatibility_date": "2025-11-20",
+  "main": "src/worker/index.ts"
+}

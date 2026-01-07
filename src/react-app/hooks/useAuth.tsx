@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await fetch('/api/users/me');
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         setUser(data.user || data);
       }
     } catch (error) {
@@ -48,11 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json() as any;
       throw new Error(error.error || 'Error al iniciar sesión');
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     setUser(data.user);
   };
 
@@ -64,11 +64,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json() as any;
       throw new Error(error.error || 'Error al registrarse');
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     setUser(data.user);
   };
 

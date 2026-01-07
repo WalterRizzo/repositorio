@@ -1,11 +1,7 @@
-import { Plus, Trash2, Receipt, Filter, Edit3, CheckCircle, XCircle, Sparkles, FileSpreadsheet } from "lucide-react";
-import { useState, useRef } from "react";
-import BubbleTooltipPortal from "./BubbleTooltipPortal";
-import { getStatusBadgeClasses, getStatusLabel } from '@/react-app/utils/status';
+import { Plus, Trash2, Receipt, Edit3, CheckCircle, XCircle, Sparkles, FileSpreadsheet } from "lucide-react";
+import { useState } from "react";
 import type { Expense } from "@/shared/types";
-// ExcelJS loaded dynamically in exportToExcel
-// @ts-ignore - file-saver typing not installed in repo
-import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
@@ -21,7 +17,6 @@ interface ExpensesTableProps {
   userRole?: string;
   users?: any[];
   currentUserId?: string;
-  forceMobileView?: boolean;
 }
 
 export default function ExpensesTable({
@@ -35,14 +30,11 @@ export default function ExpensesTable({
   userRole,
   users = [],
   currentUserId,
-  forceMobileView = false,
 }: ExpensesTableProps) {
   // Estado para el modal de preview de adjuntos
   const [previewAttachments, setPreviewAttachments] = useState<Array<{url?: string, filename: string, originalName?: string}> | null>(null);
-  // Estado para burbuja de rechazo
-  const [bubbleVisible, setBubbleVisible] = useState(false);
-  const [bubbleData, setBubbleData] = useState<{x: number, y: number, rejectionReason: string, rejectedBy?: string, rejectedAt?: string} | null>(null);
-  const bubbleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Estado para hover preview de adjuntos
+  const [hoverPreview, setHoverPreview] = useState<{ url: string; left: number; top: number } | null>(null);
   // Estado para filtros
   const [filters, setFilters] = useState({
     pendientes: true,
@@ -87,39 +79,30 @@ export default function ExpensesTable({
   };
 
   // Función exportar Excel
-  const exportToExcel = async () => {
-    // Use ExcelJS to build a richer, styled workbook
-    const ExcelJSModule = (await import('exceljs'));
-    const ExcelJS = ExcelJSModule.default || ExcelJSModule;
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('Gastos');
-    const headers = ['ID','Usuario','Descripción','Monto','Moneda','Categoría','Fecha','Estado'];
-    ws.columns = headers.map(h => ({ header: h, key: h, width: 20 })) as any;
-    // Map rows ensuring Fecha is a Date object and Creado is omitted
-    filteredExpenses.forEach(expense => {
-      ws.addRow([
-        expense.id,
-        expense.user_name || 'N/A',
-        expense.description,
-        Number(expense.amount || 0),
-        expense.currency,
-        expense.category,
-        new Date(expense.expense_date),
-        expense.status
-      ]);
-    });
-    // Header style
-    ws.getRow(1).eachCell((cell:any) => { cell.font = { bold: true, color: { argb: 'FFFFFFFF' } }; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '6D28D9' } }; cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; });
-    // Format columns: Monto, Fecha
-    const montoCol = ws.getColumn(headers.indexOf('Monto') + 1);
-    montoCol.numFmt = '#,##0.00'; montoCol.alignment = { horizontal: 'right' } as any;
-    const fechaCol = ws.getColumn(headers.indexOf('Fecha') + 1);
-    fechaCol.numFmt = 'dd/mm/yyyy'; fechaCol.alignment = { horizontal: 'center' } as any;
-    // Add borders to all rows
-    ws.eachRow((row:any) => { row.eachCell((cell:any) => { cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; }); });
-    ws.views = [{ state: 'frozen', ySplit: 1 }];
-    const buf = await wb.xlsx.writeBuffer();
-    saveAs(new Blob([buf]), `gastos_${new Date().toISOString().split('T')[0]}.xlsx`);
+  const exportToExcel = () => {
+    const excelData = filteredExpenses.map(expense => ({
+      'ID': expense.id,
+      'Usuario': expense.user_name || 'N/A',
+      'Descripción': expense.description,
+      'Monto': expense.amount,
+      'Moneda': expense.currency,
+      'Categoría': expense.category,
+      'Fecha': new Date(expense.expense_date).toLocaleDateString('es-AR'),
+      'Creado': new Date(expense.created_at).toLocaleDateString('es-AR'),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const colWidths = [
+      { wch: 8 }, { wch: 25 }, { wch: 40 }, { wch: 15 }, { wch: 10 },
+      { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 15 },
+    ];
+    worksheet['!cols'] = colWidths;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Gastos');
+
+    const date = new Date().toLocaleDateString('es-AR').replace(/\//g, '-');
+    XLSX.writeFile(workbook, `gastos_${date}.xlsx`);
     setShowExportPreview(false);
   };
 
@@ -132,14 +115,7 @@ export default function ExpensesTable({
 
   const handleRejectSubmit = async () => {
     if (!rejectionReason.trim()) {
-      // Non-blocking in-component notification instead of native alert
-      console.warn('⚠️ Debes proporcionar una razón para el rechazo');
-      setNotificationType('reject');
-      setCurrentEmoji(getRandomEmoji('reject'));
-      setParticleEmojis(getRandomEmojis('reject', 'particles', 6));
-      setParticleColors(getColorSet(6));
-      setShowNotification(true);
-      setTimeout(() => setShowNotification(false), 3500);
+      alert('⚠️ Debes proporcionar una razón para el rechazo');
       return;
     }
     
@@ -166,12 +142,7 @@ export default function ExpensesTable({
         setTimeout(() => setShowNotification(false), 3500); // 3.5 segundos
       } catch (error) {
         console.error('Error al rechazar:', error);
-        setNotificationType('reject');
-        setCurrentEmoji(getRandomEmoji('reject'));
-        setParticleEmojis(getRandomEmojis('reject', 'particles', 6));
-        setParticleColors(getColorSet(6));
-        setShowNotification(true);
-        setTimeout(() => setShowNotification(false), 3500);
+        alert('❌ Error al rechazar el gasto');
       }
     }
   };
@@ -234,7 +205,6 @@ export default function ExpensesTable({
 
     if (fromDate && expenseDate < fromDate) return false;
     if (toDate && expenseDate > toDate) return false;
-
     return true;
   });
 
@@ -244,18 +214,46 @@ export default function ExpensesTable({
   const displayExpenses = filteredExpenses.slice(startIndex, startIndex + recordsPerPage);
 
   return (
-  <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden w-full px-4 sm:px-8 py-4 sm:py-6">
-  <div className="p-0 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-y-4 mb-4">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Lista de Gastos</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Total: {expenses.length} {expenses.length === 1 ? "gasto" : "gastos"}
-            {expenses.length > 10 && (
-              <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs">
-                Mostrando solo los primeros 10
-              </span>
-            )}
-          </p>
+    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        {/* Botones de filtro de estado en el lugar del título */}
+        <div className="flex space-x-4">
+          <label className="flex items-center space-x-2 cursor-pointer bg-blue-600 rounded-lg px-4 py-2 shadow text-white">
+            <input
+              type="checkbox"
+              checked={filters.pendientes}
+              onChange={(e) => {
+                setFilters({...filters, pendientes: e.target.checked});
+                setCurrentPage(1);
+              }}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm font-bold">🟡 Pendientes ({expenses.filter(e => e.status === 'pendiente').length})</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer bg-green-600 rounded-lg px-4 py-2 shadow text-white">
+            <input
+              type="checkbox"
+              checked={filters.aprobados}
+              onChange={(e) => {
+                setFilters({...filters, aprobados: e.target.checked});
+                setCurrentPage(1);
+              }}
+              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+            />
+            <span className="text-sm font-bold">🟢 Aprobados ({expenses.filter(e => e.status === 'aprobado').length})</span>
+          </label>
+          <label className="flex items-center space-x-2 cursor-pointer bg-orange-500 rounded-lg px-4 py-2 shadow text-white">
+            <input
+              type="checkbox"
+              checked={filters.rechazados}
+              onChange={(e) => {
+                setFilters({...filters, rechazados: e.target.checked});
+                setCurrentPage(1);
+              }}
+              className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+            />
+            <span className="text-sm font-bold">🔴 Rechazados ({expenses.filter(e => e.status === 'rechazado').length})</span>
+          </label>
         </div>
         {onAdd && (
           <button
@@ -269,85 +267,9 @@ export default function ExpensesTable({
         )}
       </div>
 
-      {/* Filtros por estado */}
-  <div className="px-2 sm:px-6 py-2 sm:py-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 rounded-xl shadow mb-4">
-  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-y-2 sm:space-x-6">
-          <div className="flex items-center gap-x-2">
-            <Filter className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por estado:</span>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-y-2 sm:space-x-4">
-            <label className="flex items-center space-x-2 cursor-pointer bg-blue-600 rounded-lg px-4 py-2 shadow text-white">
-              <input
-                type="checkbox"
-                checked={filters.pendientes}
-                onChange={(e) => {
-                  setFilters({...filters, pendientes: e.target.checked});
-                  setCurrentPage(1);
-                }}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="text-sm font-bold">
-                🔵 Pendientes ({expenses.filter(e => e.status === 'pendiente').length})
-              </span>
-            </label>
-            
-            <label className="flex items-center space-x-2 cursor-pointer bg-green-600 rounded-lg px-4 py-2 shadow text-white">
-              <input
-                type="checkbox"
-                checked={filters.aprobados}
-                onChange={(e) => {
-                  setFilters({...filters, aprobados: e.target.checked});
-                  setCurrentPage(1);
-                }}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-              />
-              <span className="text-sm font-bold">
-                🟢 Aprobados ({expenses.filter(e => e.status === 'aprobado').length})
-              </span>
-            </label>
-            
-            <label className="flex items-center space-x-2 cursor-pointer bg-orange-500 rounded-lg px-4 py-2 shadow text-white">
-              <input
-                type="checkbox"
-                checked={filters.rechazados}
-                onChange={(e) => {
-                  setFilters({...filters, rechazados: e.target.checked});
-                  setCurrentPage(1);
-                }}
-                className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
-              />
-              <span className="text-sm font-bold">
-                🟠 Rechazados ({expenses.filter(e => e.status === 'rechazado').length})
-              </span>
-            </label>
-          </div>
-          
-          <div className="flex gap-x-2 ml-auto">
-            <button
-              onClick={() => {
-                setFilters({pendientes: true, aprobados: true, rechazados: true});
-                setCurrentPage(1);
-              }}
-              className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-            >
-              Todos
-            </button>
-            <button
-              onClick={() => {
-                setFilters({pendientes: false, aprobados: false, rechazados: false});
-                setCurrentPage(1);
-              }}
-              className="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
-            >
-              Ninguno
-            </button>
-          </div>
-        </div>
-        
-        {/* Filtros por fecha */}
-  <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center gap-y-2 sm:space-x-4">
+      {/* Filtros por fecha */}
+      <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+        <div className="flex items-center space-x-4">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">📅 Filtrar por fecha:</span>
           <div className="flex items-center space-x-2">
             <label className="text-xs text-gray-600 dark:text-gray-400">Desde:</label>
@@ -394,15 +316,17 @@ export default function ExpensesTable({
               </>
             )}
           </select>
-                {userRole === 'usuario' && (
-                  <button
-                    onClick={() => setShowExportPreview(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
-                  >
-                    <FileSpreadsheet className="w-5 h-5" />
-                    <span>Exportar Excel</span>
-                  </button>
-                )}
+          {/* Botón Exportar Excel oculto por requerimiento */}
+          <button
+            style={{ display: 'none' }}
+            aria-hidden="true"
+            tabIndex={-1}
+            onClick={() => setShowExportPreview(true)}
+            className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2"
+          >
+            <FileSpreadsheet className="w-5 h-5" />
+            <span>Exportar Excel</span>
+          </button>
           <button
             onClick={() => {
               setDateFilters({desde: '', hasta: ''});
@@ -415,8 +339,9 @@ export default function ExpensesTable({
           </button>
         </div>
         
+        {/* Balances eliminados de la grilla de gastos por requerimiento */}
         {/* Información de filtros activos */}
-  <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 w-full">
+        <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
           📊 Página {currentPage} de {totalPages} - Mostrando {displayExpenses.length} de {filteredExpenses.length} gastos filtrados
         </div>
       </div>
@@ -435,7 +360,7 @@ export default function ExpensesTable({
           {onAdd && (
             <button
               onClick={onAdd}
-              className="inline-flex items-center space-x-3 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl text-lg font-bold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl"
+              className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
             >
               <Plus className="w-5 h-5" />
               <span className="font-medium">Agregar Gasto</span>
@@ -444,159 +369,109 @@ export default function ExpensesTable({
         </div>
       ) : (
         <>
-          {/* Mobile stacked cards - force mobile when `forceMobileView` is true */}
-          {forceMobileView ? (
-            <div className="w-full space-y-3">
-              {displayExpenses.map((expense) => (
-              <div key={expense.id} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{new Date(expense.expense_date).toLocaleDateString()}</div>
-                      <div className="text-sm font-bold">{formatCurrency(expense.amount, expense.currency)}</div>
-                    </div>
-                    <div className="text-base font-semibold text-gray-900 dark:text-white mb-1">{expense.category}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-300 mb-2 truncate">{expense.description}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{expense.user_name || 'N/A'}{expense.user_email ? <span className="block">{expense.user_email}</span> : null}</div>
-                  </div>
-                </div>
-                <div className="mt-3 flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      expense.status === 'aprobado' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-                      expense.status === 'rechazado' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
-                    }`}>{expense.status === 'aprobado' ? 'Aprobado' : expense.status === 'rechazado' ? 'Rechazado' : 'Pendiente'}</span>
-                    {expense.attachments && expense.attachments.length > 0 ? (
-                      <img src={expense.attachments[0].url || `/api/files/${expense.attachments[0].filename}`} alt="adj" className="w-8 h-8 object-cover rounded-md border" />
-                    ) : expense.receipt_photo_url ? (
-                      <img src={`/api/files/${expense.receipt_photo_url}`} alt="recibo" className="w-8 h-8 object-cover rounded-md border" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-md bg-gray-200 dark:bg-gray-700 flex items-center justify-center"><Receipt className="w-4 h-4 text-gray-500" /></div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <button onClick={() => onEdit(expense)} className="p-2 bg-indigo-600 text-white rounded-md"> <Edit3 className="w-4 h-4" /> </button>
-                    <button onClick={() => onDelete(expense.id)} className="p-2 bg-red-500 text-white rounded-md"> <Trash2 className="w-4 h-4" /> </button>
-                    {userRole !== 'usuario' && (
-                      <>
-                        <button onClick={() => handleApproveClick(expense.id)} className="p-2 bg-green-500 text-white rounded-md"> <CheckCircle className="w-4 h-4" /> </button>
-                        <button onClick={() => handleRejectClick(expense.id)} className="p-2 bg-orange-500 text-white rounded-md"> <XCircle className="w-4 h-4" /> </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-            </div>
-          ) : (
-            <div className="block lg:hidden w-full space-y-3">
-              {displayExpenses.map((expense) => (
-                <div key={expense.id} className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 shadow-sm">
-                  {/* same mobile card content (kept above) */}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Desktop table (show from lg up) - hide entirely when forcing mobile view */}
-          {!forceMobileView && (
-            <div className="hidden lg:block overflow-x-auto w-full">
-            <table className="w-full rounded-2xl border-2 border-purple-500 text-xs sm:text-sm shadow-lg bg-white dark:bg-gray-900">
-              <thead className="bg-gray-50 dark:bg-gray-700">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-xs">
+              <thead className="bg-gray-100 dark:bg-gray-900">
                 <tr>
-                  <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Fecha</th>
-                  <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Categoría</th>
-                  <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Descripción</th>
-                  <th className="px-1 py-1 text-left text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Cargado por</th>
-                  <th className="px-1 py-1 text-right text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Monto</th>
-                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Moneda</th>
-                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Estado</th>
-                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Archivos</th>
-                  <th className="px-1 py-1 text-center text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Acciones</th>
+                  <th className="px-2 py-1 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Fecha</th>
+                  <th className="px-2 py-1 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Categoría</th>
+                  <th className="px-2 py-1 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Descripción</th>
+                  <th className="px-2 py-1 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Cargado por</th>
+                  <th className="px-2 py-1 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Monto</th>
+                  <th className="px-2 py-1 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Moneda</th>
+                  <th className="px-2 py-1 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Forma de Pago</th>
+                  <th className="px-2 py-1 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Estado</th>
+                  <th className="px-2 py-1 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Afecta Saldo</th>
+                  <th className="px-2 py-1 text-center font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Archivos</th>
+                  <th className="px-2 py-1 text-left font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-600">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {displayExpenses.map((expense) => (
-                  <tr key={expense.id}>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-left">{new Date(expense.expense_date).toLocaleDateString()}</td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-left">{expense.category}</td>
-                    <td className="px-1 py-2 text-[11px] max-w-[90px] truncate text-left" title={expense.description}>{expense.description.length > 40 ? expense.description.slice(0, 37) + '...' : expense.description}</td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-left">
-                      <div>
-                        <span className="font-medium">{expense.user_name || 'N/A'}</span>
-                        <span className="block text-[10px] text-gray-500 dark:text-gray-400">{expense.user_email || ''}</span>
-                      </div>
-                    </td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-right font-bold" style={{ color: expense.amount < 0 ? '#FF0000' : undefined }}>{formatCurrency(expense.amount, expense.currency)}</td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">{expense.currency}</td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">
-                      <div className="relative group flex justify-center items-center">
-                        <span className={`px-1 py-0.5 text-[10px] font-semibold rounded-full ${getStatusBadgeClasses(expense.status as any)}`}>
-                          {getStatusLabel(expense.status as any)}
+                  <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-left">{new Date(expense.expense_date + 'T00:00:00').toLocaleDateString('es-AR')}</td>
+                    <td className="px-2 py-1 whitespace-nowrap text-xs">{expense.category}</td>
+                    <td className="px-2 py-1 text-xs">{expense.description}</td>
+                    <td className="px-2 py-1 whitespace-nowrap text-xs"><div><div className="font-medium">{expense.user_name || 'N/A'}</div><div className="text-xs text-gray-500 dark:text-gray-400">{expense.user_email || ''}</div></div></td>
+                    <td className="px-2 py-1 whitespace-nowrap text-xs">{expense.amount}</td>
+                    <td className="px-2 py-1 whitespace-nowrap text-xs">{expense.currency}</td>
+                    <td className="px-2 py-1 whitespace-nowrap text-xs">{expense.sigla || '-'}</td>
+                    <td className="px-2 py-1 whitespace-nowrap text-xs font-bold">
+                      {expense.status === 'rechazado' ? (
+                        <span className="relative group text-lg text-red-500 font-bold cursor-pointer">
+                          ❌
+                          {expense.rejection_reason && (
+                            <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max bg-red-700 text-white text-xs rounded px-3 py-2 shadow-lg z-40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-normal min-w-[120px] text-center">
+                              {expense.rejection_reason}
+                            </span>
+                          )}
                         </span>
-                        {/* BubbleTooltipPortal para rechazo */}
-                        {expense.status === 'rechazado' && expense.rejection_reason && (
-                          <button
-                            type="button"
-                            aria-label="Ver motivo de rechazo"
-                            className="ml-1 p-1 rounded-full bg-pink-100 hover:bg-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all"
-                            onMouseEnter={e => {
-                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                              setBubbleData({
-                                x: rect.left + rect.width / 2,
-                                y: rect.top - 40,
-                                rejectionReason: expense.rejection_reason ?? '',
-                                rejectedBy: expense.rejected_by ?? undefined,
-                                rejectedAt: expense.rejected_at ? new Date(expense.rejected_at).toLocaleString('es-AR') : undefined
-                              });
-                              setBubbleVisible(true);
-                              if (bubbleTimeoutRef.current) clearTimeout(bubbleTimeoutRef.current);
-                            }}
-                            onMouseLeave={() => {
-                              bubbleTimeoutRef.current = setTimeout(() => setBubbleVisible(false), 200);
-                            }}
-                          >
-                            <span role="img" aria-label="burbuja" className="text-pink-500 text-lg">🫧</span>
-                          </button>
-                        )}
-      {/* Render BubbleTooltipPortal globally */}
-      {bubbleVisible && bubbleData && (
-        <BubbleTooltipPortal
-          visible={bubbleVisible}
-          x={bubbleData.x}
-          y={bubbleData.y}
-          rejectionReason={bubbleData.rejectionReason}
-          rejectedBy={bubbleData.rejectedBy}
-          rejectedAt={bubbleData.rejectedAt}
-        />
-      )}
-                      </div>
+                      ) : (
+                        <>
+                          {expense.status === 'aprobado' && (
+                            <span className="text-lg">✅</span>
+                          )}
+                          {String(expense.status) === 'rechazado' && (
+                            <span className="text-lg text-red-500">❌</span>
+                          )}
+                          {expense.status === 'pendiente' && (
+                            <span className="text-lg text-blue-500">⏳</span>
+                          )}
+                        </>
+                      )}
                     </td>
-                    <td className="px-1 py-2 whitespace-nowrap text-[11px] text-center">
+                    <td className="px-2 py-1 whitespace-nowrap text-xs font-bold">
+                      {expense.use_balance ? <span className="px-2 py-1 rounded bg-emerald-600 text-white text-xs">Sí</span> : <span className="px-2 py-1 rounded bg-gray-400 text-white text-xs">No</span>}
+                    </td>
+                    <td className="px-2 py-1 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-1 min-h-[40px]">
                         {/* Mostrar hasta 3 miniaturas */}
                         {expense.attachments && expense.attachments.length > 0 ? (
                           <>
                             {expense.attachments.slice(0, 3).map((attachment, index) => (
-                              <a
-                                key={index}
-                                href={attachment.url || `/api/files/${attachment.filename}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-block"
-                              >
-                                <img
-                                  src={attachment.url || `/api/files/${attachment.filename}`}
-                                  alt={attachment.originalName || "Archivo adjunto"}
-                                  className="w-8 h-8 object-cover rounded border border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform cursor-pointer shadow-sm"
-                                  onError={(e) => {
-                                    console.error('Error loading attachment:', attachment.filename);
-                                    e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='15' y1='9' x2='9' y2='15'/%3E%3Cline x1='9' y1='9' x2='15' y2='15'/%3E%3C/svg%3E";
-                                    e.currentTarget.title = `Error cargando: ${attachment.filename}`;
+                              <span key={index} style={{ position: 'relative', display: 'inline-block' }}>
+                                <button
+                                  type="button"
+                                  className="inline-block"
+                                  onClick={() => setPreviewAttachments([attachment])}
+                                  title="Zoom"
+                                  onMouseEnter={e => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setHoverPreview({ url: attachment.url || `/api/files/${attachment.filename}`, left: rect.left, top: rect.bottom });
                                   }}
-                                />
-                              </a>
+                                  onMouseLeave={() => setHoverPreview(null)}
+                                >
+                                  <img
+                                    src={attachment.url || `/api/files/${attachment.filename}`}
+                                    alt={attachment.originalName || "Archivo adjunto"}
+                                    className="w-8 h-8 object-cover rounded border border-gray-200 dark:border-gray-600 hover:scale-110 transition-transform cursor-pointer shadow-sm"
+                                    onError={(e) => {
+                                      console.error('Error loading attachment:', attachment.filename);
+                                      e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='15' y1='9' x2='9' y2='15'/%3E%3Cline x1='9' y1='9' x2='15' y2='15'/%3E%3C/svg%3E";
+                                      e.currentTarget.title = `Error cargando: ${attachment.filename}`;
+                                    }}
+                                  />
+                                </button>
+                                {/* Hover preview */}
+                                {hoverPreview && hoverPreview.url === (attachment.url || `/api/files/${attachment.filename}`) && (
+                                  <div style={{
+                                    position: 'fixed',
+                                    left: hoverPreview.left,
+                                    top: hoverPreview.top + 8,
+                                    zIndex: 9999,
+                                    background: '#222',
+                                    padding: 4,
+                                    borderRadius: 8,
+                                    boxShadow: '0 2px 12px #000',
+                                  }}>
+                                    <img
+                                      src={hoverPreview.url}
+                                      alt="Vista previa adjunto"
+                                      style={{ width: 180, height: 180, objectFit: 'contain', borderRadius: 6, background: '#fff' }}
+                                    />
+                                  </div>
+                                )}
+                              </span>
                             ))}
                             {/* Si hay más de 3 archivos, mostrar botón +N */}
                             {expense.attachments.length > 3 && (
@@ -612,11 +487,11 @@ export default function ExpensesTable({
                           </>
                         ) : expense.receipt_photo_url ? (
                           /* Compatibilidad hacia atrás con receipt_photo_url */
-                          <a
-                            href={`/api/files/${expense.receipt_photo_url}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
                             className="inline-block"
+                            onClick={() => setPreviewAttachments([{ url: `/api/files/${expense.receipt_photo_url}`, filename: expense.receipt_photo_url || '', originalName: 'Recibo' }])}
+                            title="Zoom"
                           >
                             <img
                               src={`/api/files/${expense.receipt_photo_url}`}
@@ -628,7 +503,7 @@ export default function ExpensesTable({
                                 e.currentTarget.title = `Error cargando: ${expense.receipt_photo_url}`;
                               }}
                             />
-                          </a>
+                          </button>
                         ) : (
                           <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                             <Receipt className="w-5 h-5 text-gray-400" />
@@ -637,76 +512,91 @@ export default function ExpensesTable({
                       </div>
                       {/* Modal de preview de adjuntos */}
                       {previewAttachments && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 max-w-lg w-full shadow-lg relative">
-                            <button
-                              className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 dark:hover:text-white"
-                              onClick={() => setPreviewAttachments(null)}
-                              title="Cerrar"
-                            >
-                              &times;
-                            </button>
-                            <h3 className="text-lg font-semibold mb-2">Archivos adjuntos</h3>
-                            <div className="flex flex-wrap gap-2 justify-center">
-                              {previewAttachments.map((attachment, idx) => (
-                                <a
-                                  key={idx}
-                                  href={attachment.url || `/api/files/${attachment.filename}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-block"
-                                >
-                                  <img
-                                    src={attachment.url || `/api/files/${attachment.filename}`}
-                                    alt={attachment.originalName || "Archivo adjunto"}
-                                    className="w-20 h-20 object-cover rounded border border-gray-200 dark:border-gray-600 shadow-sm"
-                                    onError={(e) => {
-                                      e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='15' y1='9' x2='9' y2='15'/%3E%3Cline x1='9' y1='9' x2='15' y2='15'/%3E%3C/svg%3E";
-                                    }}
-                                  />
-                                </a>
-                              ))}
-                            </div>
-                          </div>
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70" onClick={() => setPreviewAttachments(null)}>
+                          <button
+                            className="absolute top-8 right-8 text-white bg-black bg-opacity-80 rounded-full w-10 h-10 flex items-center justify-center text-2xl z-10"
+                            onClick={(e) => { e.stopPropagation(); setPreviewAttachments(null); }}
+                            title="Cerrar"
+                          >
+                            &times;
+                          </button>
+                          {previewAttachments.length === 1 ? (
+                            <img
+                              key={0}
+                              src={previewAttachments[0].url || `/api/files/${previewAttachments[0].filename}`}
+                              alt={previewAttachments[0].originalName || "Archivo adjunto"}
+                              className="object-contain rounded shadow-lg"
+                              style={{ maxHeight: '90vh', maxWidth: '90vw', margin: '0 auto', display: 'block', background: '#fff', padding: '24px' }}
+                              onClick={(e) => e.stopPropagation()}
+                              onError={(e) => {
+                                e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='15' y1='9' x2='9' y2='15'/%3E%3Cline x1='9' y1='9' x2='15' y2='15'/%3E%3C/svg%3E";
+                              }}
+                            />
+                          ) : (
+                            previewAttachments.map((attachment, idx) => (
+                              <img
+                                key={idx}
+                                src={attachment.url || `/api/files/${attachment.filename}`}
+                                alt={attachment.originalName || "Archivo adjunto"}
+                                className="object-contain rounded shadow-lg"
+                                style={{ maxHeight: '400px', maxWidth: '400px', margin: '0 auto', display: 'block', background: '#fff', padding: '8px' }}
+                                onClick={(e) => e.stopPropagation()}
+                                onError={(e) => {
+                                  e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='15' y1='9' x2='9' y2='15'/%3E%3Cline x1='9' y1='9' x2='15' y2='15'/%3E%3C/svg%3E";
+                                }}
+                              />
+                            ))
+                          )}
                         </div>
                       )}
                     </td>
-                    <td className="px-2 py-2 whitespace-nowrap text-right text-xs sm:text-sm font-medium gap-x-2">
-                      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 animate-fadeIn w-full">
-                        <button
+                    <td className="px-2 py-1 whitespace-nowrap text-right text-xs font-medium space-x-2">
+                      <div className="flex items-center justify-end gap-2 animate-fadeIn">
+                        {/* Only show edit button for approved expenses */}
+                        {expense.status === 'aprobado' ? (
+                          <button
                             onClick={() => onEdit(expense)}
                             className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 border-2 border-blue-300"
                             title="Editar gasto"
-                            disabled={expense.status === 'aprobado'}
-                        >
-                          <Edit3 className="w-4 h-4" />
-                          <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
-                        </button>
-                        <button
-                            onClick={() => onDelete(expense.id)}
-                            className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-red-600 hover:to-pink-700 border-2 border-red-300"
-                            title="Eliminar gasto"
-                            disabled={expense.status === 'aprobado'}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
-                        </button>
-                        {userRole !== 'usuario' && (
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                          </button>
+                        ) : (
                           <>
                             <button
-                                onClick={() => handleApproveClick(expense.id)}
-                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-emerald-600 hover:to-green-700 border-2 border-green-300"
-                                title="Aprobar gasto"
-                                disabled={expense.status === 'aprobado'}
+                              onClick={() => onEdit(expense)}
+                              className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-blue-600 hover:to-indigo-700 border-2 border-blue-300"
+                              title="Editar gasto"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                              <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                            </button>
+                            <button
+                              onClick={() => onDelete(expense.id)}
+                              className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-red-600 hover:to-pink-700 border-2 border-red-300"
+                              title="Eliminar gasto"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <div className="absolute inset-0 rounded-full bg-white opacity-0 group-hover:opacity-20 transition-opacity duration-200"></div>
+                            </button>
+                          </>
+                        )}
+                        {/* Solo mostrar aprobar/rechazar si el rol NO es usuario y el gasto está pendiente */}
+                        {userRole !== 'usuario' && expense.status === 'pendiente' && (
+                          <>
+                            <button
+                              onClick={() => handleApproveClick(expense.id)}
+                              className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-emerald-600 hover:to-green-700 border-2 border-green-300"
+                              title="Aprobar gasto"
                             >
                               <CheckCircle className="w-4 h-4" />
                               <Sparkles className="absolute -top-1 -right-1 w-3 h-3 text-yellow-300 opacity-0 group-hover:opacity-100 transition-all duration-300 animate-pulse" />
                             </button>
                             <button
-                                onClick={() => handleRejectClick(expense.id)}
-                                className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-yellow-400 to-red-500 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-yellow-500 hover:to-red-600 border-2 border-yellow-300"
-                                title="Rechazar gasto"
-                                disabled={expense.status === 'aprobado'}
+                              onClick={() => handleRejectClick(expense.id)}
+                              className="group relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-yellow-400 to-red-500 text-white shadow-lg hover:shadow-xl transform hover:scale-110 transition-all duration-200 hover:from-yellow-500 hover:to-red-600 border-2 border-yellow-300"
+                              title="Rechazar gasto"
                             >
                               <XCircle className="w-4 h-4" />
                               <div className="absolute inset-0 rounded-full border-2 border-red-300 opacity-0 group-hover:opacity-50 group-hover:animate-ping"></div>
@@ -719,44 +609,43 @@ export default function ExpensesTable({
                 ))}
               </tbody>
             </table>
-            </div>
-          )}
+          </div>
           
           {/* Controles de paginación */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center mt-4 px-2 sm:px-6 py-2 sm:py-4 bg-gradient-to-r from-violet-600 to-purple-600 border-t gap-y-2 rounded-xl shadow-lg mb-2">
-              <div className="text-xs sm:text-sm text-white font-semibold">
+            <div className="flex justify-between items-center mt-4 px-6 py-4" style={{background: '#111', color: '#fff', borderTop: '1px solid #222', borderRadius: '0 0 1rem 1rem'}}>
+              <div className="text-sm font-semibold">
                 Mostrando {startIndex + 1} - {Math.min(startIndex + recordsPerPage, filteredExpenses.length)} de {filteredExpenses.length} gastos
               </div>
-              <div className="flex items-center gap-x-2">
+              <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                  style={{background: '#222', color: '#fff', border: 'none', borderRadius: 4, padding: '0.3em 0.8em'}}
                 >
                   « Primera
                 </button>
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                  style={{background: '#222', color: '#fff', border: 'none', borderRadius: 4, padding: '0.3em 0.8em'}}
                 >
                   ‹ Anterior
                 </button>
-                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm font-bold">
+                <span style={{background: '#222', color: '#fff', borderRadius: 4, padding: '0.3em 0.8em'}}>
                   Página {currentPage} de {totalPages}
                 </span>
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                  style={{background: '#222', color: '#fff', border: 'none', borderRadius: 4, padding: '0.3em 0.8em'}}
                 >
                   Siguiente ›
                 </button>
                 <button
                   onClick={() => setCurrentPage(totalPages)}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white rounded text-sm font-bold shadow-lg"
+                  style={{background: '#222', color: '#fff', border: 'none', borderRadius: 4, padding: '0.3em 0.8em'}}
                 >
                   Última »
                 </button>
@@ -806,7 +695,6 @@ export default function ExpensesTable({
                       <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Monto</th>
                       <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Categoría</th>
                       <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Fecha</th>
-                      <th className="px-4 py-3 text-left font-bold text-gray-700 dark:text-gray-300">Estado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -818,11 +706,6 @@ export default function ExpensesTable({
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{formatCurrency(expense.amount, expense.currency)}</td>
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{expense.category}</td>
                         <td className="px-4 py-3 text-gray-900 dark:text-gray-100">{new Date(expense.expense_date).toLocaleDateString('es-AR')}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadgeClasses(expense.status as any)}`}>
-                            {getStatusLabel(expense.status as any)}
-                          </span>
-                        </td>
                       </tr>
                     ))}
                   </tbody>

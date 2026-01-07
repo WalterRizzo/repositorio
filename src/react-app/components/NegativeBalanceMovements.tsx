@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { parseDbTimestampToDate } from '@/react-app/utils/dates';
+import { isSpuriousPendingReembolso } from '@/react-app/utils/format';
 
 interface BalanceMovement {
   id: number;
@@ -25,8 +27,14 @@ export default function NegativeBalanceMovements({ currency, show, onClose }: Ne
     setLoading(true);
     fetch(`/api/users/me/balance-movements?currency=${currency}`)
       .then((res) => res.json())
-      .then((data) => {
-        setMovements(Array.isArray(data.movements) ? data.movements : []);
+      .then((data: any) => {
+        const all = Array.isArray(data.movements) ? data.movements : [];
+        // filter out spurious pending 'Reembolso (pendiente) por eliminación' rows from user view
+        const filtered = all.filter((m: any) => {
+          const desc = (m.description || m.descripcion || '');
+          return !isSpuriousPendingReembolso(desc);
+        });
+        setMovements(filtered);
       })
       .finally(() => setLoading(false));
   }, [currency, show]);
@@ -36,30 +44,30 @@ export default function NegativeBalanceMovements({ currency, show, onClose }: Ne
   return (
     <div className="mt-6">
       <div className="mb-2 text-rose-400 font-bold text-lg">Movimientos que generaron el saldo negativo:</div>
-      <div className="overflow-x-auto">
-        <table className="w-full rounded-xl border-2 border-rose-500">
+      <div className="overflow-x-auto app-table-container">
+        <table className="w-full rounded-xl border-2 border-rose-500 table-condensed app-table">
           <thead className="bg-rose-50">
-            <tr>
-              <th className="px-2 py-2 text-left text-xs font-black text-rose-600 uppercase">Fecha</th>
-              <th className="px-2 py-2 text-left text-xs font-black text-rose-600 uppercase">Tipo</th>
-              <th className="px-2 py-2 text-left text-xs font-black text-rose-600 uppercase">Descripción</th>
-              <th className="px-2 py-2 text-left text-xs font-black text-rose-600 uppercase">Monto</th>
-              <th className="px-2 py-2 text-left text-xs font-black text-rose-600 uppercase">Usuario</th>
+              <tr>
+              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase">Fecha</th>
+              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase">Tipo</th>
+              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase">Descripción</th>
+              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase">Monto</th>
+              <th className="px-2 py-1 text-left text-xs font-black text-rose-600 uppercase">Usuario</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-rose-200">
-            {loading ? (
-              <tr><td colSpan={5} className="text-center py-6 text-rose-400">Cargando...</td></tr>
+              {loading ? (
+              <tr><td colSpan={5} className="text-center py-3 text-rose-400">Cargando...</td></tr>
             ) : movements.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-6 text-rose-400">No hay movimientos registrados</td></tr>
+              <tr><td colSpan={5} className="text-center py-3 text-rose-400">No hay movimientos registrados</td></tr>
             ) : (
               movements.map((m) => (
-                <tr key={m.id}>
-                  <td className="px-2 py-2 text-xs text-rose-700">{new Date(m.created_at).toLocaleString()}</td>
-                  <td className="px-2 py-2 text-xs font-bold text-rose-600">{m.type}</td>
-                  <td className="px-2 py-2 text-xs text-rose-700">{m.description}</td>
-                  <td className="px-2 py-2 text-xs font-bold text-rose-600">{m.amount.toLocaleString('es-AR', { style: 'currency', currency: m.currency })}</td>
-                  <td className="px-2 py-2 text-xs text-rose-700">{m.user_name || '-'}</td>
+                <tr key={m.id} className="app-table-row-hover">
+                  <td className="px-2 py-1 text-xs text-rose-700">{(() => { const d = parseDbTimestampToDate(m.created_at); return d ? d.toLocaleString() : m.created_at; })()}</td>
+                  <td className="px-2 py-1 text-xs font-bold text-rose-600">{m.type}</td>
+                  <td className="px-2 py-1 text-xs text-rose-700">{m.description}</td>
+                  <td className="px-2 py-1 text-xs font-bold text-rose-600">{m.amount.toLocaleString('es-AR', { style: 'currency', currency: m.currency })}</td>
+                  <td className="px-2 py-1 text-xs text-rose-700">{m.user_name || '-'}</td>
                 </tr>
               ))
             )}

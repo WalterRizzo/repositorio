@@ -8,14 +8,14 @@ Write-Host "📋 Verificando configuración de Wrangler..." -ForegroundColor Yel
 npx wrangler whoami
 
 Write-Host ""
-Write-Host "🔑 Para configurar las variables de entorno en producción, ejecuta:" -ForegroundColor Cyan
+Write-Host "🔑 Para configurar las variables de entorno en producción, ejecuta:" -ForegroundColor Cyan  
 Write-Host ""
 Write-Host "npx wrangler secret put MOCHA_USERS_SERVICE_API_URL" -ForegroundColor White
 Write-Host "npx wrangler secret put MOCHA_USERS_SERVICE_API_KEY" -ForegroundColor White
 Write-Host ""
 Write-Host "Valores sugeridos:" -ForegroundColor Yellow
-Write-Host "MOCHA_USERS_SERVICE_API_URL: https://users-service.getmocha.com/api" -ForegroundColor White
-Write-Host "MOCHA_USERS_SERVICE_API_KEY: (tu clave de API desde getmocha.com)" -ForegroundColor White
+Write-Host "MOCHA_USERS_SERVICE_API_URL: https://users-service.getmocha.com/api" -ForegroundColor White 
+Write-Host "MOCHA_USERS_SERVICE_API_KEY: (tu clave de API desde getmocha.com)" -ForegroundColor White   
 Write-Host ""
 
 $response = Read-Host "¿Has configurado las variables de entorno? (y/N)"
@@ -37,7 +37,8 @@ npx wrangler deploy
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "✅ ¡ExpenseFlow desplegado exitosamente!" -ForegroundColor Green
-    Write-Host "🌐 Tu aplicación estará disponible en breve en tu dominio de Cloudflare Workers" -ForegroundColor Cyan
+    Write-Host "🌐 Tu aplicación estará disponible en breve en tu dominio de Cloudflare Workers" -Foregr
+roundColor Cyan
 } else {
     Write-Host "❌ Error al desplegar la aplicación" -ForegroundColor Red
     exit 1

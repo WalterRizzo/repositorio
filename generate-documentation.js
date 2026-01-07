@@ -822,9 +822,9 @@ yPosition += 5;
 
 const usersTable = [
   ['Email', 'Contraseña', 'Rol'],
-  ['demo_admin@example.com', '••••••••', 'Admin'],
-  ['demo_supervisor@example.com', '••••••••', 'Supervisor'],
-  ['demo_user@example.com', '••••••••', 'Usuario']
+  ['wrizzo6802@gmail.com', '123456', 'Admin'],
+  ['ceci-ramirez@hotmail.com', '123456', 'Supervisor'],
+  ['licha@sanlorenzo', '123456', 'Usuario']
 ];
 
 addTable(usersTable[0], usersTable.slice(1));

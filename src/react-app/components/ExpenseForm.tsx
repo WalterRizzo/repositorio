@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, Save, Upload, Eye, Wallet } from "lucide-react";
 import type { Expense, TipoComprobante } from "@/shared/types";
 import { EXPENSE_CATEGORIES } from "@/shared/types";
-// Tesseract will be dynamically imported in extractAmountFromReceipt
+import { createWorker } from 'tesseract.js';
 import { getRandomEmoji, getRandomEmojis } from '../../../epic-effects-library/effects/EmojiVariations';
 import { playRandomSound } from '../../../epic-effects-library/sounds/SoundVariations';
 import { getColorSet } from '../../../epic-effects-library/effects/ColorVariations';
@@ -11,12 +11,14 @@ interface ExpenseFormProps {
   expense: Expense | null;
   onSuccess: () => void;
   onCancel: () => void;
+  readOnly?: boolean;
 }
 
 export default function ExpenseForm({
   expense,
   onSuccess,
   onCancel,
+  readOnly = false,
 }: ExpenseFormProps) {
   const [formData, setFormData] = useState({
     description: "",
@@ -26,7 +28,11 @@ export default function ExpenseForm({
     use_balance: true, // Siempre marcado por defecto
     currency: "ARS",
     tipo_comprobante_id: "",
+    sigla: "",
   });
+  const [paymentMethods, setPaymentMethods] = useState<Array<{ sigla: string; descripcion: string; afectaSaldo?: number }>>([]);
+  // Dynamic currencies list (load from server) — prevents hard-coded / inconsistent lists
+  const [currenciesList, setCurrenciesList] = useState<Array<{ code: string; name?: string; symbol?: string }>>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [userBalance, setUserBalance] = useState(0);
@@ -35,13 +41,22 @@ export default function ExpenseForm({
   const [attachments, setAttachments] = useState<Array<{file: File, preview: string}>>([]);
   const [existingAttachments, setExistingAttachments] = useState<Array<{id?: number, filename: string, originalName: string, url: string}>>([]);
   const [tipoComprobantes, setTipoComprobantes] = useState<TipoComprobante[]>([]);
+  // Categories from DB (fallback to EXPENSE_CATEGORIES constant if the API returns none)
+  const [categoriesList, setCategoriesList] = useState<Array<{ id?: number; name: string; description?: string; color?: string }>>([]);
   const [showSaveNotification, setShowSaveNotification] = useState(false);
   const [currentEmoji, setCurrentEmoji] = useState('🎉');
   const [particleEmojis, setParticleEmojis] = useState<string[]>([]);
   // Estado para mostrar el modal de previsualización
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [particleColors, setParticleColors] = useState<string[]>([]);
+  // Background variant for preview: default / slate / warm  (keeps three clear, high-contrast choices)
+  const [bgVariant, setBgVariant] = useState<'default' | 'slate' | 'warm'>('default');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const isEditing = !!expense;
+  // computed read-only: either the prop or the expense has status 'aprobado'
+  const isReadOnly: boolean = Boolean(readOnly) || (expense?.status === 'aprobado');
+  const multiFileInputRef = useRef<HTMLInputElement>(null);
 
   // Función para reproducir sonido de guardado (ahora con variación aleatoria)
   const playSaveSound = () => {
@@ -49,8 +64,11 @@ export default function ExpenseForm({
   };
 
   useEffect(() => {
-    // Cargar tipos de comprobantes
+    // Cargar tipos de comprobantes y formas de pago
     fetchTipoComprobantes();
+    fetchFormapagos();
+    fetchCategories();
+    fetchCurrencies();
     
     // Cargar saldo inicial con la moneda del formulario
     if (formData.currency) {
@@ -67,6 +85,7 @@ export default function ExpenseForm({
         use_balance: true, // Siempre usar el saldo
         currency: expenseCurrency,
         tipo_comprobante_id: expense.tipo_comprobante_id?.toString() || "",
+        sigla: expense.sigla || "",
       });
       
       // Cargar saldo de la moneda del gasto
@@ -105,7 +124,7 @@ export default function ExpenseForm({
       const respAll = await fetch('/api/users/me/balances', { credentials: 'include' });
       console.log('💰 /balances Response status:', respAll.status);
       if (respAll.ok) {
-        const allData = await respAll.json();
+        const allData = await respAll.json() as any;
         console.log('💰 balances data received:', allData);
 
         // Normalize and find matching currency (exact match on currency code)
@@ -123,7 +142,7 @@ export default function ExpenseForm({
       const response = await fetch(`/api/users/me/balance/${currency}`, { credentials: 'include' });
       console.log('💰 /balance/:currency Response status:', response.status);
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         console.log('💰 Balance data received (fallback):', data);
         setUserBalance(Number(data.balance) || 0);
         return;
@@ -137,14 +156,65 @@ export default function ExpenseForm({
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/categories');
+      if (!res.ok) return setCategoriesList([]);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        // API returns objects, map to simplified structure
+        setCategoriesList(data.map((c:any) => ({ id: c.id, name: c.name || c.nombre || String(c.name), color: c.color })));
+      }
+    } catch (err) {
+      console.error('Error loading categories', err);
+      setCategoriesList([]);
+    }
+  };
+
+  const fetchFormapagos = async () => {
+    try {
+      const res = await fetch('/api/formapagos');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setPaymentMethods(data);
+        // If the form doesn't have a sigla selected yet, auto-select the first available
+        if ((!formData.sigla || formData.sigla.trim() === '') && data.length > 0) {
+          setFormData(prev => ({ ...prev, sigla: String(data[0].sigla || '') }));
+        }
+      }
+    } catch (err) {
+      console.error('Error loading payment methods (formapagos)', err);
+    }
+  };
+
+  const fetchCurrencies = async () => {
+    try {
+      const res = await fetch('/api/currencies');
+      if (!res.ok) return setCurrenciesList([]);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        // Normalize codes to uppercase
+        setCurrenciesList(data.map((c:any) => ({ code: String(c.code).toUpperCase(), name: c.name, symbol: c.symbol })));
+      }
+    } catch (err) {
+      console.error('Error loading currencies', err);
+      setCurrenciesList([]);
+    }
+  };
+
   const fetchTipoComprobantes = async () => {
     try {
       const response = await fetch('/api/tipo-comprobantes', {
         credentials: 'include'
       });
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         setTipoComprobantes(data);
+        // Auto-select a tipo_comprobante by default when creating a new expense
+        if ((!formData.tipo_comprobante_id || formData.tipo_comprobante_id === '') && Array.isArray(data) && data.length > 0) {
+          setFormData(prev => ({ ...prev, tipo_comprobante_id: String(data[0].id || '') }));
+        }
       }
     } catch (error) {
       console.error('Error al cargar tipos de comprobantes:', error);
@@ -155,7 +225,7 @@ export default function ExpenseForm({
     try {
       const response = await fetch(`/api/expenses/${expenseId}/attachments`);
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         if (data.success && data.attachments) {
           setExistingAttachments(data.attachments);
         }
@@ -194,9 +264,7 @@ export default function ExpenseForm({
     try {
       setError('🔄 Analizando ticket con IA... Esto puede tardar unos segundos');
       
-      // Crear worker de Tesseract (lazy import to avoid bundling heavy library)
-      const tesseract = await import('tesseract.js');
-      const createWorker = tesseract.createWorker || tesseract.default?.createWorker;
+      // Crear worker de Tesseract
       const worker = await createWorker('spa'); // Español
       
       // Procesar imagen
@@ -321,7 +389,7 @@ export default function ExpenseForm({
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         throw new Error(errorData.error || 'Error al subir el recibo');
       }
       
@@ -406,7 +474,7 @@ export default function ExpenseForm({
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json() as any;
         throw new Error(errorData.error || 'Error al subir archivos');
       }
 
@@ -430,6 +498,20 @@ export default function ExpenseForm({
 
     try {
       const amount = parseFloat(formData.amount);
+
+      // Payment method (sigla) must be provided
+      if (!formData.sigla || formData.sigla.trim() === '') {
+        setError('La forma de pago es obligatoria');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Tipo de comprobante obligatorio
+      if (!formData.tipo_comprobante_id || String(formData.tipo_comprobante_id).trim() === '') {
+        setError('El tipo de comprobante es obligatorio');
+        setIsSubmitting(false);
+        return;
+      }
       
       // No validamos saldo negativo, solo informamos
       if (formData.use_balance && amount > userBalance) {
@@ -455,7 +537,7 @@ export default function ExpenseForm({
       if (!response.ok) {
         let errorMessage = "Error al guardar el gasto";
         try {
-          const errorData = await response.json();
+          const errorData = await response.json() as any;
           errorMessage = errorData.error || errorMessage;
         } catch {
           // If can't parse JSON, use default message
@@ -521,13 +603,38 @@ export default function ExpenseForm({
     }).format(amount);
   };
 
+  // size for modal container: full-width for 'new' mode, constrained when editing
+  const isNew = !expense;
+  // Use a comfortable centered max width for "new" modal so it isn't stretched edge-to-edge
+  // Narrower modal for a cleaner UX on large screens
+  // make a bit wider so right-side card (saldo disponible) isn't cut on medium+ screens
+  const modalSizeClass = isNew
+    // make the 'Nuevo Gasto' modal noticeably wider on large screens so the right-side card
+    // and attachments area have room and the layout looks balanced.
+    ? 'w-full max-w-7xl px-6 sm:px-8 md:px-12 py-4 sm:py-6 rounded-2xl'
+    : 'w-full sm:max-w-xl md:max-w-3xl lg:max-w-7xl xl:max-w-7xl px-4 sm:px-10 md:px-12 py-4 sm:py-8 rounded-2xl';
+
+  // For 'new' (full-width) mode we want the form to take advantage of wide screens
+  // and arrange fields in multiple columns to reduce vertical length.
+  // for new modal: use a 12-column grid and give main column 9/12 and aside 3/12 to favour form width
+  const formGridClass = isNew ? 'grid grid-cols-1 md:grid-cols-12 gap-8 mb-2 items-start' : 'grid grid-cols-1 lg:grid-cols-4 gap-8 mb-2 items-start';
+
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-2 animate-fadeIn">
-  <div className="w-full sm:max-w-lg lg:max-w-3xl xl:max-w-4xl max-h-[85vh] overflow-y-auto glass rounded-2xl shadow-2xl shadow-violet-500/20 border border-violet-500/20 backdrop-blur-2xl animate-scaleIn flex flex-col px-4 sm:px-8 py-4 sm:py-6">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-2 animate-fadeIn"> 
+  {
+    /* compute classes for the modal panel so user can preview alternate backgrounds */
+  }
+  <div className={`${modalSizeClass} max-h-[85vh] overflow-y-auto shadow-2xl backdrop-blur-2xl animate-scaleIn flex flex-col border ${
+      bgVariant === 'default'
+        ? 'glass border-violet-500/20 shadow-violet-500/20'
+        : bgVariant === 'slate'
+        ? 'bg-gradient-to-br from-slate-900/90 via-slate-800/85 to-slate-700/75 border-slate-700 shadow-2xl text-white'
+        : 'bg-gradient-to-br from-amber-900/30 via-amber-800/18 to-slate-900/10 border-amber-600/20 shadow-xl text-amber-100'
+    }`}>
         {/* Header Premium con Gradient */}
   <div className="sticky top-0 z-10 px-4 py-4 bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-indigo-500/10 border-b border-violet-500/20 backdrop-blur-xl">
           <div className="absolute inset-0 bg-gradient-to-r from-violet-600/5 to-purple-600/5"></div>
-          <div className="relative flex items-center justify-between min-h-[40px]">
+            <div className="relative flex items-center justify-between min-h-[40px]">
             <div className="flex items-center space-x-2">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/50">
                 <Save className="w-5 h-5 text-white" />
@@ -541,6 +648,38 @@ export default function ExpenseForm({
                 </p>
               </div>
             </div>
+            <div className="absolute right-4 top-2 flex items-center gap-2">
+              <div className="text-xs text-white/60 mr-2 hidden sm:block">Fondo:</div>
+              {/* Default - glassy violet */}
+              <button
+                title="Default"
+                onClick={() => setBgVariant('default')}
+                aria-label="Fondo predeterminado"
+                className={`w-7 h-7 rounded-full border border-white/10 flex items-center justify-center text-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                  bgVariant === 'default' ? 'ring-2 ring-violet-400 bg-gradient-to-br from-violet-500/30 to-purple-600/30' : 'bg-white/5'
+                }`}
+              ><span className="sr-only">Fondo predeterminado</span></button>
+
+              {/* Slate - deep/dark for high contrast */}
+              <button
+                title="Oscuro (Slate)"
+                onClick={() => setBgVariant('slate')}
+                aria-label="Fondo oscuro"
+                className={`w-7 h-7 rounded-full border border-white/10 flex items-center justify-center text-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                  bgVariant === 'slate' ? 'ring-2 ring-slate-400 bg-gradient-to-br from-slate-800 to-slate-700' : 'bg-slate-700'
+                }`}
+              ><span className="sr-only">Fondo oscuro</span></button>
+
+              {/* Warm - saturated amber/terracota for visibility */}
+              <button
+                title="Cálido (Warm)"
+                onClick={() => setBgVariant('warm')}
+                aria-label="Fondo cálido"
+                className={`w-7 h-7 rounded-full border border-white/10 flex items-center justify-center text-sm transition-all focus:outline-none focus:ring-2 focus:ring-offset-1 ${
+                  bgVariant === 'warm' ? 'ring-2 ring-amber-300 bg-gradient-to-br from-amber-800/40 to-amber-600/30' : 'bg-amber-600/60'
+                }`}
+              ><span className="sr-only">Fondo cálido</span></button>
+            </div>
             <button
               onClick={onCancel}
               type="button"
@@ -552,8 +691,12 @@ export default function ExpenseForm({
           </div>
         </div>
 
-  <form onSubmit={handleSubmit} className="p-0 sm:p-4 flex flex-col gap-y-6 mb-2">
-        {error && (
+  <form onSubmit={handleSubmit} className={`p-0 sm:p-6 md:p-8 ${formGridClass}`}>
+    {/* centralized hidden file inputs so uploads can be triggered from the right panel */}
+    <input ref={fileInputRef} id="receipt-file-input" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+    <input ref={multiFileInputRef} id="multiple-files-input" type="file" accept="image/*" multiple onChange={handleMultipleFileChange} className="hidden" />
+    <div className={isNew ? 'md:col-span-9 lg:col-span-9 px-6 md:px-0' : 'lg:col-span-3'}>
+        {error && !error.includes('Solo se puede modificar la categoría y la descripción de un gasto existente') && (
           <div className={`mb-6 p-4 rounded-2xl text-sm backdrop-blur-sm border animate-slideIn ${
             error.includes('💡 OCR detectó') 
               ? 'bg-blue-500/10 border-blue-500/30 text-blue-300'
@@ -567,7 +710,7 @@ export default function ExpenseForm({
         )}
 
   {/* Balance Premium Display */}
-  <div className="mb-4 p-3 sm:p-4 bg-gradient-to-br from-emerald-500/10 to-green-500/10 border border-emerald-500/30 rounded-2xl shadow backdrop-blur-sm relative overflow-hidden group hover:scale-[1.01] transition-transform duration-200">
+  <div className="mb-4 p-3 sm:p-4 bg-gradient-to-br from-emerald-500/10 to-green-500/10 border border-emerald-500/30 rounded-2xl shadow backdrop-blur-sm relative overflow-hidden group hover:scale-[1.01] transition-transform duration-200 lg:hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/5 to-green-400/5 group-hover:from-emerald-400/10 group-hover:to-green-400/10 transition-colors"></div>
           <div className="relative flex items-center justify-between" style={{minHeight:'48px'}}>
             <div className="flex items-center space-x-3">
@@ -626,6 +769,8 @@ export default function ExpenseForm({
                 min="0"
                 className="w-full px-4 py-3 bg-white/5 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white placeholder-white/30 hover:bg-white/10 font-bold text-lg"
                 placeholder="0.00"
+                disabled={isReadOnly}
+                readOnly={isReadOnly}
               />
             </div>
 
@@ -641,13 +786,22 @@ export default function ExpenseForm({
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-gray-700 font-semibold"
+                disabled={isReadOnly}
               >
-                <option value="ARS" className="bg-gray-800 text-white">🇦🇷 ARS</option>
-                <option value="USD" className="bg-gray-800 text-white">🇺🇸 USD</option>
-                <option value="EUR" className="bg-gray-800 text-white">🇪🇺 EUR</option>
-                <option value="BRL" className="bg-gray-800 text-white">🇧🇷 BRL</option>
-                <option value="CLP" className="bg-gray-800 text-white">🇨🇱 CLP</option>
-                <option value="UYU" className="bg-gray-800 text-white">🇺🇾 UYU</option>
+                {currenciesList.length === 0 ? (
+                  // Fallback to a small safe list while currencies load or in case of error
+                  [
+                    { code: 'ARS', label: '🇦🇷 ARS' },
+                    { code: 'USD', label: '🇺🇸 USD' },
+                    { code: 'EUR', label: '🇪🇺 EUR' },
+                  ].map(c => (
+                    <option key={c.code} value={c.code} className="bg-gray-800 text-white">{c.label}</option>
+                  ))
+                ) : (
+                  currenciesList.map((c) => (
+                    <option key={c.code} value={c.code} className="bg-gray-800 text-white">{(c.symbol ? c.symbol + ' ' : '') + c.code + (c.name ? ` — ${c.name}` : '')}</option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -664,6 +818,8 @@ export default function ExpenseForm({
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-3 bg-white/5 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-white/10"
+                disabled={isReadOnly}
+                readOnly={isReadOnly}
               />
             </div>
           </div>
@@ -680,13 +836,20 @@ export default function ExpenseForm({
               onChange={handleChange}
               required
               className="w-full px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-gray-700"
+              disabled={isReadOnly}
             >
               <option value="" className="bg-gray-800 text-white">Selecciona una categoría</option>
-              {EXPENSE_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat} className="bg-gray-800 text-white">
-                  {cat}
-                </option>
-              ))}
+              {(() => {
+                type Opt = { id?: number; value: string; label: string };
+                const options: Opt[] = categoriesList.length > 0
+                  ? categoriesList.map(c => ({ value: c.name, label: c.name, id: c.id }))
+                  : EXPENSE_CATEGORIES.map((c) => ({ value: c, label: c }));
+                return options.map((opt) => (
+                  <option key={String(opt.id ?? opt.value)} value={opt.value} className="bg-gray-800 text-white">
+                    {opt.label}
+                  </option>
+                ));
+              })()}
             </select>
           </div>
 
@@ -700,7 +863,9 @@ export default function ExpenseForm({
               name="tipo_comprobante_id"
               value={formData.tipo_comprobante_id}
               onChange={handleChange}
+              required
               className="w-full px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-gray-700"
+              disabled={isReadOnly}
             >
               <option value="" className="bg-gray-800 text-white">Seleccionar tipo...</option>
               {tipoComprobantes.map((tipo) => (
@@ -712,7 +877,7 @@ export default function ExpenseForm({
           </div>
 
           {/* Receipt Upload */}
-          <div>
+          <div className="lg:hidden">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Recibo / Factura (opcional)
             </label>
@@ -723,6 +888,7 @@ export default function ExpenseForm({
                 accept="image/*"
                 onChange={handleFileChange}
                 className="hidden"
+                disabled={isReadOnly}
               />
               <button
                 type="button"
@@ -779,7 +945,7 @@ export default function ExpenseForm({
             </div>
           )}
           {/* Múltiples Archivos Adjuntos */}
-          <div>
+          <div className="lg:hidden">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Archivos Adicionales
             </label>
@@ -791,6 +957,7 @@ export default function ExpenseForm({
                 onChange={handleMultipleFileChange}
                 className="hidden"
                 id="multiple-files-input"
+                disabled={isReadOnly}
               />
               <button
                 type="button"
@@ -865,28 +1032,116 @@ export default function ExpenseForm({
             </div>
           </div>
 
-          {/* Cálculo de saldo */}
-          <div>
-            {formData.amount && (
-              <div className="p-5 glass-light rounded-2xl border border-violet-500/20 backdrop-blur-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-violet-300">Saldo después del gasto:</span>
-                  <div className="text-right">
-                    <span className={`text-xl font-bold ${(userBalance - parseFloat(formData.amount)) < 0 ? 'text-rose-400' : 'bg-gradient-to-r from-emerald-300 to-green-300 bg-clip-text text-transparent'}`}>
-                      {formatCurrency(userBalance - parseFloat(formData.amount))} {formData.currency}
-                    </span>
-                    {(userBalance - parseFloat(formData.amount)) < 0 && (
-                      <div className="text-xs text-rose-400 mt-1">⚠️ Saldo negativo</div>
-                    )}
-                  </div>
+          {/* Forma de Pago (sigla) */}
+          <div className="mb-2">
+            <label htmlFor="sigla" className="block text-sm font-bold text-violet-300 mb-2 uppercase tracking-wider">
+              💳 Forma de Pago (sigla)
+            </label>
+            <select
+              id="sigla"
+              name="sigla"
+              value={formData.sigla}
+              onChange={handleChange}
+              className="w-full px-4 py-3 bg-gray-800 border border-violet-500/20 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all text-white hover:bg-gray-700"
+              required
+              disabled={isReadOnly}
+            >
+              <option value="" className="bg-gray-800 text-white">Seleccionar forma de pago</option>
+              {paymentMethods.map((m) => (
+                <option key={m.sigla} value={m.sigla} className="bg-gray-800 text-white">{m.sigla} — {m.descripcion}</option>
+              ))}
+            </select>
+            {formData.sigla && (
+              <div className="text-xs text-white/50 mt-2">Seleccionada: <span className="font-semibold">{formData.sigla}</span></div>
+            )}
+          </div>
+        </div>
+
+      </div>
+      {/* RIGHT column: balance, receipt preview and attachments (visible on lg) */}
+      <aside className="hidden md:flex md:col-span-3 lg:col-span-3 flex-col gap-4">
+        {/* Balance card */}
+        <div className="sticky top-8 p-4 bg-gradient-to-br from-emerald-500/10 to-green-500/10 border border-emerald-500/30 rounded-2xl shadow backdrop-blur-sm relative overflow-hidden group">
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/5 to-green-400/5" />
+          <div className="relative flex items-center justify-between" style={{minHeight:'48px'}}>
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg shadow-emerald-500/50">
+                <Wallet className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-emerald-300/80 uppercase tracking-wider">Saldo disponible</span>
+                <div className={`text-2xl font-bold mt-0.5 ${userBalance < 0 ? 'text-rose-400' : 'bg-gradient-to-r from-emerald-300 to-green-300 bg-clip-text text-transparent'}`}>
+                  {formatCurrency(userBalance)} {formData.currency}
                 </div>
+              </div>
+            </div>
+            {userBalance < 0 && (
+              <div className="px-3 py-1.5 bg-rose-500/20 border border-rose-500/30 rounded-lg">
+                <span className="text-xs font-bold text-rose-300">Sobregiro</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Botones Premium */}
-  <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 pt-6 border-t border-violet-500/20 w-full">
+        {/* Single receipt */}
+        <div className="p-3 bg-gray-900/30 border border-violet-500/10 rounded-2xl shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm text-white/70 font-semibold">Recibo / Factura</div>
+            <div className="text-xs text-white/40">Opcional</div>
+          </div>
+          <div className="space-y-3">
+            {receiptPreview ? (
+              <img src={receiptPreview || ''} alt="Vista previa recibo" className="w-full h-36 object-contain rounded-lg border border-violet-500/30 bg-white/5" />
+            ) : (
+              <div className="p-3 border border-dashed rounded-lg text-sm text-white/50">Sin recibo cargado</div>
+            )}
+
+            <div className="flex gap-2">
+              <button type="button" onClick={() => !isEditing && fileInputRef.current?.click()} className="px-3 py-2 rounded-lg bg-white/5 text-sm text-white/80">Subir recibo</button>
+              <button type="button" onClick={() => setShowPreviewModal(true)} disabled={!receiptPreview} className="px-3 py-2 rounded-lg bg-white/5 text-sm text-white/80">Ver</button>
+              <button type="button" onClick={extractAmountFromReceipt} disabled={isEditing || !receiptPreview} className="px-3 py-2 rounded-lg bg-gradient-to-r from-green-500 to-green-600 text-white text-sm">Extraer Importe</button>
+            </div>
+          </div>
+        </div>
+
+        {/* Multiple attachments */}
+        <div className="p-3 bg-gray-900/20 border border-blue-400/5 rounded-2xl">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm text-white/80 font-semibold">Archivos adjuntos</div>
+            <div className="text-xs text-white/30">múltiples</div>
+          </div>
+          <div className="space-y-2">
+            <button type="button" onClick={() => !isEditing && multiFileInputRef.current?.click()} disabled={isEditing} className="w-full px-3 py-2 border-2 border-dashed border-blue-300 rounded-lg text-sm text-blue-200 hover:border-blue-400">Agregar archivos</button>
+            {existingAttachments.length > 0 && (
+              <div className="mt-2 text-xs text-white/60">
+                <div className="font-medium mb-1">Guardados:</div>
+                <div className="flex gap-2 overflow-x-auto py-2">{existingAttachments.map(a => (
+                  <div key={a.filename} className="w-20 text-xs truncate text-white/70">{a.originalName}</div>
+                ))}</div>
+              </div>
+            )}
+
+            {attachments.length > 0 && (
+              <div className="mt-3 text-xs text-white/60">
+                <div className="font-medium mb-1">Nuevos (no guardados):</div>
+                <div className="flex gap-3 overflow-x-auto py-2">
+                  {attachments.map((att, idx) => (
+                    <div key={idx} className="relative group flex-shrink-0 w-20">
+                      <img src={att.preview} alt={att.file.name} className="w-full h-16 object-contain rounded-lg border border-gray-200 bg-gray-800" />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity rounded-lg">
+                        <button type="button" onClick={() => !isEditing && removeAttachment(idx)} className={`absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600` }>
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </aside>
+  <div className="md:col-span-12 mt-8 flex flex-col sm:flex-row items-center justify-end gap-4 pt-6 border-t border-violet-500/20 w-full">
           <button
             type="button"
             onClick={onCancel}
@@ -896,13 +1151,13 @@ export default function ExpenseForm({
           </button>
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isReadOnly}
             className="group relative flex items-center justify-center w-full sm:w-auto space-x-2 px-8 py-3 bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 text-white rounded-xl hover:from-violet-700 hover:via-purple-700 hover:to-indigo-700 transition-all duration-300 shadow-xl shadow-violet-500/30 hover:shadow-2xl hover:shadow-violet-500/50 transform hover:-translate-y-0.5 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none focus:outline-none focus:ring-2 focus:ring-violet-500"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-violet-500 rounded-xl blur-xl opacity-40 group-hover:opacity-60 transition-opacity duration-300 -z-10"></div>
             <Save className="w-6 h-6 relative" />
             <span className="font-bold relative">
-              {isSubmitting ? "Guardando..." : expense ? "Actualizar Gasto" : "Crear Gasto"}
+              {isReadOnly ? (expense ? 'Ver Gasto (solo lectura)' : 'Crear Gasto') : (isSubmitting ? 'Guardando...' : expense ? 'Actualizar Gasto' : 'Crear Gasto')}
             </span>
           </button>
         </div>

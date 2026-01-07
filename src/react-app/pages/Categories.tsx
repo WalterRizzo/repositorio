@@ -46,7 +46,7 @@ export default function CategoriesPage() {
       setLoading(true);
       const response = await fetch('/api/categories');
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json() as any;
         setCategories(data);
       }
     } catch (error) {
@@ -64,6 +64,7 @@ export default function CategoriesPage() {
       
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
@@ -71,8 +72,6 @@ export default function CategoriesPage() {
       if (response.ok) {
         fetchCategories();
         resetForm();
-      } else {
-        console.warn('Por favor ingresa una consulta SQL');
       }
     } catch (error) {
       console.error('Error saving category:', error);
@@ -90,17 +89,21 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = async (id: number) => {
+    if (confirm('Eliminar categoría?')) {
       try {
         const response = await fetch(`/api/categories/${id}`, {
           method: 'DELETE'
         });
+        if (!response.ok && !response.headers.get('content-type')) {
+          try { await fetch(`/api/categories/${id}`, { method: 'DELETE', credentials: 'include' }); } catch(e){}
+        }
         if (response.ok) {
           fetchCategories();
         }
       } catch (error) {
         console.error('Error deleting category:', error);
       }
-    
+    }
   };
 
   const resetForm = () => {
@@ -132,76 +135,109 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex flex-col">
       <Header userProfile={userProfile} />
-      
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+      <div className="max-w-7xl mx-auto px-4 py-10">
+        <div className="flex items-center justify-between mb-10">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Categorías</h1>
-            <p className="text-gray-600 dark:text-gray-400">Gestiona las categorías de gastos</p>
+            <h1 className="text-4xl font-extrabold text-white drop-shadow-lg">Categorías</h1>
+            <p className="text-lg text-gray-300">Gestiona las categorías de gastos</p>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nueva Categoría</span>
-          </button>
         </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {categoriesToShow.map((category) => (
+            <div key={category.id} className="relative rounded-2xl p-7 shadow-xl backdrop-blur-lg bg-white/10 border border-white/20 transition-transform hover:-translate-y-2 hover:shadow-2xl group">
+              <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
+                  <>
+                    <button onClick={() => handleEdit(category)} className="p-2 rounded-full bg-white/20 hover:bg-indigo-500 text-indigo-300 hover:text-white shadow">
+                      <Edit2 className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => handleDelete(category.id)} className="p-2 rounded-full bg-white/20 hover:bg-red-500 text-red-300 hover:text-white shadow">
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-16 h-16 rounded-xl flex items-center justify-center shadow-lg" style={{ background: category.color, boxShadow: `0 0 0 4px ${category.color}55` }}>
+                  <Tag className="w-8 h-8 text-white drop-shadow" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white mb-1 tracking-tight">{category.name}</h3>
+                  {category.description && (
+                    <p className="text-base text-gray-200 font-medium max-w-[220px]">{category.description}</p>
+                  )}
+                </div>
+              </div>
+              <div className="text-sm text-gray-400 mt-2">Creada: {new Date(category.created_at).toLocaleDateString()}</div>
+            </div>
+          ))}
+        </div>
+
+        {(userProfile?.role === 'admin' || userProfile?.role === 'supervisor') && (
+          <button
+            onClick={() => setShowForm(true)}
+            className="fixed bottom-10 right-10 z-50 flex items-center gap-3 px-6 py-4 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white text-lg font-bold rounded-full shadow-2xl hover:scale-105 hover:shadow-pink-500/40 transition-all"
+            style={{boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)'}}>
+            <Plus className="w-7 h-7" />
+            Nueva Categoría
+          </button>
+        )}
+
         {showForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 w-full max-w-md shadow-2xl border border-white/20">
+              <h2 className="text-2xl font-extrabold mb-6 text-gray-900 dark:text-white text-center">
                 {editingCategory ? 'Editar Categoría' : 'Nueva Categoría'}
               </h2>
               <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <div className="mb-6">
+                  <label className="block text-lg font-bold text-gray-700 dark:text-gray-300 mb-2">
                     Nombre
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white text-lg"
                     required
                   />
                 </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <div className="mb-6">
+                  <label className="block text-lg font-bold text-gray-700 dark:text-gray-300 mb-2">
                     Descripción
                   </label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-indigo-500 dark:bg-gray-800 dark:text-white text-lg"
                     rows={3}
                   />
                 </div>
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <div className="mb-8">
+                  <label className="block text-lg font-bold text-gray-700 dark:text-gray-300 mb-2">
                     Color
                   </label>
                   <input
                     type="color"
                     value={formData.color}
                     onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    className="w-16 h-10 border border-gray-300 dark:border-gray-600 rounded-lg"
+                    className="w-20 h-12 border border-gray-300 dark:border-gray-600 rounded-xl"
                   />
                 </div>
-                <div className="flex justify-end space-x-3">
+                <div className="flex justify-end gap-4">
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                    className="px-5 py-3 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-lg font-bold"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    className="px-5 py-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white rounded-xl text-lg font-bold shadow-lg hover:scale-105 transition-all"
                   >
                     {editingCategory ? 'Actualizar' : 'Crear'}
                   </button>
@@ -211,51 +247,9 @@ export default function CategoriesPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categoriesToShow.map((category) => (
-            <div key={category.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div 
-                    className="w-10 h-10 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: category.color }}
-                  >
-                    <Tag className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">{category.name}</h3>
-                    {category.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{category.description}</p>
-                    )}
-                  </div>
-                </div>
-                {userProfile?.role === 'admin' && (
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleEdit(category)}
-                      className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(category.id)}
-                      className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                Creada: {new Date(category.created_at).toLocaleDateString()}
-              </div>
-            </div>
-          ))}
-        </div>
-
         {loading && (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-indigo-500 mx-auto"></div>
           </div>
         )}
       </div>

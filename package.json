@@ -1,23 +1,20 @@
 {
   "name": "expense-app-v2",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.4",
   "type": "module",
   "dependencies": {
-      "bcryptjs": "^2.4.3",
-      "jose": "^4.16.1",
     "@hono/zod-validator": "^0.5.0",
-    "exceljs": "^4.4.0",
-    "file-saver": "^2.0.5",
     "hono": "^4.10.4",
     "lucide-react": "^0.510.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
+    "react-hook-form": "^7.70.0",
     "react-router": "^7.5.3",
     "recharts": "^3.3.0",
     "tesseract.js": "^6.0.1",
     "xlsx": "^0.18.5",
-    "zod": "^3.24.3"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.12.0",
@@ -41,8 +38,12 @@
   },
   "scripts": {
     "build": "tsc -b && vite build",
+    "check": "tsc && vite build",
     "cf-typegen": "wrangler types",
-    "check": "tsc && vite build && wrangler deploy --dry-run",
+    "deploy:prod": "node scripts/ensure-wrangler-config.js && npm run build && npx wrangler deploy --config ./wrangler.json",
+    "deploy:dry-root": "node scripts/ensure-wrangler-config.js && npx wrangler deploy --dry-run --config ./wrangler.json",
+    "deploy:static": "npm run build && node scripts/prepare-static-deploy.js",
+    "deploy:wrangler": "wrangler publish --env production",
     "dev": "vite",
     "lint": "eslint ."
   }

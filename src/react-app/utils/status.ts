@@ -3,12 +3,13 @@ export type ExpenseStatus = 'pendiente' | 'aprobado' | 'rechazado';
 export function getStatusBadgeClasses(status: ExpenseStatus) {
   switch (status) {
     case 'aprobado':
-      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      // Use neutral text color only (no colored background) so grids look cleaner
+      return 'text-green-600 dark:text-green-300';
     case 'rechazado':
-      return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
+      return 'text-orange-500 dark:text-orange-300';
     case 'pendiente':
     default:
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      return 'text-blue-600 dark:text-blue-300';
   }
 }
 

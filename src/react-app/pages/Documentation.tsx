@@ -11,7 +11,7 @@ export default function Documentation() {
 
   return (
     <div className="min-h-screen p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-3xl p-12 mb-8 shadow-2xl">
           <div className="flex items-center justify-between">

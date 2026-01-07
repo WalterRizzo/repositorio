@@ -1,0 +1,43 @@
+name: Deploy to Production (Cloudflare Workers)
+
+on:
+  push:
+    branches:
+      - 'produccion'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build_and_deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (tsc + vite)
+        run: npm run build
+
+      - name: Info — no automatic deploy
+        run: |
+          echo "Automatic deploy removed for safety: this workflow only builds on branch 'produccion'."
+          echo "To deploy, run the included script locally (deploy-production.sh / deploy-production.ps1) from a terminal authenticated with Wrangler (npx wrangler auth login)."
