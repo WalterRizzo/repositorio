@@ -85,15 +85,22 @@ export default function ChequesPage() {
   };
 
   const handleSubmitCheque = async (data: Omit<Check, 'id' | 'created_at' | 'updated_at'>) => {
-    const res = await api.checks.$post({ json: data });
-    if (res.ok) {
-      fetchCheques(filters);
-      fetchSummary();
-      handleCloseModal();
-    } else {
-      // Handle error
-      const error = await res.json();
-      alert(`Error: ${error.message}`);
+    try {
+      const res = await api.checks.$post({ json: data });
+      const responseData = await res.json() as any;
+      
+      if (res.ok && responseData.ok) {
+        fetchCheques(filters);
+        fetchSummary();
+        handleCloseModal();
+        alert('Cheque registrado correctamente');
+      } else {
+        const errorMsg = responseData.error || responseData.message || 'Error desconocido';
+        alert(`Error: ${errorMsg}`);
+      }
+    } catch (error) {
+      console.error('Error submitting cheque:', error);
+      alert(`Error al guardar el cheque: ${String(error)}`);
     }
   };
 
