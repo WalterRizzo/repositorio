@@ -8,14 +8,24 @@ type ChequesTableProps = {
 const statusOptions = ['en cartera', 'depositado', 'endosado', 'pagado', 'rechazado', 'anulado'];
 
 const getDaysRemaining = (dueDate: string) => {
+  // Parse date as YYYY-MM-DD (local date, not UTC)
+  const [year, month, day] = dueDate.split('-').map(Number);
+  const due = new Date(year, month - 1, day, 12, 0, 0); // Use noon to avoid timezone issues
+  
   const today = new Date();
-  const due = new Date(dueDate);
-  // Set hours to 0 to compare dates only
   today.setHours(0, 0, 0, 0);
   due.setHours(0, 0, 0, 0);
+  
   const diffTime = due.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
+};
+
+const formatDate = (dateStr: string) => {
+  // Parse date as YYYY-MM-DD (local date, not UTC)
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString('es-AR', { year: 'numeric', month: '2-digit', day: '2-digit' });
 };
 
 export default function ChequesTable({ cheques, onStatusChange }: ChequesTableProps) {
@@ -44,7 +54,7 @@ export default function ChequesTable({ cheques, onStatusChange }: ChequesTablePr
                 <td className="px-6 py-4">{cheque.numero_cheque}</td>
                 <td className="px-6 py-4">{cheque.banco}</td>
                 <td className="px-6 py-4">{cheque.emisor_beneficiario}</td>
-                <td className="px-6 py-4">{new Date(cheque.fecha_vencimiento).toLocaleDateString()}</td>
+                <td className="px-6 py-4">{formatDate(cheque.fecha_vencimiento)}</td>
                 <td className={`px-6 py-4 font-bold ${daysRemaining < 0 ? 'text-red-500' : daysRemaining <= 7 ? 'text-yellow-500' : 'text-white'}`}>
                   {daysRemaining}
                 </td>
