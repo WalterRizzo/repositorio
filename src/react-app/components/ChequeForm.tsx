@@ -1,13 +1,51 @@
 import { useForm } from 'react-hook-form';
 import { Check } from '../types/check';
+import { useEffect, useState } from 'react';
 
 type ChequeFormProps = {
   onSubmit: (data: Omit<Check, 'id' | 'created_at' | 'updated_at'>) => void;
   onCancel: () => void;
 };
 
+type Currency = {
+  id: number;
+  code: string;
+  nombre: string;
+  simbolo?: string;
+};
+
 export default function ChequeForm({ onSubmit, onCancel }: ChequeFormProps) {
   const { register, handleSubmit, formState: { errors } } = useForm<Omit<Check, 'id' | 'created_at' | 'updated_at'>>();
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [loadingCurrencies, setLoadingCurrencies] = useState(true);
+
+  useEffect(() => {
+    fetchCurrencies();
+  }, []);
+
+  const fetchCurrencies = async () => {
+    try {
+      const response = await fetch('/api/dba/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: 'SELECT id, code, nombre, simbolo FROM currencies ORDER BY code ASC' }),
+      });
+      const data = (await response.json()) as any;
+      if (data.results) {
+        setCurrencies(data.results);
+      }
+    } catch (error) {
+      console.error('Error fetching currencies:', error);
+      // Fallback a monedas comunes
+      setCurrencies([
+        { id: 1, code: 'ARS', nombre: 'Peso Argentino', simbolo: '$' },
+        { id: 2, code: 'USD', nombre: 'Dólar Estadounidense', simbolo: 'U$S' },
+        { id: 3, code: 'EUR', nombre: 'Euro', simbolo: '€' },
+      ]);
+    } finally {
+      setLoadingCurrencies(false);
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -57,7 +95,17 @@ export default function ChequeForm({ onSubmit, onCancel }: ChequeFormProps) {
 
       <div>
         <label htmlFor="moneda" className="block text-sm font-medium text-gray-300">Moneda</label>
-        <input {...register('moneda', { required: true })} type="text" defaultValue="ARS" className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white" />
+        <select {...register('moneda', { required: true })} defaultValue="ARS" disabled={loadingCurrencies} className="mt-1 block w-full rounded-md bg-gray-700 border-gray-600 text-white">
+          {loadingCurrencies ? (
+            <option>Cargando monedas...</option>
+          ) : (
+            currencies.map(currency => (
+              <option key={currency.code} value={currency.code}>
+                {currency.code} - {currency.nombre}
+              </option>
+            ))
+          )}
+        </select>
         {errors.moneda && <span className="text-red-500 text-xs">Este campo es requerido</span>}
       </div>
 
