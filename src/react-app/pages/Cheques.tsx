@@ -9,6 +9,7 @@ import { hc } from 'hono/client';
 import type { AppType } from '@/client';
 import ChequesSummary from '../components/ChequesSummary';
 import ChequesFilters, { FilterState } from '../components/ChequesFilters';
+import * as XLSX from 'xlsx';
 
 const client = hc<AppType>('/');
 const api = (client as any).api;
@@ -128,26 +129,50 @@ export default function ChequesPage() {
       return;
     }
 
-    const headers = Object.keys(cheques[0]);
-    const csvRows = [
-      headers.join(','),
-      ...cheques.map(row =>
-        headers.map(fieldName =>
-          JSON.stringify(row[fieldName as keyof Check], (_key, value) => value === null ? '' : value)
-        ).join(',')
-      )
+    // Prepare data for Excel with proper formatting
+    const dataForExcel = cheques.map(cheque => ({
+      'ID': cheque.id,
+      'Tipo': cheque.tipo,
+      'Número': cheque.numero_cheque,
+      'Banco': cheque.banco,
+      'Emisor/Beneficiario': cheque.emisor_beneficiario,
+      'Fecha Emisión': cheque.fecha_emision,
+      'Fecha Vencimiento': cheque.fecha_vencimiento,
+      'Importe': cheque.importe,
+      'Moneda': cheque.moneda,
+      'Estado': cheque.estado,
+      'Observaciones': cheque.observaciones || '',
+      'Fecha Creación': cheque.created_at,
+      'Última Actualización': cheque.updated_at,
+    }));
+
+    // Create workbook and worksheet
+    const worksheet = XLSX.utils.json_to_sheet(dataForExcel);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Cheques');
+
+    // Set column widths for better readability
+    worksheet['!cols'] = [
+      { wch: 5 },   // ID
+      { wch: 12 },  // Tipo
+      { wch: 15 },  // Número
+      { wch: 15 },  // Banco
+      { wch: 20 },  // Emisor/Beneficiario
+      { wch: 15 },  // Fecha Emisión
+      { wch: 18 },  // Fecha Vencimiento
+      { wch: 12 },  // Importe
+      { wch: 10 },  // Moneda
+      { wch: 15 },  // Estado
+      { wch: 20 },  // Observaciones
+      { wch: 20 },  // Fecha Creación
+      { wch: 20 },  // Última Actualización
     ];
+
+    // Generate filename with date
+    const filename = `reporte_cheques_${new Date().toISOString().slice(0, 10)}.xlsx`;
     
-    const csvString = csvRows.join('\r\n');
-    const blob = new Blob([csvString], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.setAttribute('hidden', '');
-    a.setAttribute('href', url);
-    a.setAttribute('download', `reporte_cheques_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    // Write Excel file
+    XLSX.writeFile(workbook, filename);
   };
 
   return (
@@ -165,7 +190,7 @@ export default function ChequesPage() {
                 Registrar Cheque
               </button>
               <button onClick={handleExport} className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
-                Exportar a CSV
+                Exportar a Excel
               </button>
             </div>
           </div>
