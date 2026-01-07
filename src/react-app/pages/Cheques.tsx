@@ -9,6 +9,7 @@ import { hc } from 'hono/client';
 import type { AppType } from '@/client';
 import ChequesSummary from '../components/ChequesSummary';
 import ChequesFilters, { FilterState } from '../components/ChequesFilters';
+import ChequesAlertBanner from '../components/ChequesAlertBanner';
 import * as XLSX from 'xlsx';
 
 const client = hc<AppType>('/');
@@ -36,6 +37,7 @@ export default function ChequesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
+  const [alertData, setAlertData] = useState<any>(null);
 
   const fetchCheques = async (currentFilters: FilterState) => {
     const res = await api.checks.$get({
@@ -50,10 +52,21 @@ export default function ChequesPage() {
   };
 
   const fetchSummary = async () => {
-    const res = await api.checks.summary.$get();
-    const data = await res.json();
-    if (data.ok) {
-      setSummary(data.data);
+    try {
+      const res = await api.checks.summary.$get();
+      const data = (await res.json()) as any;
+      if (data.ok) {
+        setSummary(data.data);
+        // Extraer datos de alertas
+        setAlertData({
+          overdueCount: data.alerts?.overdueCount || 0,
+          upcoming7Count: data.upcoming?.['7_days']?.count || 0,
+          overdueTotal: data.alerts?.overdue?.reduce((sum: number, c: any) => sum + (c.importe || 0), 0) || 0,
+          upcoming7Total: data.upcoming?.['7_days']?.total || 0,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching summary:', error);
     }
   };
 
@@ -181,6 +194,15 @@ export default function ChequesPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-900 p-4">
+          {/* Alert Banner for Overdue and Upcoming Cheques */}
+          {alertData && (
+            <ChequesAlertBanner 
+              overdueCount={alertData.overdueCount}
+              upcoming7Count={alertData.upcoming7Count}
+              overdueTotal={alertData.overdueTotal}
+              upcoming7Total={alertData.upcoming7Total}
+            />
+          )}
           <ChequesSummary summary={summary} />
           <ChequesFilters filters={filters} onFilterChange={setFilters} onReset={handleFilterReset} />
           <div className="flex justify-between items-center mb-4">

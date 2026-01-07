@@ -147,37 +147,39 @@ app.get('/checks/summary', authMiddleware, async (c) => {
   const today = new Date().toISOString().split('T')[0];
 
   try {
-    // Cheques vencidos
+    // Cheques vencidos (con nombres en español)
     const { results: overdue } = await db.prepare(
-        "SELECT * FROM checks WHERE due_date < ? AND status NOT IN ('pagado', 'anulado')"
+        "SELECT * FROM checks WHERE fecha_vencimiento < ? AND estado NOT IN ('pagado', 'anulado')"
     ).bind(today).all();
 
     // Cheques próximos a vencer (7, 15, 30 días)
     const { results: upcoming7 } = await db.prepare(
-        "SELECT COUNT(*) as count, SUM(amount) as total FROM checks WHERE due_date BETWEEN ? AND date(?, '+7 days') AND status = 'en cartera'"
+        "SELECT COUNT(*) as count, SUM(importe) as total FROM checks WHERE fecha_vencimiento BETWEEN ? AND date(?, '+7 days') AND estado = 'en cartera'"
     ).bind(today, today).all();
     
     const { results: upcoming15 } = await db.prepare(
-        "SELECT COUNT(*) as count, SUM(amount) as total FROM checks WHERE due_date BETWEEN date(?, '+8 days') AND date(?, '+15 days') AND status = 'en cartera'"
+        "SELECT COUNT(*) as count, SUM(importe) as total FROM checks WHERE fecha_vencimiento BETWEEN date(?, '+8 days') AND date(?, '+15 days') AND estado = 'en cartera'"
     ).bind(today, today).all();
 
     const { results: upcoming30 } = await db.prepare(
-        "SELECT COUNT(*) as count, SUM(amount) as total FROM checks WHERE due_date BETWEEN date(?, '+16 days') AND date(?, '+30 days') AND status = 'en cartera'"
+        "SELECT COUNT(*) as count, SUM(importe) as total FROM checks WHERE fecha_vencimiento BETWEEN date(?, '+16 days') AND date(?, '+30 days') AND estado = 'en cartera'"
     ).bind(today, today).all();
 
     // Totales por estado
     const { results: byStatus } = await db.prepare(
-        "SELECT status, COUNT(*) as count, SUM(amount) as total FROM checks GROUP BY status"
+        "SELECT estado as status, COUNT(*) as count, SUM(importe) as total FROM checks GROUP BY estado"
     ).all();
 
     // Totales por banco
     const { results: byBank } = await db.prepare(
-        "SELECT bank, COUNT(*) as count, SUM(amount) as total FROM checks WHERE status = 'en cartera' GROUP BY bank"
+        "SELECT banco as bank, COUNT(*) as count, SUM(importe) as total FROM checks WHERE estado = 'en cartera' GROUP BY banco"
     ).all();
 
     return c.json({
+        ok: true,
         alerts: {
-            overdue,
+            overdue: overdue || [],
+            overdueCount: overdue?.length || 0,
         },
         upcoming: {
             '7_days': upcoming7[0],
